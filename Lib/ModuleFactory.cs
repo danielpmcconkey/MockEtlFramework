@@ -28,9 +28,9 @@ public static class ModuleFactory
         el.GetProperty("schema").GetString()!,
         el.GetProperty("table").GetString()!,
         el.GetProperty("columns").EnumerateArray().Select(c => c.GetString()!).ToArray(),
-        DateOnly.Parse(el.GetProperty("minEffectiveDate").GetString()!),
-        DateOnly.Parse(el.GetProperty("maxEffectiveDate").GetString()!),
-        el.TryGetProperty("additionalFilter", out var af) ? af.GetString() ?? "" : ""
+        el.TryGetProperty("minEffectiveDate", out var minEl) ? DateOnly.Parse(minEl.GetString()!) : null,
+        el.TryGetProperty("maxEffectiveDate", out var maxEl) ? DateOnly.Parse(maxEl.GetString()!) : null,
+        el.TryGetProperty("additionalFilter", out var af)    ? af.GetString() ?? ""                : ""
     );
 
     private static Transformation CreateTransformation(JsonElement el) => new(

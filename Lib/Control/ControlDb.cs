@@ -87,16 +87,38 @@ internal static class ControlDb
         return ids;
     }
 
-    internal static int GetNextAttemptNumber(int jobId, DateOnly runDate)
+    /// <summary>
+    /// Returns the last max_effective_date among all Succeeded runs for this job, or null if
+    /// the job has never succeeded. Used by the executor to determine the gap-fill start date.
+    /// </summary>
+    internal static DateOnly? GetLastSucceededMaxEffectiveDate(int jobId)
+    {
+        using var conn = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
+        conn.Open();
+        using var cmd = new NpgsqlCommand(
+            "SELECT MAX(max_effective_date) FROM control.job_runs " +
+            "WHERE job_id = @jobId AND status = 'Succeeded' AND max_effective_date IS NOT NULL",
+            conn);
+        cmd.Parameters.AddWithValue("jobId", jobId);
+        var result = cmd.ExecuteScalar();
+        return result is DBNull or null ? null : DateOnly.FromDateTime(Convert.ToDateTime(result));
+    }
+
+    /// <summary>
+    /// Returns the next attempt number for the given (job, effective date range) pair.
+    /// Attempt number increments on each retry of the same effective date range.
+    /// </summary>
+    internal static int GetNextAttemptNumber(int jobId, DateOnly minEffDate, DateOnly maxEffDate)
     {
         using var conn = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
         conn.Open();
         using var cmd = new NpgsqlCommand(
             "SELECT COALESCE(MAX(attempt_number), 0) + 1 FROM control.job_runs " +
-            "WHERE job_id = @jobId AND run_date = @runDate",
+            "WHERE job_id = @jobId AND min_effective_date = @minEff AND max_effective_date = @maxEff",
             conn);
-        cmd.Parameters.AddWithValue("jobId", jobId);
-        cmd.Parameters.AddWithValue("runDate", runDate);
+        cmd.Parameters.AddWithValue("jobId",  jobId);
+        cmd.Parameters.AddWithValue("minEff", minEffDate);
+        cmd.Parameters.AddWithValue("maxEff", maxEffDate);
         return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
@@ -104,19 +126,28 @@ internal static class ControlDb
     // Write
     // -------------------------------------------------------------------------
 
-    /// <summary>Inserts a Pending run record and returns the new run_id.</summary>
-    internal static int InsertRun(int jobId, DateOnly runDate, int attemptNumber, string triggeredBy)
+    /// <summary>
+    /// Inserts a Pending run record and returns the new run_id.
+    /// minEffDate / maxEffDate may be null for Skipped rows where no data was processed.
+    /// </summary>
+    internal static int InsertRun(int jobId, DateOnly runDate,
+        DateOnly? minEffDate, DateOnly? maxEffDate,
+        int attemptNumber, string triggeredBy)
     {
         using var conn = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
         conn.Open();
         using var cmd = new NpgsqlCommand(
-            "INSERT INTO control.job_runs (job_id, run_date, attempt_number, status, triggered_by) " +
-            "VALUES (@jobId, @runDate, @attemptNumber, 'Pending', @triggeredBy) RETURNING run_id",
+            "INSERT INTO control.job_runs " +
+            "(job_id, run_date, min_effective_date, max_effective_date, attempt_number, status, triggered_by) " +
+            "VALUES (@jobId, @runDate, @minEff, @maxEff, @attemptNumber, 'Pending', @triggeredBy) " +
+            "RETURNING run_id",
             conn);
-        cmd.Parameters.AddWithValue("jobId",         jobId);
-        cmd.Parameters.AddWithValue("runDate",        runDate);
-        cmd.Parameters.AddWithValue("attemptNumber",  attemptNumber);
-        cmd.Parameters.AddWithValue("triggeredBy",    triggeredBy);
+        cmd.Parameters.AddWithValue("jobId",        jobId);
+        cmd.Parameters.AddWithValue("runDate",       runDate);
+        cmd.Parameters.AddWithValue("minEff",        (object?)minEffDate ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("maxEff",        (object?)maxEffDate ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("attemptNumber", attemptNumber);
+        cmd.Parameters.AddWithValue("triggeredBy",   triggeredBy);
         return Convert.ToInt32(cmd.ExecuteScalar());
     }
 

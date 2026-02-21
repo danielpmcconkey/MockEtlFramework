@@ -2,30 +2,42 @@ using Lib.Control;
 
 namespace JobExecutor;
 
+/// <summary>
+/// Usage:
+///   JobExecutor                           — auto-advance all active jobs
+///   JobExecutor &lt;job_name&gt;               — auto-advance one specific job
+///   JobExecutor &lt;effective_date&gt;          — run exactly that date, all jobs  (backfill)
+///   JobExecutor &lt;effective_date&gt; &lt;job_name&gt; — run exactly that date, one job (backfill)
+///
+/// effective_date format: yyyy-MM-dd
+/// If the first argument parses as a date it is treated as an effective_date override;
+/// otherwise it is treated as a job name and auto-advance mode is used.
+/// </summary>
 class Program
 {
     static void Main(string[] args)
     {
-        if (args.Length < 1)
-        {
-            Console.WriteLine("Usage: JobExecutor <run_date> [job_name]");
-            Console.WriteLine("  run_date — yyyy-MM-dd");
-            Console.WriteLine("  job_name — optional; runs only that job if supplied");
-            return;
-        }
+        DateOnly? effectiveDate = null;
+        string?   jobName      = null;
 
-        if (!DateOnly.TryParseExact(args[0], "yyyy-MM-dd",
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None,
-                out var runDate))
+        if (args.Length >= 1)
         {
-            Console.WriteLine($"Invalid run_date '{args[0]}'. Expected format: yyyy-MM-dd");
-            return;
+            if (DateOnly.TryParseExact(args[0], "yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out var parsed))
+            {
+                effectiveDate = parsed;
+                jobName = args.Length >= 2 ? args[1] : null;
+            }
+            else
+            {
+                // First arg is not a date — treat it as a job name.
+                jobName = args[0];
+            }
         }
-
-        string? jobName = args.Length >= 2 ? args[1] : null;
 
         var service = new JobExecutorService();
-        service.Run(runDate, jobName);
+        service.Run(effectiveDate, jobName);
     }
 }

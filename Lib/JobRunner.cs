@@ -8,7 +8,8 @@ namespace Lib;
 /// </summary>
 public class JobRunner
 {
-    public Dictionary<string, object> Run(string jobConfPath)
+    public Dictionary<string, object> Run(string jobConfPath,
+        Dictionary<string, object>? initialState = null)
     {
         var json = File.ReadAllText(jobConfPath);
 
@@ -19,7 +20,9 @@ public class JobRunner
 
         Console.WriteLine($"[JobRunner] Starting job: {jobConf.JobName}");
 
-        var sharedState = new Dictionary<string, object>();
+        var sharedState = initialState != null
+            ? new Dictionary<string, object>(initialState)
+            : new Dictionary<string, object>();
 
         foreach (var moduleElement in jobConf.Modules)
         {

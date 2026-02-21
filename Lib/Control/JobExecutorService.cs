@@ -1,28 +1,42 @@
+using System.Text.Json;
+
 namespace Lib.Control;
 
 /// <summary>
-/// Orchestrates the execution of registered ETL jobs for a given run_date.
+/// Orchestrates the execution of registered ETL jobs.
 ///
-/// For each run_date:
-///   1. Loads active jobs and dependency graph from control schema.
-///   2. Excludes jobs that already have a Succeeded run for this run_date.
-///   3. Produces a topologically sorted execution plan.
-///   4. Runs each job in order, recording Pending → Running → Succeeded/Failed in control.job_runs.
-///   5. Any job whose SameDay upstream dependency failed this invocation is recorded as Skipped.
+/// Effective date handling:
+///   - The executor computes effective dates automatically from each job's run history.
+///   - On first run (no prior Succeeded rows), the start date is read from the job conf's
+///     firstEffectiveDate field.
+///   - On subsequent runs, the start date is (last Succeeded max_effective_date + 1 day).
+///   - The end date is always today. The executor gap-fills one day at a time until caught up.
+///   - Effective dates are injected into shared state before the pipeline runs, under the
+///     reserved keys DataSourcing.MinDateKey and DataSourcing.MaxDateKey.
+///
+/// run_date in control.job_runs is always set to today's date (the actual execution date),
+/// regardless of which effective date is being processed.
+///
+/// When effectiveDateOverride is supplied (backfill / rerun), only that single date is
+/// executed and gap-fill is skipped.
 /// </summary>
 public class JobExecutorService
 {
-    public void Run(DateOnly runDate, string? specificJobName = null)
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    public void Run(DateOnly? effectiveDateOverride = null, string? specificJobName = null)
     {
+        DateOnly runDate = DateOnly.FromDateTime(DateTime.Today);
+
         Console.WriteLine($"[JobExecutorService] run_date = {runDate:yyyy-MM-dd}" +
+                          (effectiveDateOverride.HasValue ? $", effective_date = {effectiveDateOverride:yyyy-MM-dd}" : " (auto-advance)") +
                           (specificJobName != null ? $", job = {specificJobName}" : ""));
 
-        var allJobs        = ControlDb.GetActiveJobs();
-        var allDeps        = ControlDb.GetAllDependencies();
+        var allJobs       = ControlDb.GetActiveJobs();
+        var allDeps       = ControlDb.GetAllDependencies();
         var succeededToday = ControlDb.GetSucceededJobIds(runDate);
         var everSucceeded  = ControlDb.GetEverSucceededJobIds();
 
-        // Narrow to a single job when requested.
         List<JobRegistration> jobsToConsider;
         if (specificJobName != null)
         {
@@ -41,18 +55,16 @@ public class JobExecutorService
 
         if (plan.Count == 0)
         {
-            Console.WriteLine("[JobExecutorService] Nothing to run — all jobs already succeeded for this run_date.");
+            Console.WriteLine("[JobExecutorService] Nothing to run.");
             return;
         }
 
         Console.WriteLine($"[JobExecutorService] {plan.Count} job(s) in plan.");
 
-        // Track jobs that fail during this invocation so their SameDay dependents can be skipped.
         var failedThisRun = new HashSet<int>();
 
         foreach (var job in plan)
         {
-            // Skip if any SameDay upstream failed during this invocation.
             bool upstreamFailed = allDeps
                 .Where(d => d.JobId == job.JobId && d.DependencyType == "SameDay")
                 .Any(d => failedThisRun.Contains(d.DependsOnJobId));
@@ -60,37 +72,53 @@ public class JobExecutorService
             if (upstreamFailed)
             {
                 Console.WriteLine($"[JobExecutorService] Skipping '{job.JobName}' — SameDay upstream failed.");
-                int skipAttempt = ControlDb.GetNextAttemptNumber(job.JobId, runDate);
-                int skipRunId   = ControlDb.InsertRun(job.JobId, runDate, skipAttempt, "dependency");
+                int skipRunId = ControlDb.InsertRun(job.JobId, runDate, null, null, 1, "dependency");
                 ControlDb.MarkSkipped(skipRunId);
                 continue;
             }
 
-            int attemptNum = ControlDb.GetNextAttemptNumber(job.JobId, runDate);
-            int runId      = ControlDb.InsertRun(job.JobId, runDate, attemptNum, "scheduler");
-            ControlDb.MarkRunning(runId);
+            IEnumerable<DateOnly> effectiveDates = effectiveDateOverride.HasValue
+                ? [effectiveDateOverride.Value]
+                : GetPendingEffectiveDates(job);
 
-            Console.WriteLine($"[JobExecutorService] Running '{job.JobName}' " +
-                              $"(run_id={runId}, attempt={attemptNum})...");
-            try
+            bool jobFailed = false;
+
+            foreach (var effDate in effectiveDates)
             {
-                var runner     = new JobRunner();
-                var finalState = runner.Run(job.JobConfPath);
+                if (jobFailed) break; // don't advance past a failure
 
-                // rows_processed: count rows in any DataFrame present in final shared state.
-                int? rowsProcessed = null;
-                var frames = finalState.Values.OfType<DataFrames.DataFrame>().ToList();
-                if (frames.Count > 0)
-                    rowsProcessed = frames.Sum(f => f.Count);
+                int attemptNum = ControlDb.GetNextAttemptNumber(job.JobId, effDate, effDate);
+                int runId      = ControlDb.InsertRun(job.JobId, runDate, effDate, effDate, attemptNum, "scheduler");
+                ControlDb.MarkRunning(runId);
 
-                ControlDb.MarkSucceeded(runId, rowsProcessed);
-                Console.WriteLine($"[JobExecutorService] '{job.JobName}' succeeded.");
-            }
-            catch (Exception ex)
-            {
-                ControlDb.MarkFailed(runId, ex.ToString());
-                failedThisRun.Add(job.JobId);
-                Console.WriteLine($"[JobExecutorService] '{job.JobName}' FAILED: {ex.Message}");
+                Console.WriteLine($"[JobExecutorService] Running '{job.JobName}' " +
+                                  $"eff={effDate:yyyy-MM-dd} (run_id={runId}, attempt={attemptNum})...");
+                try
+                {
+                    var initialState = new Dictionary<string, object>
+                    {
+                        [Modules.DataSourcing.MinDateKey] = effDate,
+                        [Modules.DataSourcing.MaxDateKey] = effDate
+                    };
+
+                    var runner     = new JobRunner();
+                    var finalState = runner.Run(job.JobConfPath, initialState);
+
+                    int? rowsProcessed = null;
+                    var frames = finalState.Values.OfType<DataFrames.DataFrame>().ToList();
+                    if (frames.Count > 0)
+                        rowsProcessed = frames.Sum(f => f.Count);
+
+                    ControlDb.MarkSucceeded(runId, rowsProcessed);
+                    Console.WriteLine($"[JobExecutorService] '{job.JobName}' {effDate:yyyy-MM-dd} succeeded.");
+                }
+                catch (Exception ex)
+                {
+                    ControlDb.MarkFailed(runId, ex.ToString());
+                    jobFailed = true;
+                    failedThisRun.Add(job.JobId);
+                    Console.WriteLine($"[JobExecutorService] '{job.JobName}' {effDate:yyyy-MM-dd} FAILED: {ex.Message}");
+                }
             }
         }
 
@@ -98,5 +126,50 @@ public class JobExecutorService
         Console.WriteLine(failures == 0
             ? "[JobExecutorService] All jobs completed successfully."
             : $"[JobExecutorService] Done. {failures} job(s) failed.");
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Returns the sequence of effective dates this job still needs to process,
+    /// from (last Succeeded max_effective_date + 1 day) up to and including today.
+    /// Uses firstEffectiveDate from the job conf when no prior successful runs exist.
+    /// </summary>
+    private static IEnumerable<DateOnly> GetPendingEffectiveDates(JobRegistration job)
+    {
+        var lastMax   = ControlDb.GetLastSucceededMaxEffectiveDate(job.JobId);
+        DateOnly today = DateOnly.FromDateTime(DateTime.Today);
+
+        DateOnly startDate;
+        if (lastMax.HasValue)
+        {
+            startDate = lastMax.Value.AddDays(1);
+        }
+        else
+        {
+            var conf = ReadJobConf(job.JobConfPath);
+            startDate = conf.FirstEffectiveDate
+                ?? throw new InvalidOperationException(
+                    $"Job '{job.JobName}' has no prior successful runs and no firstEffectiveDate " +
+                    $"in its job conf. Add a firstEffectiveDate field to '{job.JobConfPath}'.");
+        }
+
+        if (startDate > today)
+        {
+            Console.WriteLine($"[JobExecutorService] '{job.JobName}' is already up to date (last max = {lastMax:yyyy-MM-dd}).");
+            yield break;
+        }
+
+        for (var d = startDate; d <= today; d = d.AddDays(1))
+            yield return d;
+    }
+
+    private static JobConf ReadJobConf(string path)
+    {
+        var json = File.ReadAllText(path);
+        return JsonSerializer.Deserialize<JobConf>(json, JsonOpts)
+            ?? throw new InvalidOperationException($"Failed to deserialize job conf at '{path}'.");
     }
 }

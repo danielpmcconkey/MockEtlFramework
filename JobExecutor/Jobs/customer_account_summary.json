@@ -1,23 +1,20 @@
 {
   "jobName": "CustomerAccountSummary",
+  "firstEffectiveDate": "2024-10-01",
   "modules": [
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"],
-      "minEffectiveDate": "2024-10-31",
-      "maxEffectiveDate": "2024-10-31"
+      "columns": ["id", "first_name", "last_name"]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"],
-      "minEffectiveDate": "2024-10-31",
-      "maxEffectiveDate": "2024-10-31"
+      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
     },
     {
       "type": "Transformation",

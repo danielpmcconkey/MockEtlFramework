@@ -7,56 +7,64 @@ namespace Lib.Modules;
 /// <summary>
 /// Users provide table, column, and date range information. The module queries the source table
 /// across the full date range and stores a single DataFrame (with as_of column included) in shared state.
+///
+/// Effective dates may be supplied in two ways:
+///   1. Directly in the module config (minEffectiveDate / maxEffectiveDate fields in the job conf JSON).
+///   2. Via reserved shared-state keys injected by the executor before the pipeline runs:
+///        "__minEffectiveDate" (DateOnly) and "__maxEffectiveDate" (DateOnly).
+/// If neither is present, Execute throws InvalidOperationException.
 /// </summary>
 public class DataSourcing : IModule
 {
-    private string _resultingDataFrameName;
-    private string _schema;
-    private string _tableName;
-    private string[] _columnNames;
-    private DateOnly _minEffectiveDate; 
-    private DateOnly _maxEffectiveDate;
-    private string _additionalFilter;
-    
-    /// <summary>
-    /// Initializes a new instance of the DataSourcing class with the specified parameters
-    /// </summary>
-    /// <param name="resultingDataFrameName">Name for the resulting DataFrames</param>
-    /// <param name="schema">Database schema name</param>
-    /// <param name="tableName">Name of the source table</param>
-    /// <param name="columnNames">Array of column names to retrieve</param>
-    /// <param name="minEffectiveDate">Minimum effective date for data retrieval</param>
-    /// <param name="maxEffectiveDate">Maximum effective date for data retrieval</param>
-    /// <param name="additionalFilter">Additional filter criteria (optional)</param>
+    // Reserved shared-state keys set by the executor at runtime.
+    public const string MinDateKey = "__minEffectiveDate";
+    public const string MaxDateKey = "__maxEffectiveDate";
+
+    private readonly string    _resultingDataFrameName;
+    private readonly string    _schema;
+    private readonly string    _tableName;
+    private readonly string[]  _columnNames;
+    private readonly DateOnly? _minEffectiveDate;
+    private readonly DateOnly? _maxEffectiveDate;
+    private readonly string    _additionalFilter;
+
     public DataSourcing(
-        string resultingDataFrameName,
-        string schema,
-        string tableName,
-        string[] columnNames,
-        DateOnly minEffectiveDate,
-        DateOnly maxEffectiveDate,
-        string additionalFilter = "")
+        string    resultingDataFrameName,
+        string    schema,
+        string    tableName,
+        string[]  columnNames,
+        DateOnly? minEffectiveDate = null,
+        DateOnly? maxEffectiveDate = null,
+        string    additionalFilter = "")
     {
-        this._resultingDataFrameName = resultingDataFrameName ?? throw new ArgumentNullException(nameof(resultingDataFrameName));
-        this._schema = schema ?? throw new ArgumentNullException(nameof(schema));
-        this._tableName = tableName ?? throw new ArgumentNullException(nameof(tableName));
-        this._columnNames = columnNames ?? throw new ArgumentNullException(nameof(columnNames));
-        this._minEffectiveDate = minEffectiveDate;
-        this._maxEffectiveDate = maxEffectiveDate;
-        this._additionalFilter = additionalFilter ?? "";
+        _resultingDataFrameName = resultingDataFrameName ?? throw new ArgumentNullException(nameof(resultingDataFrameName));
+        _schema                 = schema                ?? throw new ArgumentNullException(nameof(schema));
+        _tableName              = tableName             ?? throw new ArgumentNullException(nameof(tableName));
+        _columnNames            = columnNames           ?? throw new ArgumentNullException(nameof(columnNames));
+        _minEffectiveDate       = minEffectiveDate;
+        _maxEffectiveDate       = maxEffectiveDate;
+        _additionalFilter       = additionalFilter      ?? "";
     }
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        sharedState[_resultingDataFrameName] = FetchData();
+        var minDate = _minEffectiveDate
+            ?? (sharedState.TryGetValue(MinDateKey, out var mn) && mn is DateOnly mn2 ? mn2
+                : throw new InvalidOperationException(
+                    $"DataSourcing '{_resultingDataFrameName}': no effective date available. " +
+                    $"Supply minEffectiveDate in the job conf or inject '{MinDateKey}' into shared state."));
+
+        var maxDate = _maxEffectiveDate
+            ?? (sharedState.TryGetValue(MaxDateKey, out var mx) && mx is DateOnly mx2 ? mx2
+                : throw new InvalidOperationException(
+                    $"DataSourcing '{_resultingDataFrameName}': no effective date available. " +
+                    $"Supply maxEffectiveDate in the job conf or inject '{MaxDateKey}' into shared state."));
+
+        sharedState[_resultingDataFrameName] = FetchData(minDate, maxDate);
         return sharedState;
     }
 
-    /// <summary>
-    /// Fetches data from the database across the full date range and returns it as a single DataFrame.
-    /// The as_of column is always included so transformation steps can filter or group by date as needed.
-    /// </summary>
-    private DataFrame FetchData()
+    private DataFrame FetchData(DateOnly minEffectiveDate, DateOnly maxEffectiveDate)
     {
         var includesAsOf = _columnNames.Contains("as_of", StringComparer.OrdinalIgnoreCase);
 
@@ -80,8 +88,8 @@ public class DataSourcing : IModule
         connection.Open();
 
         using var command = new NpgsqlCommand(query, connection);
-        command.Parameters.AddWithValue("@minDate", _minEffectiveDate.ToDateTime(TimeOnly.MinValue));
-        command.Parameters.AddWithValue("@maxDate", _maxEffectiveDate.ToDateTime(TimeOnly.MinValue));
+        command.Parameters.AddWithValue("@minDate", minEffectiveDate.ToDateTime(TimeOnly.MinValue));
+        command.Parameters.AddWithValue("@maxDate", maxEffectiveDate.ToDateTime(TimeOnly.MinValue));
 
         using var reader = command.ExecuteReader();
 
