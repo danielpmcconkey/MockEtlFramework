@@ -1,8 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lib", "Lib\Lib.csproj", "{0E2E0DD2-83AE-4988-B3C3-69C44F8B8059}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JobExecutor", "JobExecutor\JobExecutor.csproj", "{42868AF6-DBF4-4757-8444-230A455E049B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lib.Tests", "Lib.Tests\Lib.Tests.csproj", "{034ADEA7-119E-4C73-BF21-6F967F889657}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +21,9 @@ Global
 		{42868AF6-DBF4-4757-8444-230A455E049B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{42868AF6-DBF4-4757-8444-230A455E049B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{42868AF6-DBF4-4757-8444-230A455E049B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{034ADEA7-119E-4C73-BF21-6F967F889657}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{034ADEA7-119E-4C73-BF21-6F967F889657}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{034ADEA7-119E-4C73-BF21-6F967F889657}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{034ADEA7-119E-4C73-BF21-6F967F889657}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
