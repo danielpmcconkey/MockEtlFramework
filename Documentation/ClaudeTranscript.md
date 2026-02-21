@@ -450,3 +450,30 @@ Rewrote `Documentation/Strategy.md` to reflect the current fully-built state of 
 - Added a sample job configuration JSON snippet to illustrate the executor pattern
 
 ---
+
+## User — 2026-02-21 12:53
+
+before we write the job executor, I want to create a control schema in this database that tracks ETL job executions. Please give me a script to create such a schema and gives read/write/create access to the dansdev user. Then write DDL updates to create tables for job registration and job run attempts. Finally, create a table for job dependencies such that we will, in future, be able to execute jobs in the correct sequence
+
+## Claude — 2026-02-21 13:01
+
+Created `SQL/CreateControlSchema.sql`. Script must be run as postgres (dansdev lacks CREATE SCHEMA privilege). Provided the SQL directly for the user to run in pgAdmin.
+
+**Schema:** `control` — with USAGE, CREATE, SELECT, INSERT, UPDATE, DELETE, and SEQUENCE grants to dansdev via ALTER DEFAULT PRIVILEGES.
+
+**Tables created:**
+
+`control.jobs` — job registry
+- `job_id` serial PK, `job_name` unique, `description`, `job_conf_path`, `is_active` bool, `created_at`, `updated_at`
+
+`control.job_runs` — execution history (one row per attempt)
+- `run_id` serial PK, `job_id` FK, `run_date` date, `attempt_number` int, `status` (Pending/Running/Succeeded/Failed/Skipped), `started_at`, `completed_at`, `triggered_by` (manual/scheduler/dependency), `rows_processed`, `error_message`
+- No unique constraint on (job_id, run_date) — intentional, supports retries
+- Indexes on (job_id, run_date) and status
+
+`control.job_dependencies` — directed dependency graph
+- `dependency_id` serial PK, `job_id` FK (downstream), `depends_on_job_id` FK (upstream)
+- `dependency_type`: SameDay (upstream must succeed for same run_date) or Latest (upstream must have succeeded at least once for any date)
+- UNIQUE(job_id, depends_on_job_id), self-loop CHECK, index on depends_on_job_id for efficient unblocking queries
+
+---
