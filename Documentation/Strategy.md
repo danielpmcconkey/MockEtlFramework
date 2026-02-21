@@ -78,13 +78,36 @@ The core framework library. Referenced by both the job executor and the test pro
 | `JobConf` | JSON deserialization model. Contains the job name and an ordered `List<JsonElement>` of module configurations. |
 | `JobRunner` | Deserializes a job conf from a JSON file path, iterates the module list, creates each module via `ModuleFactory`, and threads shared state through the pipeline. Logs progress to the console. |
 
+#### `Lib.Control`
+
+Orchestration layer that sits above `JobRunner`. Reads job registrations and dependency graph from the PostgreSQL `control` schema, determines which jobs need to run, executes them in the correct order, and records the outcome of every run attempt.
+
+| Class | Purpose |
+|---|---|
+| `JobRegistration` | Model for a `control.jobs` row — job ID, name, description, conf path, and active flag. |
+| `JobDependency` | Model for a `control.job_dependencies` row — downstream job ID, upstream job ID, and dependency type (`SameDay` or `Latest`). |
+| `ControlDb` | Internal static data-access layer for the control schema. Provides reads (`GetActiveJobs`, `GetAllDependencies`, `GetSucceededJobIds`, `GetEverSucceededJobIds`, `GetNextAttemptNumber`) and writes (`InsertRun`, `MarkRunning`, `MarkSucceeded`, `MarkFailed`, `MarkSkipped`). |
+| `ExecutionPlan` | Internal static class that applies Kahn's topological sort to produce an ordered run list. Only unsatisfied dependency edges are counted: a `SameDay` edge is satisfied if the upstream job already succeeded for this `run_date`; a `Latest` edge is satisfied if the upstream job has ever succeeded. Jobs that already succeeded today are excluded from the plan. Throws `InvalidOperationException` on cycle detection. |
+| `JobExecutorService` | Public orchestrator. Loads jobs and dependencies, builds the execution plan, runs each job through `JobRunner`, and records `Pending → Running → Succeeded / Failed` transitions in `control.job_runs`. Any job whose `SameDay` upstream dependency failed during the current invocation is recorded as `Skipped`. Accepts an optional `specificJobName` to run a single job instead of the full active set. |
+
+**Dependency types:**
+
+| Type | Semantics |
+|---|---|
+| `SameDay` | The upstream job must have a `Succeeded` run for the **same** `run_date` as the downstream job. The common case for day-over-day pipelines where B needs A's output for the same business date. |
+| `Latest` | The upstream job must have succeeded at least once for **any** `run_date`. Used for one-time setup jobs or slowly-changing reference data that only needs to be current, not date-aligned. |
+
 ---
 
 ### `JobExecutor` (Console Application)
 
-Entry point for running a job from the command line. Accepts the path to a job conf JSON file as `args[0]`, validates the file exists, and delegates to `JobRunner.Run()`.
+Entry point for running jobs from the command line. Accepts a `run_date` (`yyyy-MM-dd`) and an optional job name, then delegates to `JobExecutorService`.
 
-**Sample job configuration** (`JobExecutor/Jobs/sample_job.json`):
+```
+JobExecutor <run_date> [job_name]
+```
+
+**Sample job configuration** (registered in `control.jobs`, file stored at the path in `job_conf_path`):
 ```json
 {
   "jobName": "CustomerAccountSummary",
