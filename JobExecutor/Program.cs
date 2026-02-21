@@ -1,4 +1,4 @@
-using Lib;
+using Lib.Control;
 
 namespace JobExecutor;
 
@@ -6,21 +6,26 @@ class Program
 {
     static void Main(string[] args)
     {
-        if (args.Length == 0)
+        if (args.Length < 1)
         {
-            Console.WriteLine("Usage: JobExecutor <path-to-job-conf.json>");
+            Console.WriteLine("Usage: JobExecutor <run_date> [job_name]");
+            Console.WriteLine("  run_date — yyyy-MM-dd");
+            Console.WriteLine("  job_name — optional; runs only that job if supplied");
             return;
         }
 
-        var jobConfPath = args[0];
-
-        if (!File.Exists(jobConfPath))
+        if (!DateOnly.TryParseExact(args[0], "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var runDate))
         {
-            Console.WriteLine($"Job conf file not found: '{jobConfPath}'");
+            Console.WriteLine($"Invalid run_date '{args[0]}'. Expected format: yyyy-MM-dd");
             return;
         }
 
-        var runner = new JobRunner();
-        runner.Run(jobConfPath);
+        string? jobName = args.Length >= 2 ? args[1] : null;
+
+        var service = new JobExecutorService();
+        service.Run(runDate, jobName);
     }
 }
