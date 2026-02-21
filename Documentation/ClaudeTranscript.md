@@ -661,3 +661,141 @@ commit and push
 Nothing to commit — working tree was already clean. All changes had been committed and pushed in prior steps.
 
 ---
+
+## User — 2026-02-21 14:20
+
+Hi, Claude. Please read the ClaudeTranscript.md and Strategy.md files /media/dan/fdrive/codeprojects/MockEtlFramework/Documentation
+
+I want you to continue updating the ClaudeTranscript.md file as we go. Every prompt and response moving forward.
+
+## Claude — 2026-02-21 14:20
+
+Read both `Documentation/ClaudeTranscript.md` and `Documentation/Strategy.md`. Confirmed the full session history and current architecture are understood. Will continue appending every exchange to the transcript going forward.
+
+---
+
+## User — 2026-02-21 14:21
+
+Please read the POC.md file in that same directory
+
+## Claude — 2026-02-21 14:21
+
+Read `Documentation/POC.md`. It describes the full three-phase POC:
+
+- **Phase 1** (complete): Build the mock ETL framework and populate the data lake — already done with Sonnet in earlier sessions.
+- **Phase 2** (current): Create ~30 intentionally bad ETL jobs that produce correct curated output but with terrible code practices — redundant sourcing, unnecessary transformations, wasteful external modules, duplicated logic across jobs. Document what each job does from a business perspective and catalog every bad practice injected.
+- **Phase 3** (future): A separate Claude Opus session uses an Agent Teams swarm to reverse-engineer business requirements from the bad code (with no access to documentation), rewrite the jobs as world-class code, validate output against Phase 2's curated tables, and produce auditable governance artifacts. Key goals: no hallucination, full traceability between requirements/tests/code.
+
+Awaiting user direction on how to proceed with Phase 2.
+
+---
+
+## User — 2026-02-21 14:23
+
+Before I let you off the chain on phase 2, please suggest the right prompt I should ask you. I want you to consider the goals of the overall POC
+
+## Claude — 2026-02-21 14:23
+
+Suggested the following Phase 2 prompt, designed so that every anti-pattern is detectable by Phase 3 agents through code/data analysis alone:
+
+> Design and build ~30 ETL jobs for Phase 2. Before writing any code, produce a planning document (`Documentation/Phase2Plan.md`) that I must approve. The plan should include:
+>
+> 1. **A job catalog** — each job's name, business purpose (1-2 sentences), which datalake tables it sources, and what curated table it produces. The business domains should be diverse and realistic (e.g., customer analytics, risk scoring, transaction reporting, branch performance, segment analysis). Some jobs should have natural dependencies on each other's curated output.
+>
+> 2. **A bad practices matrix** — a table mapping each job to the specific anti-patterns it will exhibit. Distribute these across jobs so no single pattern dominates. Anti-patterns should include at least: redundant data sourcing, duplicated transformation logic across jobs, unnecessary external modules, sourcing columns never used, dead-end transformations (DataFrames created but never written), inefficient row-by-row iteration in external modules, hardcoded magic values, overly complex SQL that could be simpler, jobs that re-derive what another job already curates, and missing dependency declarations (jobs that should depend on another job's output but instead replicate its logic).
+>
+> 3. **A dependency graph** — showing both the declared dependencies (registered in `control.job_dependencies`) and the "should-be" dependencies that are intentionally missing because the junior dev duplicated the logic instead.
+>
+> 4. **An execution order** — confirming all 30 jobs can run for each day Oct 1–31, 2024 without failures.
+>
+> Important constraints:
+> - Every curated table must contain **correct, business-quality output**. A business user reviewing the data should find nothing wrong.
+> - The bad practices must be **realistic** — the kind of thing you'd actually encounter in a production codebase written by inexperienced developers, not cartoonishly absurd.
+> - The anti-patterns must be **detectable through code and data analysis alone**, since Phase 3 agents won't have access to any documentation.
+> - Do not write any code until I approve the plan.
+
+Rationale: Phase 3's success depends on the bad practices being inferable from the artifacts. The planning doc forces thinking about each anti-pattern from the Phase 3 agent's perspective. The dependency graph with "declared vs. should-be" split is especially important as a high-value finding Phase 3 could produce.
+
+---
+
+## User — 2026-02-21 14:26
+
+Please write that suggestion to our transcript. (and keep updating the transcript with each prompt and response) Please also write the recommended prompt for phase 3. That phase's Claude will not be allowed to see the POC document or this transcript. I also want to make sure it cannot see anything that would allow it to cheat. When I do this for real, with my real ETL platform and data, that Claude won't have any of those advantages either.
+
+## Claude — 2026-02-21 14:26
+
+Recorded the Phase 2 prompt suggestion above. Designed the Phase 3 prompt below.
+
+### Recommended Phase 3 prompt
+
+The following prompt is written to be self-contained — Phase 3 Claude receives no prior context, no POC documentation, and no knowledge that the code is intentionally bad. It is written generically enough to be adapted to a real ETL platform.
+
+> **Phase 3 prompt (to be given to a fresh Claude Opus session):**
+>
+> You are the technical lead over an AI agent team. Your mission is to analyze an existing ETL platform, reverse-engineer its business requirements, and rewrite its jobs to production quality — without any human-authored business documentation.
+>
+> ### What you have access to
+> - The ETL framework source code in `Lib/` — read `Documentation/Strategy.md` to understand the framework's architecture
+> - Job configuration files in `JobExecutor/Jobs/` — these are the JSON pipelines that define each ETL job
+> - External module assemblies in `ExternalModules/` (if any) — compiled C# classes called by some jobs
+> - A PostgreSQL database (`localhost`, user `dansdev`, database `atc`) with three schemas:
+>   - `datalake` — source tables (upstream extracts, snapshot and transactional)
+>   - `curated` — output tables produced by the current ETL jobs
+>   - `control` — job registry (`control.jobs`), execution history (`control.job_runs`), and dependency graph (`control.job_dependencies`)
+> - The `PGPASS` environment variable (hex-encoded UTF-16 LE password)
+>
+> ### What you do NOT have access to
+> - No business requirements documents exist. You must infer all requirements from the code, data, and output.
+> - No documentation of what any job is "supposed to do." The only documentation is the framework's `Strategy.md`, which describes the engine — not the jobs.
+>
+> ### Your team structure
+> Organize your work into the following agent roles. You may implement these as sub-agents, sequential phases, or however you see fit — but all roles must be represented and their outputs must be discrete, reviewable artifacts:
+>
+> 1. **Platform Analyst** — Understands the ETL framework, profiles all datalake and curated tables, maps data lineage from source to output.
+> 2. **Business Analyst(s)** — For each ETL job: reads the job conf, traces the data flow, examines the curated output, and produces a business requirements document. Requirements must be grounded — every requirement must cite the specific code, config element, or data observation that supports it. Flag any requirement where confidence is low.
+> 3. **Code Quality Analyst** — Reviews every job for anti-patterns, inefficiencies, redundancies, and architectural issues. Produces a findings report per job. Cross-references across jobs to identify duplicated logic, missing dependencies, and opportunities for reuse.
+> 4. **QA / Test Engineer** — Produces test cases for each job based on the business requirements. Tests must be executable and validate correctness of output given known input.
+> 5. **Implementation Engineer** — Rewrites each job as production-quality code: clean configurations, efficient sourcing, minimal transformations, proper dependency declarations. All rewritten jobs write output to a schema called `double_secret_curated` (create it if it doesn't exist).
+> 6. **Validation Agent** — Runs both the original and rewritten jobs for each effective date (October 1–31, 2024). Compares `curated` vs. `double_secret_curated` table-by-table, date-by-date. Identifies mismatches and routes them back to the Business Analyst and Implementation Engineer for resolution.
+> 7. **Governance Agent** — Produces the final audit artifact: a report showing, for each job and each of the 31 run dates, the row-level match percentage between original and rewritten output. Includes a traceability matrix mapping each business requirement → test case(s) → implementation element. Flags any requirement that lacks grounding in observable code or data.
+>
+> ### Process
+> 1. Understand the framework (read Strategy.md, read Lib/ code)
+> 2. Profile all database schemas — datalake tables, curated tables, control tables
+> 3. Analyze every registered job: read configs, trace logic, examine output
+> 4. Produce business requirements documents (one per job or logical group)
+> 5. Produce code quality findings (per job + cross-job analysis)
+> 6. Produce test cases
+> 7. Rewrite all jobs — output to `double_secret_curated`
+> 8. Run original and rewritten jobs for Oct 1–31, 2024
+> 9. Compare output; iterate on mismatches (feedback loop between Validation → BA → Implementation)
+> 10. Produce governance report
+>
+> ### Anti-hallucination controls
+> - **Every business requirement must cite its evidence.** If a requirement cannot be traced to specific code, config, or data, it must be flagged as "inferred — low confidence" and excluded from the test plan until validated.
+> - **No invented business context.** Do not speculate about why a business rule exists. Document what the code does, not why you think it does it.
+> - **Cross-agent review.** Before the Implementation Engineer writes a single line of code, the Business Analyst and QA Agent must have signed off on the requirements and test plan for that job.
+> - **Mismatch resolution is mandatory.** A job is not complete until its `double_secret_curated` output matches `curated` for all 31 dates, or the team has documented and justified every intentional divergence.
+>
+> ### Output artifacts
+> All artifacts should be written to a `Documentation/Phase3/` directory:
+> - `BusinessRequirements/` — one markdown file per job
+> - `CodeQualityFindings/` — per-job findings + a cross-job summary
+> - `TestCases/` — per-job test specifications
+> - `GovernanceReport.md` — match percentages, traceability matrix, confidence flags
+> - Rewritten job configs in a `Phase3Jobs/` directory
+> - Any rewritten external modules in `Phase3ExternalModules/`
+
+### Files to hide from Phase 3
+
+Before starting Phase 3, move or restrict access to these files so the agent cannot see them:
+
+- `Documentation/POC.md` — describes the entire plan including that code is intentionally bad
+- `Documentation/ClaudeTranscript.md` — contains full session history with design intent
+- `Documentation/Phase2Plan.md` — will contain the bad practices matrix and anti-pattern catalog
+- Any Claude memory files in `.claude/` for this project — they reference POC goals and Phase 2 context
+- Any comments in Phase 2 code that reference intentional badness (Phase 2 should not leave such breadcrumbs, but verify before starting Phase 3)
+
+Practical approach: create a git branch `phase3-clean` from `main`, delete the above files from that branch, and run Phase 3 from there. The original branch preserves the ground truth for later evaluation.
+
+---
