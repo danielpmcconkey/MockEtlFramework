@@ -41,6 +41,8 @@ Since the owner of this project is more comfortable in C# than Python, the ETL F
 - **JSON-driven configuration:** Job behavior is defined externally in JSON, not in code. This keeps the framework generic and reusable across many different jobs.
 - **DataFrame as a first-class citizen:** The custom `DataFrame` class provides PySpark-like operations (Select, Filter, WithColumn, GroupBy, Join, Union, Distinct, OrderBy, Limit, etc.) so that transformation logic feels familiar to users of the production system.
 - **Full-load temporal data:** The data lake follows a snapshot (full-load) pattern. Each day's load is a complete picture of a table's state at that point in time, identified by an `as_of` date column. `DataSourcing` returns a flat DataFrame that includes the `as_of` column, allowing consumers to work across date ranges in a single DataFrame without requiring special date-loop logic in the framework itself.
+- **Automatic effective date management:** Effective dates are never hard-wired in job configuration files. Instead, `JobExecutorService` reads each job's last successful `max_effective_date` from `control.job_runs` and gap-fills forward one day at a time until today. The dates are injected into shared state before each pipeline run and picked up automatically by `DataSourcing`. On a job's very first run, the start date is read from a `firstEffectiveDate` field in the job conf. This keeps job confs generic and lets the executor handle all scheduling math.
+- **run_date vs. effective date:** `run_date` in `control.job_runs` is the calendar date the executor actually ran (always today). `min_effective_date` / `max_effective_date` record which data dates that run processed. These are separate concerns: a single executor invocation on one `run_date` may produce many rows in `control.job_runs`, each covering a different effective date.
 
 ---
 
@@ -63,7 +65,7 @@ The core framework library. Referenced by both the job executor and the test pro
 | Class | Purpose |
 |---|---|
 | `IModule` | Core module interface: `Execute(Dictionary<string, object> sharedState) → Dictionary<string, object>`. All modules implement this contract. |
-| `DataSourcing` | Queries a PostgreSQL data lake schema for a specified table, column list, and effective date range. Returns a single flat `DataFrame` with `as_of` appended as a column (skipped if the caller already includes it). Supports an optional `additionalFilter` clause passed directly into the SQL `WHERE` predicate. |
+| `DataSourcing` | Queries a PostgreSQL data lake schema for a specified table, column list, and effective date range. Returns a single flat `DataFrame` with `as_of` appended as a column (skipped if the caller already includes it). Supports an optional `additionalFilter` clause. Effective dates may be supplied in the job conf JSON (`minEffectiveDate` / `maxEffectiveDate`) or omitted entirely, in which case the module reads the reserved shared-state keys `__minEffectiveDate` / `__maxEffectiveDate` injected by the executor at runtime. |
 | `Transformation` | Opens an in-memory SQLite connection, registers every `DataFrame` in the current shared state as a SQLite table, executes user-supplied free-form SQL, and stores the result `DataFrame` back into shared state under a caller-specified result name. |
 | `DataFrameWriter` | Writes a named `DataFrame` from shared state to a PostgreSQL curation schema. Auto-creates the target table if it does not exist (type inference from sample values). Supports `Overwrite` mode (truncate then insert) and `Append` mode (insert only). All writes are transaction-wrapped. |
 | `External` | Loads a user-supplied .NET assembly from disk via reflection, locates a named type that implements `IExternalStep`, instantiates it, and delegates `Execute`. Allows teams to inject arbitrary C# logic into any job pipeline without modifying the framework. |
@@ -75,8 +77,8 @@ The core framework library. Referenced by both the job executor and the test pro
 | Class | Purpose |
 |---|---|
 | `ConnectionHelper` | Internal static helper that builds a Npgsql connection string. Decodes the Postgres password from a hex-encoded UTF-16 LE environment variable (`PGPASS`). |
-| `JobConf` | JSON deserialization model. Contains the job name and an ordered `List<JsonElement>` of module configurations. |
-| `JobRunner` | Deserializes a job conf from a JSON file path, iterates the module list, creates each module via `ModuleFactory`, and threads shared state through the pipeline. Logs progress to the console. |
+| `JobConf` | JSON deserialization model. Contains the job name, an optional `firstEffectiveDate` (the bootstrap date used when the job has no prior successful runs), and an ordered `List<JsonElement>` of module configurations. |
+| `JobRunner` | Deserializes a job conf from a JSON file path, iterates the module list, creates each module via `ModuleFactory`, and threads shared state through the pipeline. Accepts an optional `initialState` dictionary pre-populated by the executor (used to inject effective dates). Logs progress to the console. |
 
 #### `Lib.Control`
 
@@ -86,55 +88,68 @@ Orchestration layer that sits above `JobRunner`. Reads job registrations and dep
 |---|---|
 | `JobRegistration` | Model for a `control.jobs` row — job ID, name, description, conf path, and active flag. |
 | `JobDependency` | Model for a `control.job_dependencies` row — downstream job ID, upstream job ID, and dependency type (`SameDay` or `Latest`). |
-| `ControlDb` | Internal static data-access layer for the control schema. Provides reads (`GetActiveJobs`, `GetAllDependencies`, `GetSucceededJobIds`, `GetEverSucceededJobIds`, `GetNextAttemptNumber`) and writes (`InsertRun`, `MarkRunning`, `MarkSucceeded`, `MarkFailed`, `MarkSkipped`). |
+| `ControlDb` | Internal static data-access layer for the control schema. Reads: `GetActiveJobs`, `GetAllDependencies`, `GetSucceededJobIds`, `GetEverSucceededJobIds`, `GetLastSucceededMaxEffectiveDate`, `GetNextAttemptNumber` (keyed by effective date range). Writes: `InsertRun` (records `run_date`, `min_effective_date`, `max_effective_date`), `MarkRunning`, `MarkSucceeded`, `MarkFailed`, `MarkSkipped`. |
 | `ExecutionPlan` | Internal static class that applies Kahn's topological sort to produce an ordered run list. Only unsatisfied dependency edges are counted: a `SameDay` edge is satisfied if the upstream job already succeeded for this `run_date`; a `Latest` edge is satisfied if the upstream job has ever succeeded. Jobs that already succeeded today are excluded from the plan. Throws `InvalidOperationException` on cycle detection. |
-| `JobExecutorService` | Public orchestrator. Loads jobs and dependencies, builds the execution plan, runs each job through `JobRunner`, and records `Pending → Running → Succeeded / Failed` transitions in `control.job_runs`. Any job whose `SameDay` upstream dependency failed during the current invocation is recorded as `Skipped`. Accepts an optional `specificJobName` to run a single job instead of the full active set. |
+| `JobExecutorService` | Public orchestrator. Loads jobs and dependencies, builds the execution plan, then for each job computes the pending effective date sequence (gap-fill from last succeeded `max_effective_date` + 1 day to today, using `firstEffectiveDate` from the job conf on first run). Injects dates into shared state and runs each pipeline through `JobRunner`. Records `Pending → Running → Succeeded / Failed` in `control.job_runs` per effective date. Failed jobs stop their own gap-fill sequence; their `SameDay` dependents are recorded as `Skipped`. Accepts an optional `effectiveDateOverride` (single-date backfill/rerun) and `specificJobName`. |
 
 **Dependency types:**
 
 | Type | Semantics |
 |---|---|
-| `SameDay` | The upstream job must have a `Succeeded` run for the **same** `run_date` as the downstream job. The common case for day-over-day pipelines where B needs A's output for the same business date. |
-| `Latest` | The upstream job must have succeeded at least once for **any** `run_date`. Used for one-time setup jobs or slowly-changing reference data that only needs to be current, not date-aligned. |
+| `SameDay` | The upstream job must have a `Succeeded` run with the same `run_date` (execution date) as the downstream job. Within a single executor invocation jobs run in topological order, so this is satisfied naturally when A precedes B in the plan. |
+| `Latest` | The upstream job must have succeeded at least once for any `run_date`. Used for one-time setup jobs or slowly-changing reference data that only needs to be current, not date-aligned. |
 
 ---
 
 ### `JobExecutor` (Console Application)
 
-Entry point for running jobs from the command line. Accepts a `run_date` (`yyyy-MM-dd`) and an optional job name, then delegates to `JobExecutorService`.
+Entry point for running jobs from the command line. Delegates to `JobExecutorService`.
 
 ```
-JobExecutor <run_date> [job_name]
+JobExecutor                              # auto-advance all active jobs
+JobExecutor <job_name>                   # auto-advance one specific job
+JobExecutor <effective_date>             # backfill a specific date, all jobs
+JobExecutor <effective_date> <job_name>  # backfill a specific date, one job
 ```
 
-**Sample job configuration** (registered in `control.jobs`, file stored at the path in `job_conf_path`):
+If the first argument parses as `yyyy-MM-dd` it is treated as an effective date override; otherwise it is treated as a job name and auto-advance mode is used. `run_date` is always set to today internally and is never a CLI argument.
+
+**Sample job configuration** (`JobExecutor/Jobs/customer_account_summary.json`, registered in `control.jobs`):
 ```json
 {
   "jobName": "CustomerAccountSummary",
+  "firstEffectiveDate": "2024-10-01",
   "modules": [
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"],
-      "minEffectiveDate": "2024-10-01",
-      "maxEffectiveDate": "2024-10-31"
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
     },
     {
       "type": "Transformation",
-      "resultName": "summary",
-      "sql": "SELECT c.id, c.first_name, c.last_name, c.as_of FROM customers c"
+      "resultName": "customer_account_summary",
+      "sql": "SELECT c.id AS customer_id, c.first_name, c.last_name, COUNT(a.account_id) AS account_count, ROUND(SUM(CASE WHEN a.account_status = 'Active' THEN a.current_balance ELSE 0 END), 2) AS active_balance FROM customers c LEFT JOIN accounts a ON c.id = a.customer_id GROUP BY c.id, c.first_name, c.last_name ORDER BY c.id"
     },
     {
       "type": "DataFrameWriter",
-      "source": "summary",
-      "targetTable": "customer_summary",
+      "source": "customer_account_summary",
+      "targetTable": "customer_account_summary",
       "writeMode": "Overwrite"
     }
   ]
 }
 ```
+
+Note that no `minEffectiveDate` / `maxEffectiveDate` fields appear in the `DataSourcing` modules — the executor injects those at runtime via shared state.
 
 ---
 
