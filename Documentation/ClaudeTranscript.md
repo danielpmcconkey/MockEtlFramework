@@ -799,3 +799,243 @@ Before starting Phase 3, move or restrict access to these files so the agent can
 Practical approach: create a git branch `phase3-clean` from `main`, delete the above files from that branch, and run Phase 3 from there. The original branch preserves the ground truth for later evaluation.
 
 ---
+
+## User — 2026-02-21 14:28
+
+go ahead with the phase 2 prompt
+
+## Claude — 2026-02-21 14:51
+
+Entered plan mode. Explored the full codebase (all Lib/ modules, framework architecture, JSON config patterns) and profiled all 12 datalake tables, curated schema, and control schema. Identified a critical technical constraint: weekday-only datalake tables return 0 rows on weekends, causing Transformation SQL to fail with "no such table" (the RegisterTable method skips empty DataFrames). Solution: jobs needing weekday-only data use External modules with a weekend guard pattern — itself an anti-pattern (unnecessary External module).
+
+Designed 30 jobs across 6 groups:
+- **Group A** (J01–J05): Transaction Analytics — SQL-only, safe on weekends
+- **Group B** (J06–J10): Customer Profile — mix of SQL and External
+- **Group C** (J11–J15): Account Analytics — External modules (weekday data)
+- **Group D** (J16–J20): Credit & Lending — External modules (weekday data)
+- **Group E** (J21–J25): Branch Analytics — SQL-only, safe on weekends
+- **Group F** (J26–J30): Cross-Domain Reports — External modules
+
+Anti-pattern distribution: all 10 types appear in 4–22 jobs. Key duplication chains identified (e.g., J10 re-derives J06+J07+J08; J20 re-derives J11+J16+J17+J18). Only 5 declared dependency edges vs. ~25 should-be edges. 19 External module classes needed in a new ExternalModules project.
+
+Plan written to plan file. Awaiting approval.
+
+---
+
+## User — 2026-02-21 15:53
+
+Write the following C# files in /media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/. Each class implements `Lib.Modules.IExternalStep`. They read DataFrames from sharedState and write output DataFrames back.
+
+7 files requested:
+1. LargeTransactionProcessor.cs (J03) — filters transactions > $500, joins accounts and customers
+2. CustomerDemographicsBuilder.cs (J06) — computes age/age bracket, joins phone and email
+3. FullProfileAssembler.cs (J10) — full customer profile with age, phone, email, segments
+4. AccountSnapshotBuilder.cs (J11) — pass-through of account fields
+5. AccountStatusCounter.cs (J12) — groups accounts by type+status, counts
+6. AccountDistributionCalculator.cs (J13) — counts by type, computes percentage
+7. HighBalanceFilter.cs (J14) — filters accounts > $10,000, joins customer names
+
+## Claude — 2026-02-21 15:53
+
+Created all 7 C# files in `/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/`:
+
+1. **LargeTransactionProcessor.cs** — Reads transactions, accounts, customers. Builds account-to-customer and customer-to-name lookup dictionaries. Filters transactions where amount > 500 (Convert.ToDecimal). Output: 10 columns including customer name.
+
+2. **CustomerDemographicsBuilder.cs** — Reads customers, phone_numbers, email_addresses. Parses birthdate and as_of as DateOnly strings. Computes age with birthday-hasn't-happened-yet correction. Assigns age bracket via switch expression. First-match phone/email lookups.
+
+3. **FullProfileAssembler.cs** — Reads customers, phone_numbers, email_addresses, customers_segments, segments. Same age/bracket logic as J06. Builds segment_id-to-name lookup, then customer-to-segment-ids map. Joins segment names with comma separator.
+
+4. **AccountSnapshotBuilder.cs** — Reads accounts. Simple pass-through copying 6 fields per row.
+
+5. **AccountStatusCounter.cs** — Reads accounts. Groups by (account_type, account_status) tuple key in dictionary. Outputs one row per group with count. Gets as_of from first row.
+
+6. **AccountDistributionCalculator.cs** — Reads accounts. Counts by account_type. Computes percentage = (double)typeCount / totalAccounts * 100.0 (hardcoded magic number).
+
+7. **HighBalanceFilter.cs** — Reads accounts, customers. Filters current_balance > 10000 (Convert.ToDecimal). Customer name lookup dictionary.
+
+All classes: namespace ExternalModules, implement IExternalStep, weekend guard returns empty DataFrame with correct schema columns, use Convert.ToDecimal/Convert.ToInt32 for type-safe comparisons, preserve original types in output.
+
+Build succeeded: 0 warnings, 0 errors.
+
+---
+
+## User — 2026-02-21 15:56
+
+Write 6 more C# files in ExternalModules/:
+1. AccountCustomerDenormalizer.cs (J15) — accounts joined with customer names
+2. CreditScoreProcessor.cs (J16) — pass-through of credit_scores
+3. CreditScoreAverager.cs (J17) — avg score per customer with bureau breakout
+4. LoanSnapshotBuilder.cs (J18) — pass-through of loan_accounts (skip origination/maturity dates)
+5. LoanRiskCalculator.cs (J19) — avg credit score per customer, risk tier classification
+6. CustomerCreditSummaryBuilder.cs (J20) — per-customer: avg credit score, total loan balance, total account balance, counts
+
+## Claude — 2026-02-21 15:56
+
+Created all 6 C# files in `/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/`:
+
+1. **AccountCustomerDenormalizer.cs** — Reads accounts and customers (addresses is dead-end). Weekend guard on accounts or customers empty. Builds customer id-to-name lookup from customers rows. Iterates accounts, joins with customer first_name/last_name. Output: 8 columns (account_id, customer_id, first_name, last_name, account_type, account_status, current_balance, as_of).
+
+2. **CreditScoreProcessor.cs** — Reads credit_scores (branches is dead-end). Weekend guard on credit_scores empty. Simple pass-through copying 5 fields per row (credit_score_id, customer_id, bureau, score, as_of).
+
+3. **CreditScoreAverager.cs** — Reads credit_scores and customers (segments is dead-end). Weekend guard on credit_scores or customers empty. Groups credit_scores by customer_id, storing bureau name and score. Computes average of all scores per customer. Tracks individual bureau scores (equifax_score, transunion_score, experian_score) — set to DBNull.Value if missing. Joins with customer name. Output: 8 columns.
+
+4. **LoanSnapshotBuilder.cs** — Reads loan_accounts (branches is dead-end). Weekend guard on loan_accounts empty. Pass-through copying 8 fields (loan_id, customer_id, loan_type, original_amount, current_balance, interest_rate, loan_status, as_of), intentionally skipping origination_date and maturity_date.
+
+5. **LoanRiskCalculator.cs** — Reads loan_accounts and credit_scores (customers, segments are dead-ends). Weekend guard on loan_accounts or credit_scores empty. Groups credit_scores by customer_id to compute avg score per customer. For each loan: looks up customer's avg credit score, classifies risk tier (>=750 Low Risk, >=650 Medium Risk, >=550 High Risk, else Very High Risk, no scores = Unknown). avg_credit_score is DBNull.Value when no scores found. Output: 9 columns.
+
+6. **CustomerCreditSummaryBuilder.cs** — Reads customers, accounts, credit_scores, loan_accounts (segments is dead-end). Weekend guard checks all four DataFrames. Groups credit_scores by customer_id for avg score (DBNull.Value if none). Groups loan_accounts by customer_id for total balance and count (0/0 if none). Groups accounts by customer_id for total balance and count (0/0 if none). Iterates customers to build one summary row per customer. Output: 9 columns.
+
+All classes follow existing patterns: namespace ExternalModules, implement IExternalStep, weekend guard returns empty DataFrame with correct schema, use Convert.ToDecimal/Convert.ToInt32 for type safety.
+
+Build succeeded: 0 warnings, 0 errors.
+
+---
+
+## User — 2026-02-21 15:57
+
+Write the following 6 C# files in ExternalModules/. Each implements IExternalStep. Detailed specs provided for: BranchVisitEnricher (J22), CustomerAccountSummaryBuilder (J26), CustomerTxnActivityBuilder (J27), CustomerBranchActivityBuilder (J28), CustomerValueCalculator (J29), ExecutiveDashboardBuilder (J30). Specs include input DataFrames, weekend guards, lookup/aggregation logic, output columns, and scoring formulas.
+
+## Claude — 2026-02-21 15:58
+
+Created all 6 C# files in `/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/`:
+
+1. **BranchVisitEnricher.cs** — Reads branch_visits, branches, customers (addresses is dead-end). Weekend guard on customers empty. Builds branch_id->branch_name and customer_id->(first_name, last_name) lookups. Row-by-row enriches branch_visits with branch_name and customer names. Output: 9 columns (visit_id, customer_id, first_name, last_name, branch_id, branch_name, visit_timestamp, visit_purpose, as_of).
+
+2. **CustomerAccountSummaryBuilder.cs** — Reads customers and accounts (branches is dead-end). Weekend guard on customers or accounts empty. Groups accounts by customer_id computing count, total_balance, and active_balance (where account_status == "Active"). Iterates customers with defaults of 0/0/0 if no accounts. Output: 7 columns.
+
+3. **CustomerTxnActivityBuilder.cs** — Reads transactions and accounts. Weekend guard on accounts empty. Builds account_id->customer_id lookup. Groups transactions by customer_id: counts total txns, sums amount, counts debits vs credits. Gets as_of from first transaction row. Output: 6 columns (customer_id, as_of, transaction_count, total_amount, debit_count, credit_count).
+
+4. **CustomerBranchActivityBuilder.cs** — Reads branch_visits and customers (branches is dead-end). Weekend guard on customers empty. Builds customer lookup. Groups branch_visits by customer_id, counts visits per customer. Gets as_of from first branch_visit row. If customer not in lookup, uses null for names. Output: 5 columns (customer_id, first_name, last_name, as_of, visit_count).
+
+5. **CustomerValueCalculator.cs** — Reads customers, transactions, accounts, branch_visits. Weekend guard on customers or accounts empty. Weights: transaction=0.4, balance=0.35, visit=0.25. Builds account_id->customer_id lookup. Computes transaction_score (count*10, capped 1000), balance_score (total/1000, capped 1000), visit_score (count*50, capped 1000), composite_score (weighted sum). All scores rounded to 2 decimal places. Output: 8 columns.
+
+6. **ExecutiveDashboardBuilder.cs** — Reads transactions, accounts, customers, loan_accounts, branch_visits, branches (segments is dead-end). Weekend guard on customers, accounts, or loan_accounts empty. Computes 9 KPI metric rows: total_customers, total_accounts, total_balance, total_transactions, total_txn_amount, avg_txn_amount, total_loans, total_loan_balance, total_branch_visits. All metric_values are decimal, rounded to 2 places. Gets as_of from first customer row with transaction fallback. Output: 3 columns (metric_name, metric_value, as_of).
+
+All classes follow existing patterns: namespace ExternalModules, implement IExternalStep, weekend guard returns empty DataFrame with correct schema, use Convert.ToDecimal/Convert.ToInt32 for type safety.
+
+Build succeeded: 0 warnings, 0 errors.
+
+---
+
+## User — 2026-02-21 16:10
+
+Create 11 JSON job config files in JobExecutor/Jobs/. Provided detailed specifications for each file including job names, data sourcing modules, transformation SQL, writer configurations, and intentional anti-patterns. The 11 jobs are: daily_transaction_summary, transaction_category_summary, daily_transaction_volume, monthly_transaction_trend, customer_contact_info, customer_segment_map, customer_address_history, branch_directory, branch_visit_summary, branch_visit_purpose_breakdown, and top_branches.
+
+## Claude — 2026-02-21 16:10
+
+Created all 11 JSON job config files in `/media/dan/fdrive/codeprojects/MockEtlFramework/JobExecutor/Jobs/`:
+
+1. **daily_transaction_summary.json** (J01) — Append. Sources transactions (all cols, description unused) and branches (dead-end). Complex SQL with unnecessary subquery aggregating debits/credits by account and as_of.
+2. **transaction_category_summary.json** (J02) — Append. Sources transactions and segments (dead-end). CTE with ROW_NUMBER/COUNT window functions that get grouped away. Summarizes by txn_type and as_of.
+3. **daily_transaction_volume.json** (J04) — Append. Sources transactions only. CTE computes min/max that are discarded in outer SELECT. Daily volume aggregation.
+4. **monthly_transaction_trend.json** (J05) — Append. Sources transactions and branches (dead-end). Hardcoded date filter `>= '2024-10-01'`. Daily transaction stats.
+5. **customer_contact_info.json** (J07) — Append. Sources phone_numbers, email_addresses, and segments (dead-end). UNION ALL combining phone and email contacts into unified contact list.
+6. **customer_segment_map.json** (J08) — Append. Sources customers_segments, segments, and branches (dead-end with unused city/state columns). JOIN mapping customers to segment names/types.
+7. **customer_address_history.json** (J09) — Append. Sources addresses (address_id unused) and branches (dead-end). Unnecessary subquery with trivial WHERE filter.
+8. **branch_directory.json** (J21) — Overwrite. Sources branches. CTE with ROW_NUMBER partitioned by branch_id to deduplicate (unnecessarily complex).
+9. **branch_visit_summary.json** (J23) — Append. Sources branch_visits and branches. CTE counting visits per branch per day, joined to branch names.
+10. **branch_visit_purpose_breakdown.json** (J24) — Append. Sources branch_visits, branches, and segments (dead-end). CTE with window function for total_branch_visits (unused in output). Counts visits by purpose.
+11. **top_branches.json** (J25) — Overwrite. Sources branch_visits and branches. Hardcoded date filter. RANK window function ranking branches by total visits.
+
+All files use `firstEffectiveDate: "2024-10-01"`, single-line SQL strings, and follow the established module format.
+
+---
+
+## User — 2026-02-21 16:13
+
+Create 10 more JSON job config files in JobExecutor/Jobs/. Detailed specs provided for: large_transaction_log (J03), customer_demographics (J06), customer_full_profile (J10), account_balance_snapshot (J11), account_status_summary (J12), account_type_distribution (J13), high_balance_accounts (J14), account_customer_join (J15), credit_score_snapshot (J16), credit_score_average (J17). All use External modules and have various anti-patterns (redundant sourcing, dead-end DataFrames, unused columns, row-by-row processing, hardcoded values, re-derivation, missing dependencies).
+
+## Claude — 2026-02-21 16:13
+
+Created all 10 JSON job config files in `/media/dan/fdrive/codeprojects/MockEtlFramework/JobExecutor/Jobs/`:
+
+1. **large_transaction_log.json** (J03) — Append. Sources transactions (all cols), accounts (all cols), customers (id/name), addresses (dead-end, redundant). External: LargeTransactionProcessor. 6 modules total.
+2. **customer_demographics.json** (J06) — Overwrite. Sources customers (all cols), phone_numbers, email_addresses, segments (dead-end). External: CustomerDemographicsBuilder.
+3. **customer_full_profile.json** (J10) — Overwrite. Sources customers, phone_numbers, email_addresses, customers_segments, segments. External: FullProfileAssembler. Re-derives J06+J07+J08.
+4. **account_balance_snapshot.json** (J11) — Append. Sources accounts (8 cols, 3 unused), branches (dead-end). External: AccountSnapshotBuilder.
+5. **account_status_summary.json** (J12) — Overwrite. Sources accounts (5 cols), segments (dead-end). External: AccountStatusCounter.
+6. **account_type_distribution.json** (J13) — Overwrite. Sources accounts (5 cols), branches (dead-end with city). External: AccountDistributionCalculator.
+7. **high_balance_accounts.json** (J14) — Overwrite. Sources accounts (5 cols), customers (id/name). External: HighBalanceFilter.
+8. **account_customer_join.json** (J15) — Overwrite. Sources accounts, customers, addresses (dead-end with unused cols). External: AccountCustomerDenormalizer.
+9. **credit_score_snapshot.json** (J16) — Overwrite. Sources credit_scores, branches (dead-end with unused city/state). External: CreditScoreProcessor.
+10. **credit_score_average.json** (J17) — Overwrite. Sources credit_scores, customers, segments (dead-end). External: CreditScoreAverager.
+
+Total job config files now: 23 (of planned 30).
+
+---
+
+## User — 2026-02-21 16:15
+
+Create the final 9 JSON job config files in JobExecutor/Jobs/. Detailed specs provided for: loan_portfolio_snapshot (J18), loan_risk_assessment (J19), customer_credit_summary (J20), branch_visit_log (J22), customer_account_summary_v2 (J26), customer_transaction_activity (J27), customer_branch_activity (J28), customer_value_score (J29), executive_dashboard (J30). All use External modules with various anti-patterns (redundant sourcing, dead-end DataFrames, unused columns, row-by-row processing, hardcoded values, re-derivation, missing dependencies).
+
+## Claude — 2026-02-21 16:15
+
+Created all 9 JSON job config files in `/media/dan/fdrive/codeprojects/MockEtlFramework/JobExecutor/Jobs/`:
+
+1. **loan_portfolio_snapshot.json** (J18) — Overwrite. Sources loan_accounts (all 9 cols, origination_date/maturity_date unused), branches (dead-end). External: LoanSnapshotBuilder.
+2. **loan_risk_assessment.json** (J19) — Overwrite. Sources loan_accounts (6 cols), credit_scores (all 4 cols), customers (dead-end), segments (dead-end). External: LoanRiskCalculator. Hardcoded risk tiers, re-derives credit data.
+3. **customer_credit_summary.json** (J20) — Overwrite. Sources customers, accounts, credit_scores, loan_accounts, segments (dead-end). External: CustomerCreditSummaryBuilder. Re-derives J11+J16+J17+J18.
+4. **branch_visit_log.json** (J22) — Append. Sources branch_visits, branches (all cols), customers, addresses (redundant/unused). External: BranchVisitEnricher. Row-by-row.
+5. **customer_account_summary_v2.json** (J26) — Overwrite. Sources customers, accounts, branches (dead-end with city). External: CustomerAccountSummaryBuilder. Redundant with original customer_account_summary.
+6. **customer_transaction_activity.json** (J27) — Append. Sources transactions (4 cols), accounts (2 cols). External: CustomerTxnActivityBuilder. Row-by-row, re-derives transaction data.
+7. **customer_branch_activity.json** (J28) — Append. Sources branch_visits (4 cols), customers, branches (dead-end). External: CustomerBranchActivityBuilder. Row-by-row, re-derives visit data.
+8. **customer_value_score.json** (J29) — Overwrite. Sources customers, transactions, accounts (3 cols), branch_visits (3 cols). External: CustomerValueCalculator. Hardcoded weights, row-by-row, re-derives multiple datasets.
+9. **executive_dashboard.json** (J30) — Overwrite. Sources transactions, accounts, customers, loan_accounts, branch_visits, branches (redundant, unused cols), segments (dead-end). External: ExecutiveDashboardBuilder. 9 modules total. Hardcoded, row-by-row, re-derives everything.
+
+Total job config files now: 32 (30 planned jobs + sample_job + customer_account_summary). All 30 Phase 2 jobs are complete.
+
+---
+
+## User — 2026-02-21 15:30
+
+Implement the following plan: [Full Phase 2 implementation plan with 30 job catalog, anti-pattern matrix, dependency graph, external module classes, file manifest, and implementation steps]
+
+## Claude — 2026-02-21 16:53
+
+Implemented the complete Phase 2 plan. Major work completed:
+
+**Infrastructure:**
+- Created `ExternalModules/ExternalModules.csproj` class library project, added to solution with Lib reference
+
+**SQL Scripts:**
+- `SQL/CreatePhase2CuratedTables.sql` — DDL for all 30 curated tables, executed against database
+- `SQL/RegisterPhase2Jobs.sql` — 30 INSERT statements registering all Phase 2 jobs in `control.jobs`
+- `SQL/RegisterPhase2Dependencies.sql` — 5 declared SameDay dependency edges
+
+**External Module Classes (19 files in ExternalModules/):**
+- Group 1: LargeTransactionProcessor, CustomerDemographicsBuilder, FullProfileAssembler, AccountSnapshotBuilder, AccountStatusCounter, AccountDistributionCalculator, HighBalanceFilter
+- Group 2: AccountCustomerDenormalizer, CreditScoreProcessor, CreditScoreAverager, LoanSnapshotBuilder, LoanRiskCalculator, CustomerCreditSummaryBuilder
+- Group 3: BranchVisitEnricher, CustomerAccountSummaryBuilder, CustomerTxnActivityBuilder, CustomerBranchActivityBuilder, CustomerValueCalculator, ExecutiveDashboardBuilder
+
+**Job JSON Configs (30 files in JobExecutor/Jobs/):**
+- 11 SQL-only jobs (J01, J02, J04, J05, J07, J08, J09, J21, J23, J24, J25) using Transformation module
+- 19 External-dependent jobs using External module classes
+
+**Bug Fixes During Testing:**
+1. `DataFrameWriter.cs` — Added `CoerceValue()` method to convert date strings (from SQLite round-tripping) back to DateOnly/DateTime before inserting into PostgreSQL. Without this, "column is of type date but expression is of type text" errors occurred.
+2. `segment_type` → `segment_code` — The `datalake.segments` table uses `segment_code`, not `segment_type`. Fixed in 4 files: 3 JSON configs and the curated DDL.
+3. Date parsing in External modules — `birthdate` values from PostgreSQL come as DateTime objects, not strings. Added `ToDateOnly()` helper to `CustomerDemographicsBuilder.cs` and `FullProfileAssembler.cs` to handle DateTime, DateOnly, and string inputs.
+4. Deactivated Phase 1 `CustomerAccountSummary` job (table schema mismatch from earlier development).
+
+**Verification Results:**
+- `dotnet build`: 0 warnings, 0 errors
+- `dotnet test`: 33 passed, 0 failed
+- Full month execution (Oct 1-31): **930 Succeeded, 0 Failed, 0 Skipped** (30 jobs × 31 days)
+- Overwrite tables contain Oct 31 snapshot (e.g., customer_demographics: 223 rows, executive_dashboard: 9 KPIs)
+- Append tables contain multi-date data (e.g., daily_transaction_summary: 7,288 rows across 31 dates, branch_visit_log: 513 rows across 23 dates)
+- Data quality spot-checked: age brackets computed correctly, customer names joined via account lookups, credit score averages across 3 bureaus, risk tiers assigned correctly, executive dashboard KPIs reasonable
+
+**Documentation:**
+- `Documentation/Phase2Plan.md` — Full anti-pattern catalog, dependency graph (declared + missing), weekend safety design
+
+---
+
+## User — 2026-02-21 16:30
+
+commit and push
+
+## Claude — 2026-02-21 16:55
+
+Staged all 56 files (3 modified + 53 new) for Phase 2 implementation and committed with a descriptive message. Pushed to origin/main via SSH.
+
+---

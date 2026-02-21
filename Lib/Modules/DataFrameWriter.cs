@@ -85,12 +85,32 @@ public class DataFrameWriter : IModule
             for (int i = 0; i < df.Columns.Count; i++)
             {
                 var val = row[df.Columns[i]];
-                insertCmd.Parameters.AddWithValue($"@p{i}", val ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue($"@p{i}", CoerceValue(val));
             }
             insertCmd.ExecuteNonQuery();
         }
 
         transaction.Commit();
+    }
+
+    /// <summary>
+    /// Coerces values that lost their original .NET type during SQLite round-tripping.
+    /// Dates are stored as TEXT in SQLite and come back as strings; Npgsql needs them
+    /// as DateOnly / DateTime so it sends the correct OID to PostgreSQL.
+    /// </summary>
+    private static object CoerceValue(object? val)
+    {
+        if (val is null) return DBNull.Value;
+        if (val is string s)
+        {
+            if (DateOnly.TryParseExact(s, "yyyy-MM-dd", null,
+                    System.Globalization.DateTimeStyles.None, out var d))
+                return d;
+            if (DateTime.TryParseExact(s, "yyyy-MM-dd HH:mm:ss", null,
+                    System.Globalization.DateTimeStyles.None, out var dt))
+                return dt;
+        }
+        return val;
     }
 
     private static string GetPostgresType(object? sampleValue) => sampleValue switch

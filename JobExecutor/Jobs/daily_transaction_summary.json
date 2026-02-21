@@ -1,0 +1,31 @@
+{
+  "jobName": "DailyTransactionSummary",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "txn_timestamp", "txn_type", "amount", "description"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branches",
+      "schema": "datalake",
+      "table": "branches",
+      "columns": ["branch_id", "branch_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "daily_txn_summary",
+      "sql": "SELECT sub.account_id, sub.as_of, sub.total_amount, sub.transaction_count, sub.debit_total, sub.credit_total FROM (SELECT t.account_id, t.as_of, ROUND(SUM(CASE WHEN t.txn_type = 'Debit' THEN t.amount ELSE 0 END) + SUM(CASE WHEN t.txn_type = 'Credit' THEN t.amount ELSE 0 END), 2) AS total_amount, COUNT(*) AS transaction_count, ROUND(SUM(CASE WHEN t.txn_type = 'Debit' THEN t.amount ELSE 0 END), 2) AS debit_total, ROUND(SUM(CASE WHEN t.txn_type = 'Credit' THEN t.amount ELSE 0 END), 2) AS credit_total FROM transactions t GROUP BY t.account_id, t.as_of) sub ORDER BY sub.as_of, sub.account_id"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "daily_txn_summary",
+      "targetTable": "daily_transaction_summary",
+      "writeMode": "Append"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "jobName": "MonthlyTransactionTrend",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branches",
+      "schema": "datalake",
+      "table": "branches",
+      "columns": ["branch_id", "branch_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "monthly_trend",
+      "sql": "WITH base AS (SELECT as_of, COUNT(*) AS daily_transactions, ROUND(SUM(amount), 2) AS daily_amount, ROUND(AVG(amount), 2) AS avg_transaction_amount FROM transactions WHERE as_of >= '2024-10-01' GROUP BY as_of) SELECT as_of, daily_transactions, daily_amount, avg_transaction_amount FROM base ORDER BY as_of"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "monthly_trend",
+      "targetTable": "monthly_transaction_trend",
+      "writeMode": "Append"
+    }
+  ]
+}

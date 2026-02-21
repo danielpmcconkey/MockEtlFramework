@@ -1,0 +1,38 @@
+{
+  "jobName": "CreditScoreAverage",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "credit_scores",
+      "schema": "datalake",
+      "table": "credit_scores",
+      "columns": ["credit_score_id", "customer_id", "bureau", "score"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "segments",
+      "schema": "datalake",
+      "table": "segments",
+      "columns": ["segment_id", "segment_name"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CreditScoreAverager"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "output",
+      "targetTable": "credit_score_average",
+      "writeMode": "Overwrite"
+    }
+  ]
+}

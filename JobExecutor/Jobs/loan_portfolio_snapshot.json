@@ -1,0 +1,31 @@
+{
+  "jobName": "LoanPortfolioSnapshot",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "loan_accounts",
+      "schema": "datalake",
+      "table": "loan_accounts",
+      "columns": ["loan_id", "customer_id", "loan_type", "original_amount", "current_balance", "interest_rate", "origination_date", "maturity_date", "loan_status"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branches",
+      "schema": "datalake",
+      "table": "branches",
+      "columns": ["branch_id", "branch_name"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.LoanSnapshotBuilder"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "output",
+      "targetTable": "loan_portfolio_snapshot",
+      "writeMode": "Overwrite"
+    }
+  ]
+}

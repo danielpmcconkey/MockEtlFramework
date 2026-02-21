@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JobExecutor", "JobExecutor\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lib.Tests", "Lib.Tests\Lib.Tests.csproj", "{034ADEA7-119E-4C73-BF21-6F967F889657}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExternalModules", "ExternalModules\ExternalModules.csproj", "{98138F08-121E-4019-8BAD-D6A16E75FB2B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,5 +27,9 @@ Global
 		{034ADEA7-119E-4C73-BF21-6F967F889657}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{034ADEA7-119E-4C73-BF21-6F967F889657}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{034ADEA7-119E-4C73-BF21-6F967F889657}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98138F08-121E-4019-8BAD-D6A16E75FB2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98138F08-121E-4019-8BAD-D6A16E75FB2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98138F08-121E-4019-8BAD-D6A16E75FB2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98138F08-121E-4019-8BAD-D6A16E75FB2B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

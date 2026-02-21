@@ -1,0 +1,31 @@
+{
+  "jobName": "BranchVisitSummary",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "branch_visits",
+      "schema": "datalake",
+      "table": "branch_visits",
+      "columns": ["visit_id", "customer_id", "branch_id", "visit_purpose"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branches",
+      "schema": "datalake",
+      "table": "branches",
+      "columns": ["branch_id", "branch_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "visit_summary",
+      "sql": "WITH visit_counts AS (SELECT bv.branch_id, COUNT(*) AS visit_count, bv.as_of FROM branch_visits bv GROUP BY bv.branch_id, bv.as_of) SELECT vc.branch_id, b.branch_name, vc.as_of, vc.visit_count FROM visit_counts vc JOIN branches b ON vc.branch_id = b.branch_id AND vc.as_of = b.as_of ORDER BY vc.as_of, vc.branch_id"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "visit_summary",
+      "targetTable": "branch_visit_summary",
+      "writeMode": "Append"
+    }
+  ]
+}
