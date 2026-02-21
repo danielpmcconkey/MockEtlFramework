@@ -435,3 +435,18 @@ Key design decisions documented in script:
 - Secondary segment IDs computed in a temp table before the CROSS JOIN with dates to keep IDs stable across all date rows
 
 ---
+
+## User — 2026-02-21 12:47
+
+It's been a while since we updated the strategy doc in this project. Please do so, but make sure that there is no reference to the data lake tables' data model or design. this is purely about the ETL framework
+
+## Claude — 2026-02-21 12:51
+
+Rewrote `Documentation/Strategy.md` to reflect the current fully-built state of the framework. Changes:
+- Removed all references to specific data lake tables, columns, or schema design
+- Replaced the outdated "Current State" / "Planned Additions" sections with a full **Solution Structure** reference covering every class in `Lib`, `JobExecutor`, and `Lib.Tests`
+- Added a **Technology Choices** table explaining the rationale for key dependencies (Npgsql, SQLite, xUnit, reflection-based assembly loading)
+- Corrected the DataSourcing description to reflect the flat-DataFrame-with-as_of design (the old doc still mentioned the `Dictionary<DateOnly, DataFrame>` pattern that was removed early in the session)
+- Added a sample job configuration JSON snippet to illustrate the executor pattern
+
+---

@@ -31,36 +31,111 @@ Since the owner of this project is more comfortable in C# than Python, the ETL F
 | Shared state | `Dictionary<string, object>` passed through module chain |
 | ETL module | Classes implementing `IModule` interface |
 | Job configuration | JSON file deserialized into an ordered list of module configs |
-| Framework executor | A component that reads the job conf and runs modules in sequence |
+| Spark SQL | In-memory SQLite connection (Microsoft.Data.Sqlite) |
+| Framework executor | `JobRunner` reads the job conf and runs modules in sequence |
 
 ### Key Design Principles
 
 - **Module chain execution:** Modules run in the order defined by the job conf. Each module receives the current shared state, performs its operation, and returns the updated state.
 - **Shared state as the integration contract:** Modules are decoupled from one another. They communicate only through named entries in the shared state dictionary.
 - **JSON-driven configuration:** Job behavior is defined externally in JSON, not in code. This keeps the framework generic and reusable across many different jobs.
-- **DataFrame as a first-class citizen:** The custom `DataFrame` class provides PySpark-like operations (Select, Filter, WithColumn, GroupBy, Join, etc.) so that transformation logic feels familiar to users of the production system.
+- **DataFrame as a first-class citizen:** The custom `DataFrame` class provides PySpark-like operations (Select, Filter, WithColumn, GroupBy, Join, Union, Distinct, OrderBy, Limit, etc.) so that transformation logic feels familiar to users of the production system.
+- **Full-load temporal data:** The data lake follows a snapshot (full-load) pattern. Each day's load is a complete picture of a table's state at that point in time, identified by an `as_of` date column. `DataSourcing` returns a flat DataFrame that includes the `as_of` column, allowing consumers to work across date ranges in a single DataFrame without requiring special date-loop logic in the framework itself.
 
 ---
 
-## Current State
+## Solution Structure
 
-- `Lib.DataFrames.DataFrame` — Core DataFrame implementation with PySpark-inspired API
-- `Lib.DataFrames.Row` — Row abstraction used by DataFrame
-- `Lib.DataFrames.GroupedDataFrame` — GroupBy aggregation support
-- `Lib.Modules.IModule` — Module interface (`Execute(sharedState) → sharedState`)
-- `Lib.Modules.DataSourcing` — Data sourcing module backed by PostgreSQL; groups results by effective date into a `Dictionary<DateOnly, DataFrame>` stored in shared state
+### `Lib` (Class Library)
+
+The core framework library. Referenced by both the job executor and the test project.
+
+#### `Lib.DataFrames`
+
+| Class | Purpose |
+|---|---|
+| `DataFrame` | Immutable, in-memory tabular data structure with a PySpark-inspired fluent API. Constructed via `DataFrame.FromObjects<T>()` or from raw column/row data. |
+| `Row` | Dictionary-backed row abstraction used by `DataFrame`. Values are `object?`, accessed by column name. |
+| `GroupedDataFrame` | Intermediate result of `DataFrame.GroupBy(...)`. Supports aggregation operations (`Count()`, with room to add `Sum`, `Avg`, etc.). |
+
+#### `Lib.Modules`
+
+| Class | Purpose |
+|---|---|
+| `IModule` | Core module interface: `Execute(Dictionary<string, object> sharedState) → Dictionary<string, object>`. All modules implement this contract. |
+| `DataSourcing` | Queries a PostgreSQL data lake schema for a specified table, column list, and effective date range. Returns a single flat `DataFrame` with `as_of` appended as a column (skipped if the caller already includes it). Supports an optional `additionalFilter` clause passed directly into the SQL `WHERE` predicate. |
+| `Transformation` | Opens an in-memory SQLite connection, registers every `DataFrame` in the current shared state as a SQLite table, executes user-supplied free-form SQL, and stores the result `DataFrame` back into shared state under a caller-specified result name. |
+| `DataFrameWriter` | Writes a named `DataFrame` from shared state to a PostgreSQL curation schema. Auto-creates the target table if it does not exist (type inference from sample values). Supports `Overwrite` mode (truncate then insert) and `Append` mode (insert only). All writes are transaction-wrapped. |
+| `External` | Loads a user-supplied .NET assembly from disk via reflection, locates a named type that implements `IExternalStep`, instantiates it, and delegates `Execute`. Allows teams to inject arbitrary C# logic into any job pipeline without modifying the framework. |
+| `IExternalStep` | Interface that external assemblies must implement to be callable via the `External` module. |
+| `ModuleFactory` | Static factory. Reads the `type` discriminator field from a `JsonElement` and instantiates the appropriate `IModule` implementation. Throws `InvalidOperationException` on unknown types and propagates `KeyNotFoundException` if the `type` field is absent. |
+
+#### `Lib` (root)
+
+| Class | Purpose |
+|---|---|
+| `ConnectionHelper` | Internal static helper that builds a Npgsql connection string. Decodes the Postgres password from a hex-encoded UTF-16 LE environment variable (`PGPASS`). |
+| `JobConf` | JSON deserialization model. Contains the job name and an ordered `List<JsonElement>` of module configurations. |
+| `JobRunner` | Deserializes a job conf from a JSON file path, iterates the module list, creates each module via `ModuleFactory`, and threads shared state through the pipeline. Logs progress to the console. |
 
 ---
 
-## Planned Additions
+### `JobExecutor` (Console Application)
 
-Architectural details will be added to this document as the design evolves. At minimum, the following are expected:
+Entry point for running a job from the command line. Accepts the path to a job conf JSON file as `args[0]`, validates the file exists, and delegates to `JobRunner.Run()`.
 
-- Transformation module
-- DataFrame Writer module
-- External / custom-logic module
-- Job configuration schema (JSON)
-- Framework executor / job runner
+**Sample job configuration** (`JobExecutor/Jobs/sample_job.json`):
+```json
+{
+  "jobName": "CustomerAccountSummary",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"],
+      "minEffectiveDate": "2024-10-01",
+      "maxEffectiveDate": "2024-10-31"
+    },
+    {
+      "type": "Transformation",
+      "resultName": "summary",
+      "sql": "SELECT c.id, c.first_name, c.last_name, c.as_of FROM customers c"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "summary",
+      "targetTable": "customer_summary",
+      "writeMode": "Overwrite"
+    }
+  ]
+}
+```
+
+---
+
+### `Lib.Tests` (xUnit Test Project)
+
+Unit test coverage for framework components. Tests do not require a live database — all DataFrame and Transformation tests operate entirely in memory.
+
+| Test Class | Coverage |
+|---|---|
+| `DataFrameTests` | `DataFrame` API — Count, Columns, Select, Filter, WithColumn, Drop, OrderBy, Limit, Union, Distinct, Join (inner + left), GroupBy/Count |
+| `TransformationTests` | `Transformation` module — basic SELECT, WHERE, column projection, JOIN across two DataFrames, GROUP BY aggregation, shared state preservation, non-DataFrame entries in state are silently ignored |
+| `ModuleFactoryTests` | `ModuleFactory` — all four module types, optional `additionalFilter` field, both write modes, unknown type error, missing type field error |
+
+---
+
+## Technology Choices
+
+| Concern | Choice | Rationale |
+|---|---|---|
+| Language / runtime | C# / .NET 8 | Owner's primary language |
+| PostgreSQL client | Npgsql 8 | Standard .NET Postgres driver |
+| In-process SQL engine | Microsoft.Data.Sqlite 8 | Enables free-form SQL in `Transformation` without a running server; well-audited, Microsoft-supported |
+| Test framework | xUnit | Industry standard for modern .NET; no test runner installation required |
+| External assembly loading | `Assembly.LoadFrom` + reflection | Mirrors the production Python `importlib` pattern for user-supplied modules |
 
 ---
 
