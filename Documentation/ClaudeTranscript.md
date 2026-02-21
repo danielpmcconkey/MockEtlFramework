@@ -477,3 +477,66 @@ Created `SQL/CreateControlSchema.sql`. Script must be run as postgres (dansdev l
 - UNIQUE(job_id, depends_on_job_id), self-loop CHECK, index on depends_on_job_id for efficient unblocking queries
 
 ---
+
+## User — 2026-02-21 13:05
+
+go ahead and build the executor now, but don't create any mock jobs yet
+
+## Claude — 2026-02-21 13:10
+
+Built the `Lib.Control` orchestration layer and updated `JobExecutor/Program.cs`. All files compiled cleanly.
+
+**New files in `Lib/Control/`:**
+
+`JobRegistration.cs` — model for `control.jobs` rows (JobId, JobName, Description, JobConfPath, IsActive)
+
+`JobDependency.cs` — model for `control.job_dependencies` rows (JobId, DependsOnJobId, DependencyType)
+
+`ControlDb.cs` — internal static data-access layer. Reads: `GetActiveJobs`, `GetAllDependencies`, `GetSucceededJobIds(DateOnly)`, `GetEverSucceededJobIds`, `GetNextAttemptNumber`. Writes: `InsertRun` (returns run_id), `MarkRunning`, `MarkSucceeded`, `MarkFailed`, `MarkSkipped`. All methods open/close their own connections.
+
+`ExecutionPlan.cs` — internal static class. `Build()` applies Kahn's topological sort over only unsatisfied dependency edges. SameDay edge is satisfied if upstream is in `succeededSameDayIds`; Latest edge is satisfied if upstream is in `everSucceededIds`. Jobs already succeeded today are excluded from the result. Throws `InvalidOperationException` on cycle detection.
+
+`JobExecutorService.cs` — public orchestrator. `Run(DateOnly runDate, string? specificJobName)`: loads jobs + deps, builds execution plan, iterates in topological order, records Pending→Running→Succeeded/Failed, marks SameDay dependents of failed jobs as Skipped. Extracts `rows_processed` from any DataFrames remaining in final shared state.
+
+**Updated `JobExecutor/Program.cs`:**
+- New CLI: `JobExecutor <run_date> [job_name]` where `run_date` is `yyyy-MM-dd`
+- Delegates to `JobExecutorService.Run()`
+
+Committed as `bf36ffe`.
+
+---
+
+## User — 2026-02-21 13:11
+
+commit and push, please
+
+## Claude — 2026-02-21 13:11
+
+Committed and pushed as `bf36ffe` — "Add JobExecutorService with dependency-aware topological scheduling".
+
+---
+
+## User — 2026-02-21 13:12
+
+now update the strategy doc
+
+## Claude — 2026-02-21 13:13
+
+Updated `Documentation/Strategy.md`:
+- Added `Lib.Control` section with class-by-class table (JobRegistration, JobDependency, ControlDb, ExecutionPlan, JobExecutorService)
+- Added dependency type semantics table (SameDay vs. Latest)
+- Updated `JobExecutor` description to show new `run_date / job_name` CLI and removed stale "accepts job conf path" wording
+
+Committed and pushed as `9955a74`.
+
+---
+
+## User — 2026-02-21 13:13
+
+have you been updating the ClaudeTranscript.md file?
+
+## Claude — 2026-02-21 13:13
+
+No — caught up the transcript now with all entries from this session (executor build, commits, Strategy.md update).
+
+---
