@@ -80,20 +80,55 @@ If the reviewer finds issues:
 
 ## Agent Workflow
 
-### Phase A: Analysis (all 32 jobs)
+### Phase A: Analysis (all 32 jobs) — AGENT TEAMS
 
-For EACH job:
-1. Spawn **Analyst** subagent:
+Phase A uses Claude Code's **Agent Teams** feature for true parallel analysis.
+The lead agent spawns 4 Analyst teammates and 1 Reviewer teammate. Phases B–E
+revert to standard Task tool subagents (sequential orchestration).
+
+**Team composition:**
+
+| Teammate | Role | Assignment |
+|----------|------|------------|
+| analyst-1 | Analyst | Jobs 1–8 (alphabetically by job_name) |
+| analyst-2 | Analyst | Jobs 9–16 |
+| analyst-3 | Analyst | Jobs 17–24 |
+| analyst-4 | Analyst | Jobs 25–32 |
+| reviewer  | Reviewer / Watcher | Validates all 32 BRDs as they are produced |
+
+**Analyst teammates** each:
+1. Read `Documentation/Strategy.md` to understand the framework (first thing)
+2. For each assigned job:
    - Read the job config JSON to understand modules, tables sourced, write mode, target table
    - Read the External module source code (if applicable) or SQL transformation
    - Read framework code as needed to understand module behavior
    - Query database: examine source table schemas, sample data, row counts per as_of
    - Query curated output: examine output table schema, sample output, row counts
    - Produce BRD at `Phase3/brd/{job_name}_brd.md`
-2. Spawn **Reviewer** subagent to validate the BRD (see Quality Gates)
-3. Revise if needed
+   - Message the reviewer teammate: "BRD ready for review: {job_name}"
+3. If the reviewer sends back feedback, revise the BRD and re-notify
 
-BRD must include:
+**Reviewer teammate**:
+1. Monitors for BRD review requests from analysts
+2. For each BRD, applies the Quality Gates (see above)
+3. Writes validation report to `Phase3/brd/{job_name}_review.md`
+4. If issues found, messages the analyst back with specific feedback
+5. Tracks overall progress — when all 32 BRDs pass review, messages the lead:
+   "Phase A complete. All 32 BRDs reviewed and approved."
+
+**File conflict prevention:**
+- Each analyst writes ONLY to their assigned job's BRD files — no shared files
+- Only the reviewer writes review files
+- Only the lead writes to `Phase3/logs/discussions.md`
+- The `Phase3/logs/analysis_progress.md` file is written ONLY by the reviewer
+  to track which BRDs have passed review
+
+**Completion gate:**
+Phase A is complete when the reviewer confirms all 32 BRDs have passed.
+The lead then dismisses the Agent Teams session and proceeds to Phase B
+using standard Task tool subagents.
+
+**BRD format** (every BRD must include):
 - Overview (1-2 sentences: what does this job produce and why)
 - Source tables with join/filter logic and evidence
 - Business rules (numbered, each with confidence + evidence)
@@ -102,7 +137,7 @@ BRD must include:
 - Traceability matrix (requirement ID → evidence citation)
 - Open questions (unresolved ambiguities with confidence assessment)
 
-### Phase B: Design & Implementation (all 32 jobs)
+### Phase B: Design & Implementation (all 32 jobs) — STANDARD SUBAGENTS
 
 For EACH job:
 1. Spawn **Architect** subagent:
@@ -125,14 +160,14 @@ For EACH job:
    - Job names must be distinct from originals (append `V2`, e.g., `CoveredTransactionsV2`)
 5. Spawn **Code Reviewer** subagent to validate implementation traces to FSD
 
-### Phase C: Setup
+### Phase C: Setup — STANDARD SUBAGENTS
 
 1. Create `double_secret_curated` schema with tables mirroring `curated` schema
 2. Register all V2 jobs in `control.jobs`
 3. Run `dotnet build` — must compile cleanly
 4. Run `dotnet test` — all existing tests must pass
 
-### Phase D: Iterative Comparison Loop
+### Phase D: Iterative Comparison Loop — STANDARD SUBAGENTS
 
 This is the core validation loop. Follow these steps EXACTLY:
 
@@ -196,7 +231,7 @@ STEP_60:
 
 IMPORTANT: A discrepancy on ANY date means GOTO STEP_30 — full truncate and restart from Oct 1. This ensures fixes don't break earlier dates.
 
-### Phase E: Governance (Steps 120-130)
+### Phase E: Governance (Steps 120-130) — STANDARD SUBAGENTS
 
 STEP_120: Executive Summary
   Create `Phase3/governance/executive_summary.md`:
@@ -344,17 +379,27 @@ You are the autonomous team lead for Phase 3. Your goal: reverse-engineer 32 ETL
 
 Begin now. Follow the workflow phases in order:
 
-Phase A — Analysis: Analyze all 32 jobs. For each job, read its config and source code, query database schema and data, produce a BRD, and have it reviewed. Process jobs in batches of 5-8 to manage context. Write every artifact to disk immediately.
+Phase A — Analysis (AGENT TEAMS):
+1. Read Documentation/Strategy.md to understand the framework architecture.
+2. Query control.jobs to list all 32 active jobs. Sort alphabetically by job_name and divide into 4 batches of 8.
+3. Spawn 5 Agent Teams teammates:
+   - analyst-1 through analyst-4: each assigned one batch of 8 jobs. Each analyst reads job configs, source code, queries the database, and produces a BRD at Phase3/brd/{job_name}_brd.md. Analysts message the reviewer when each BRD is ready.
+   - reviewer: validates every BRD against the Quality Gates in CLAUDE.md. Messages analysts back with feedback if issues found. Tracks progress in Phase3/logs/analysis_progress.md. Messages you when all 32 BRDs pass review.
+4. Wait for the reviewer to confirm all 32 BRDs are approved, then dismiss Agent Teams.
 
-Phase B — Design & Build: For each job, produce an FSD, test plan, and implementation. Have each reviewed. All new jobs write to double_secret_curated schema with V2 naming.
+Phase B — Design & Build (standard subagents):
+For each job, spawn subagents to produce an FSD, test plan, and implementation. Have each reviewed. All new jobs write to double_secret_curated schema with V2 naming.
 
-Phase C — Setup: Create the double_secret_curated schema, register V2 jobs, build, and test.
+Phase C — Setup (standard subagents):
+Create the double_secret_curated schema, register V2 jobs, build, and test.
 
-Phase D — Comparison Loop: Follow the STEP_30 through STEP_110 loop exactly as specified in CLAUDE.md. This is the critical validation phase. Be methodical. Log everything.
+Phase D — Comparison Loop (standard subagents):
+Follow the STEP_30 through STEP_110 loop exactly as specified in CLAUDE.md. This is the critical validation phase. Be methodical. Log everything.
 
-Phase E — Governance: Compile executive summary and per-job governance reports.
+Phase E — Governance (standard subagents):
+Compile executive summary and per-job governance reports.
 
-Start with Phase A now. Begin by reading Documentation/Strategy.md to understand the framework, then list all active jobs from control.jobs, then start analyzing them.
+Start with Phase A now.
 ```
 
 ---
@@ -376,5 +421,8 @@ A fix to job X on Oct 15 could theoretically break Oct 1-14 if it changes shared
 ### Why V2 naming instead of replacement?
 Running original and V2 jobs side-by-side means the comparison infrastructure is simple: same executor, same date, two schemas. No need to swap code in and out.
 
+### Why Agent Teams for Phase A only?
+Phase A (analysis) is embarrassingly parallel — 32 independent jobs to analyze with no dependencies between them. Agent Teams enables 4 analysts working simultaneously, cutting analysis time by ~4x. The reviewer teammate provides real-time quality control via direct messaging. Phases B–E are more sequential (design depends on BRDs, comparison loop is strictly ordered) and don't benefit from persistent parallel agents. Switching to standard subagents after Phase A also avoids the ~5-6x token cost of maintaining 5 teammates through the entire workflow.
+
 ### Context window management
-The CLAUDE.md is always loaded (survives compression). The orchestrator stays lean by delegating all heavy work to subagents. Each subagent gets the specific context it needs (one job's BRD, one job's code) rather than the full 32-job picture. Artifacts on disk serve as the persistent memory.
+The CLAUDE.md is always loaded (survives compression). The orchestrator stays lean by delegating all heavy work to subagents (or teammates in Phase A). Each agent gets the specific context it needs (one job's BRD, one job's code) rather than the full 32-job picture. Artifacts on disk serve as the persistent memory.
