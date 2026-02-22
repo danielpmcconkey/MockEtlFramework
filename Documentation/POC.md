@@ -17,11 +17,11 @@ Basically I want you to pretend like a junior developer was listening to Paul's 
 
 At the end of Phase 2, I want you to run all ETL jobs for each effective date of October 1, 2024 through October 31, 2024. Run these as if each day was a separate execution. The curated tables' output should be quality. The code / config should not.
 
-## Phase 2.5 <-- you are here
+## Phase 2.5 has already happened
 
 I want to plan out Phase 3 together. However, before we do that, I have a few extra tasks for you.
 
-## Phase 3
+## Phase 3 has already happened
 
 In a separate session, I will have Claude Opus act as the team lead over an Agent Teams configuration of agents. That team will be responsible for understanding the mock ETL FW that Phase 1 built. It will be responsible for analyzing the job code that Phase 2 created. But it is VERY important that Phase 3 not be given any access to documentation of what those jobs are supposed to do. We are evaluating the feasibility of inferring business requirements from existing code that is poorly written and poorly documented, and then building better code based on those business requirements.
 
