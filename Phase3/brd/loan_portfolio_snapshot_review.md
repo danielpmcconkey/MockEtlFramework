@@ -1,18 +1,31 @@
-# Review: LoanPortfolioSnapshot BRD
+# LoanPortfolioSnapshot BRD — Review Report
 
-## Status: PASS
+**Reviewer:** reviewer
+**Date:** 2026-02-22
+**BRD:** Phase3/brd/loan_portfolio_snapshot_brd.md
+**Result:** PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Citation Verification
 
-## Verification Details
-All 7 business rules verified against LoanSnapshotBuilder.cs source code and loan_portfolio_snapshot.json config. Key verifications: pass-through of 7 columns excluding origination_date and maturity_date (lines 10-14, 28-38), output column list confirmed (loan_id, customer_id, loan_type, original_amount, current_balance, interest_rate, loan_status, as_of), null/empty guard (lines 18-22), Overwrite mode (JSON line 29), unused branches sourcing confirmed (JSON lines 12-17).
+| Requirement | Citation | Verified? | Notes |
+|-------------|----------|-----------|-------|
+| BR-1 | LoanSnapshotBuilder.cs:26-38 | YES | foreach with no filter |
+| BR-2 | LoanSnapshotBuilder.cs:4-8 | MINOR | Output columns are at lines 10-14, not 4-8. Claim is correct. |
+| BR-3 | LoanSnapshotBuilder.cs:28-38 | YES | Direct row[column] assignments |
+| BR-4 | loan_portfolio_snapshot.json:28 | YES | `"writeMode": "Overwrite"` |
+| BR-5 | LoanSnapshotBuilder.cs:18-21 | YES | Null/empty guard |
 
-## Notes
-- Simple pass-through job with intentional column exclusion (documented in code comment at line 24).
-- No transformation logic beyond column selection.
-- Unused branches table correctly flagged.
+## Anti-Pattern Assessment
+
+| AP Code | BRD Finding | Reviewer Assessment |
+|---------|-------------|---------------------|
+| AP-1 | YES — branches sourced but unused | CONFIRMED |
+| AP-3 | YES — trivial pass-through External | CONFIRMED. Simple SELECT statement. |
+| AP-6 | YES — row-by-row iteration for column projection | CONFIRMED |
+| AP-9 | YES — misleading name ("snapshot" suggests aggregation) | Good catch. The job is a column projection, not an analytical snapshot. |
+
+Note: origination_date and maturity_date are documented as "sourced but unused" in Source Tables section. This is effectively AP-4 though not explicitly tagged. The information is present for V2 design.
+
+## Verdict: PASS
+
+Clear, concise BRD for a simple job. Good AP-9 observation about the misleading name.

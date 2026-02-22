@@ -1,26 +1,34 @@
-# Governance Report: LoanPortfolioSnapshot
+# LoanPortfolioSnapshot -- Governance Report
 
 ## Links
 - BRD: Phase3/brd/loan_portfolio_snapshot_brd.md
 - FSD: Phase3/fsd/loan_portfolio_snapshot_fsd.md
 - Test Plan: Phase3/tests/loan_portfolio_snapshot_tests.md
-- V2 Module: ExternalModules/LoanPortfolioSnapshotV2Processor.cs
 - V2 Config: JobExecutor/Jobs/loan_portfolio_snapshot_v2.json
 
 ## Summary of Changes
-- Original approach: DataSourcing (loan_accounts, branches) -> External (LoanSnapshotBuilder) -> DataFrameWriter to curated.loan_portfolio_snapshot
-- V2 approach: DataSourcing (loan_accounts, branches) -> External (LoanPortfolioSnapshotV2Processor) writing to double_secret_curated.loan_portfolio_snapshot via DscWriterUtil
-- Key difference: V2 combines processing and writing. Business logic (pass through 7 columns from loan_accounts, excluding origination_date and maturity_date) is identical.
+The original job used an External module (LoanSnapshotBuilder.cs) to perform a trivial row-by-row copy of loan account columns (dropping origination_date and maturity_date), with an unused branches DataSourcing module. The V2 replaces the External module with a SQL Transformation (`SELECT loan_id, customer_id, loan_type, original_amount, current_balance, interest_rate, loan_status, as_of FROM loan_accounts`) and removes the branches DataSourcing module. The misleading name "Snapshot" (job is a column projection, not a portfolio-level aggregation) is documented but not changed.
 
-## Anti-Patterns Identified
-- **Unused DataSourcing step**: The `branches` table is sourced but never referenced by the External module.
-- **Over-fetching columns**: The loan_accounts DataSourcing sources origination_date and maturity_date which are explicitly excluded from the output. These columns are loaded into memory only to be discarded.
+## Anti-Pattern Scorecard
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed `branches` DataSourcing module (never referenced by External module) |
+| AP-2    | N                   | N/A                | No duplicated upstream logic |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation (simple column projection) |
+| AP-4    | N                   | N/A                | All sourced columns are used in output (origination_date and maturity_date excluded by not sourcing them) |
+| AP-5    | N                   | N/A                | No NULL/default handling needed (pass-through) |
+| AP-6    | Y                   | Y                  | Row-by-row foreach replaced by set-based SQL SELECT |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No complex SQL in original |
+| AP-9    | Y                   | N (documented)     | Name "LoanPortfolioSnapshot" suggests aggregation but job is a column projection; cannot rename for output compatibility |
+| AP-10   | N                   | N/A                | No undeclared dependencies |
 
 ## Comparison Results
-- Dates compared: 31 (Oct 1-31, 2024)
+- Dates verified: 31 (Oct 1-31, 2024)
 - Match percentage: 100%
-- Fix iterations required for this specific job: 0 (assembly name fix and TRUNCATE-to-DELETE fix applied universally, but no job-specific logic fix needed)
+- Write mode: Overwrite
+- Row count: 90
 
 ## Confidence Assessment
-- Overall confidence: HIGH
-- Simple pass-through logic with column selection (include 7, exclude 2). No transformations or calculations.
+**HIGH** -- Pure column projection with no business logic. All 5 business rules directly observable. No fix iterations required for this job.

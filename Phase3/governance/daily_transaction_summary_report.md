@@ -1,27 +1,34 @@
-# Governance Report: DailyTransactionSummary
+# DailyTransactionSummary -- Governance Report
 
 ## Links
 - BRD: Phase3/brd/daily_transaction_summary_brd.md
 - FSD: Phase3/fsd/daily_transaction_summary_fsd.md
 - Test Plan: Phase3/tests/daily_transaction_summary_tests.md
-- V2 Module: ExternalModules/DailyTransactionSummaryV2Writer.cs
 - V2 Config: JobExecutor/Jobs/daily_transaction_summary_v2.json
 
 ## Summary of Changes
-- Original approach: DataSourcing (transactions, branches) -> Transformation (SQL GROUP BY account_id, as_of with SUM/COUNT aggregations) -> DataFrameWriter to curated.daily_transaction_summary
-- V2 approach: DataSourcing (transactions, branches) -> Transformation (same SQL) -> External (DailyTransactionSummaryV2Writer) writing to double_secret_curated.daily_transaction_summary via DscWriterUtil
-- Key difference: V2 retains the identical Transformation SQL and replaces only the DataFrameWriter with a thin V2 writer module. No business logic changes.
+The original job used a SQL Transformation with an unused branches DataSourcing module, unused columns from transactions, an overly verbose total_amount calculation (SUM of Debit CASE + SUM of Credit CASE instead of SUM(amount)), and an unnecessary subquery wrapper. The V2 removes the branches DataSourcing, trims unused columns, simplifies total_amount to ROUND(SUM(amount), 2), and removes the unnecessary subquery wrapper.
 
-## Anti-Patterns Identified
-- **Unused DataSourcing step**: The `branches` table is sourced but never referenced in the Transformation SQL.
-- **Over-fetching columns**: The transactions DataSourcing sources txn_timestamp and description columns that are not used in the aggregation SQL.
-- **Redundant total_amount computation**: The SQL computes total_amount as the sum of debit and credit CASE expressions rather than simply `SUM(amount)`. While functionally equivalent when all txn_types are either Debit or Credit, this is more verbose than necessary.
+## Anti-Pattern Scorecard
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `branches` DataSourcing module |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | N                   | N/A                | Original already uses SQL Transformation |
+| AP-4    | Y                   | Y                  | Removed unused columns `transaction_id`, `txn_timestamp`, `description` from transactions |
+| AP-5    | N                   | N/A                | NULL handling not applicable |
+| AP-6    | N                   | N/A                | No External module |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | Y                   | Y                  | Removed unnecessary subquery wrapper; simplified total_amount from SUM(CASE Debit) + SUM(CASE Credit) to ROUND(SUM(amount), 2) |
+| AP-9    | N                   | N/A                | Name accurately reflects output |
+| AP-10   | N                   | N/A                | No undeclared dependencies |
 
 ## Comparison Results
-- Dates compared: 31 (Oct 1-31, 2024)
+- Dates verified: 31 (Oct 1-31, 2024)
 - Match percentage: 100%
-- Fix iterations required for this specific job: 0
+- Write mode: Append
+- Row count per date: 241 (varies by date; includes weekends)
 
 ## Confidence Assessment
-- Overall confidence: HIGH
-- SQL-based aggregation with straightforward GROUP BY logic. ROUND(SUM(...), 2) ensures consistent decimal precision.
+**HIGH** -- All 9 business rules directly observable. Straightforward GROUP BY aggregation. No fix iterations required for this job.

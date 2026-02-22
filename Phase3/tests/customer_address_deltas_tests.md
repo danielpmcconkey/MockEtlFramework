@@ -1,29 +1,73 @@
-# Test Plan: CustomerAddressDeltasV2
+# CustomerAddressDeltas -- Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Compares current date vs previous day | Delta detection between consecutive days |
-| TC-2 | BR-2 | NEW address detected | address_id in current but not previous gets change_type="NEW" |
-| TC-3 | BR-3 | UPDATED address detected | Changed field values get change_type="UPDATED" |
-| TC-4 | BR-4 | All 8 compare fields checked | customer_id, address_line1, city, state_province, postal_code, country, start_date, end_date |
-| TC-5 | BR-5 | Normalized comparison | Nulls as "", dates as yyyy-MM-dd, strings trimmed |
-| TC-6 | BR-6 | DELETED not detected | Addresses in previous but not current are ignored |
-| TC-7 | BR-7 | Baseline sentinel on first date | When no previous data, null sentinel with record_count=0 |
-| TC-8 | BR-8 | record_count on all rows | Every row has correct total delta count |
-| TC-9 | BR-9 | No-delta sentinel | When no changes found, null sentinel with record_count=0 |
-| TC-10 | BR-10 | Customer names via snapshot fallback | Names from most recent customer snapshot <= date |
-| TC-11 | BR-11 | Ordered by address_id ASC | Output rows in address_id order |
-| TC-12 | BR-12 | Append mode | Data accumulates across dates |
-| TC-13 | BR-13 | Country trimmed, dates formatted | Correct formatting |
-| TC-14 | BR-15 | Missing customer name defaults to "" | Empty string when no customer record |
-| TC-15 | BR-1-15 | V2 output matches original for each date Oct 1-31 | EXCEPT query returns zero rows |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | First effective date (baseline) | Sentinel null row with record_count=0 |
-| EC-2 | No changes between consecutive days | Sentinel null row with record_count=0 |
-| EC-3 | Multiple changes on same day | All changes reported, record_count = total |
-| EC-4 | Address field changed from null to value | Detected as UPDATED |
-| EC-5 | Beyond data range (no addresses) | Baseline sentinel row emitted |
+TC-1: Day-over-day comparison uses current and previous day -- Traces to BR-1
+- Input: Run for 2024-10-02
+- Expected: Compares Oct 2 addresses against Oct 1 addresses
+- Verification: Delta results match manual comparison of the two dates
+
+TC-2: NEW addresses detected correctly -- Traces to BR-2
+- Input: Address_id present in Oct 2 but not Oct 1
+- Expected: Row with change_type = "NEW"
+- Verification: Check for NEW rows matching address_ids not in previous date
+
+TC-3: UPDATED addresses detected correctly -- Traces to BR-3
+- Input: Address_id present in both Oct 1 and Oct 2 with changed fields
+- Expected: Row with change_type = "UPDATED"
+- Verification: Check for UPDATED rows and verify field changes
+
+TC-4: Compare fields are correct -- Traces to BR-4
+- Input: Address with only non-compare field changed
+- Expected: Not detected as UPDATED
+- Verification: Only changes in the 8 compare fields trigger UPDATED
+
+TC-5: Field comparison normalizes values -- Traces to BR-5
+- Input: Addresses with various NULL, date, and string values
+- Expected: Comparison is case-sensitive and normalizes types
+- Verification: Exact match of delta detection with manual comparison
+
+TC-6: Customer names use snapshot fallback -- Traces to BR-6
+- Input: Customers with varying snapshot dates
+- Expected: Most recent customer record <= effective date is used
+- Verification: Compare customer_name values against DISTINCT ON query
+
+TC-7: Baseline day (Oct 1) produces null-row sentinel -- Traces to BR-7
+- Input: Oct 1 (first date, Sep 30 has no data)
+- Expected: Single row with all NULLs except as_of and record_count = 0
+- Verification: Check Oct 1 output for null-row sentinel
+
+TC-8: record_count reflects delta count -- Traces to BR-8
+- Input: Date with known deltas
+- Expected: record_count matches number of delta rows
+- Verification: All rows have same record_count = total delta rows
+
+TC-9: No-change day produces null-row sentinel -- Traces to BR-9
+- Input: Date where current and previous snapshots are identical
+- Expected: Single row with NULLs except as_of and record_count = 0
+- Verification: Check for null-row sentinel on no-change dates
+
+TC-10: Output ordered by address_id ascending -- Traces to BR-10
+- Input: Multiple delta rows
+- Expected: address_id values in ascending order
+- Verification: Verify address_id ordering
+
+TC-11: Country trimmed, dates formatted -- Traces to BR-11
+- Input: Addresses with country and date values
+- Expected: country trimmed, dates as yyyy-MM-dd
+- Verification: Check formatting in output
+
+TC-12: Append mode accumulates daily deltas -- Traces to BR-12
+- Input: Run for Oct 1 through Oct 5
+- Expected: All dates have rows in the table
+- Verification: SELECT DISTINCT as_of shows all dates
+
+TC-13: Deleted addresses are NOT detected -- Traces to BR-13
+- Input: Address present in Oct 1 but not Oct 2
+- Expected: No row for this address (only NEW and UPDATED detected)
+- Verification: Verify no rows for deleted address_ids
+
+TC-14: Data values match curated output exactly -- Traces to all BRs
+- Input: All dates Oct 1-31
+- Expected: Exact match between curated and double_secret_curated per date
+- Verification: EXCEPT-based comparison per as_of date

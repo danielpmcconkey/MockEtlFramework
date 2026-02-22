@@ -1,93 +1,92 @@
-# BRD: HighBalanceAccounts
+# HighBalanceAccounts -- Business Requirements Document
 
 ## Overview
-This job identifies accounts with a current balance exceeding $10,000 and enriches them with customer name information. The output is a filtered list of high-balance accounts with customer details, written to `curated.high_balance_accounts` in Overwrite mode.
+
+This job identifies all accounts with a current balance exceeding $10,000 and produces a denormalized output that includes the account holder's name. The output is written in Overwrite mode, meaning only the latest effective date's snapshot persists in the curated table.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| accounts | datalake | account_id, customer_id, account_type, account_status, current_balance | Filtered: current_balance > 10000 | [JobExecutor/Jobs/high_balance_accounts.json:5-11] DataSourcing config; [ExternalModules/HighBalanceFilter.cs:39] filter condition |
-| customers | datalake | id, first_name, last_name | Lookup by customer_id for name enrichment | [high_balance_accounts.json:13-17] DataSourcing config; [HighBalanceFilter.cs:27-33] dictionary build |
+
+### datalake.accounts
+- **Columns used**: `account_id`, `customer_id`, `account_type`, `current_balance`, `as_of`
+- **Column sourced but unused**: `account_status` (see AP-4)
+- **Filter**: `current_balance > 10000` applied in the External module
+- **Evidence**: [ExternalModules/HighBalanceFilter.cs:39] `if (balance > 10000)`
+
+### datalake.customers
+- **Columns used**: `id`, `first_name`, `last_name`
+- **Join logic**: Customers are joined to accounts via `customer_id = id`, using a dictionary lookup built from the customers DataFrame
+- **Evidence**: [ExternalModules/HighBalanceFilter.cs:29-31] builds `customerNames` dictionary keyed by `custId` from `customers.Rows`; [ExternalModules/HighBalanceFilter.cs:42] lookups via `customerNames.GetValueOrDefault(customerId, ("", ""))`
 
 ## Business Rules
 
-BR-1: Only accounts with current_balance strictly greater than 10,000 are included in the output.
+BR-1: Only accounts with `current_balance > 10000` are included in the output.
 - Confidence: HIGH
 - Evidence: [ExternalModules/HighBalanceFilter.cs:39] `if (balance > 10000)`
-- Evidence: [curated.high_balance_accounts] `SELECT MIN(current_balance) FROM curated.high_balance_accounts` confirms all balances > 10000
+- Evidence: [curated.high_balance_accounts] `SELECT MIN(current_balance)` yields 10270.00 (all values > 10000)
 
-BR-2: Each qualifying account is enriched with the customer's first_name and last_name via a lookup on customer_id.
+BR-2: Each output row includes the account holder's first and last name from the customers table.
 - Confidence: HIGH
-- Evidence: [ExternalModules/HighBalanceFilter.cs:26-33] Customer name dictionary built keyed by customer id
-- Evidence: [ExternalModules/HighBalanceFilter.cs:41-42] Lookup using `customerNames.GetValueOrDefault(customerId, ("", ""))`
+- Evidence: [ExternalModules/HighBalanceFilter.cs:42-43] customer name lookup by `customer_id`
+- Evidence: [ExternalModules/HighBalanceFilter.cs:49-50] `["first_name"] = firstName`, `["last_name"] = lastName`
 
-BR-3: If a qualifying account's customer_id has no matching customer record, first_name and last_name default to empty strings.
+BR-3: If no matching customer is found for an account, the first_name and last_name default to empty strings.
 - Confidence: HIGH
-- Evidence: [ExternalModules/HighBalanceFilter.cs:42] `GetValueOrDefault(customerId, ("", ""))`
+- Evidence: [ExternalModules/HighBalanceFilter.cs:42] `customerNames.GetValueOrDefault(customerId, ("", ""))`
 
-BR-4: The customer lookup uses the `id` column from customers, not `customer_id`.
-- Confidence: HIGH
-- Evidence: [ExternalModules/HighBalanceFilter.cs:29] `var custId = Convert.ToInt32(custRow["id"]);`
-- Evidence: [high_balance_accounts.json:16] customers table sources column `id`
-
-BR-5: The output includes all account types (Checking, Savings, etc.) as long as the balance threshold is met — there is no account_type filter.
-- Confidence: HIGH
-- Evidence: [ExternalModules/HighBalanceFilter.cs:37-55] Only `balance > 10000` check; no account_type condition
-- Evidence: [curated.high_balance_accounts] `SELECT DISTINCT account_type` shows multiple types present
-
-BR-6: The output includes accounts regardless of account_status (Active, Closed, etc.) — there is no status filter.
-- Confidence: HIGH
-- Evidence: [ExternalModules/HighBalanceFilter.cs:37-55] No account_status condition
-- Evidence: [high_balance_accounts.json:10] account_status is sourced but not filtered on in the External module
-
-BR-7: Output is written in Overwrite mode — each run truncates the entire table before writing.
+BR-4: The output uses Overwrite mode -- each run truncates and replaces the entire target table.
 - Confidence: HIGH
 - Evidence: [JobExecutor/Jobs/high_balance_accounts.json:28] `"writeMode": "Overwrite"`
-- Evidence: [curated.high_balance_accounts] Only one as_of date (2024-10-31) present
 
-BR-8: If accounts or customers are null or empty, the job produces an empty output DataFrame.
+BR-5: There is no explicit filter on account_type or account_status. All account types are eligible if balance exceeds threshold.
 - Confidence: HIGH
-- Evidence: [ExternalModules/HighBalanceFilter.cs:19-23] Null/empty check returns empty DataFrame
+- Evidence: [ExternalModules/HighBalanceFilter.cs:36-55] The only filter condition is `balance > 10000`; no account_type or account_status check exists
+- Note: In practice, only Savings accounts have balances > 10000 in the current data. Checking max balance is $5,017 and Credit max balance is $85. This is a data coincidence, not a business rule.
+- Evidence: [datalake.accounts] `SELECT account_type, COUNT(*) FROM datalake.accounts WHERE current_balance > 10000 AND as_of = '2024-10-31' GROUP BY account_type` yields only Savings (54 rows)
 
-BR-9: The as_of column in the output comes directly from the account row's as_of value (not from customers).
+BR-6: If accounts or customers DataFrames are null or empty, an empty output DataFrame is produced.
 - Confidence: HIGH
-- Evidence: [ExternalModules/HighBalanceFilter.cs:52] `["as_of"] = acctRow["as_of"]`
-
-BR-10: If multiple customer rows exist for the same id (due to dictionary overwrite), the last one encountered wins.
-- Confidence: MEDIUM
-- Evidence: [ExternalModules/HighBalanceFilter.cs:30] `customerNames[custId] = (firstName, lastName);` — dictionary assignment overwrites
-- Evidence: In practice, customer ids are unique per as_of, so this is not expected to cause issues
+- Evidence: [ExternalModules/HighBalanceFilter.cs:19-23] null/empty check returns empty DataFrame
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| account_id | accounts.account_id | Pass-through | [HighBalanceFilter.cs:46] |
-| customer_id | accounts.customer_id | Pass-through | [HighBalanceFilter.cs:47] |
-| account_type | accounts.account_type | Pass-through | [HighBalanceFilter.cs:48] |
-| current_balance | accounts.current_balance | Pass-through (no rounding) | [HighBalanceFilter.cs:49] |
-| first_name | customers.first_name | Lookup by customer_id; default "" if not found | [HighBalanceFilter.cs:50] |
-| last_name | customers.last_name | Lookup by customer_id; default "" if not found | [HighBalanceFilter.cs:51] |
-| as_of | accounts.as_of | Pass-through from account row | [HighBalanceFilter.cs:52] |
+
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| account_id | datalake.accounts.account_id | Pass-through |
+| customer_id | datalake.accounts.customer_id | Pass-through |
+| account_type | datalake.accounts.account_type | Pass-through |
+| current_balance | datalake.accounts.current_balance | Pass-through (only rows where > 10000) |
+| first_name | datalake.customers.first_name | Looked up by customer_id; defaults to "" if not found |
+| last_name | datalake.customers.last_name | Looked up by customer_id; defaults to "" if not found |
+| as_of | datalake.accounts.as_of | Pass-through from accounts rows |
 
 ## Edge Cases
-- **NULL handling**: customer first_name/last_name null values are coalesced to empty string via `?.ToString() ?? ""` at [HighBalanceFilter.cs:31-32]. If customer_id not found in lookup, defaults to ("", "").
-- **Weekend/date fallback**: Accounts table has weekday-only data. On weekend effective dates, accounts DataFrame would be empty, triggering the empty-output guard (BR-8).
-- **Zero-row behavior**: If no accounts exceed $10,000 threshold, output is a valid empty DataFrame.
-- **Balance precision**: The balance comparison uses `Convert.ToDecimal` but output passes through the raw value — no rounding applied to the balance itself.
+
+- **No matching customer**: first_name and last_name default to empty strings (not NULL)
+- **Empty accounts or customers DataFrame**: Returns empty output DataFrame
+- **NULL balance**: Would cause `Convert.ToDecimal` to throw; no explicit NULL guard. However, `current_balance` is defined as NOT NULL in the source schema, so this cannot occur.
+- **Overwrite mode**: Only the last effective date's data persists. Earlier dates are overwritten.
+
+## Anti-Patterns Identified
+
+- **AP-3: Unnecessary External Module** -- The HighBalanceFilter External module performs a simple filter (`balance > 10000`) and a LEFT JOIN equivalent (accounts to customers). This is straightforward SQL: `SELECT a.account_id, a.customer_id, a.account_type, a.current_balance, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, a.as_of FROM accounts a LEFT JOIN customers c ON a.customer_id = c.id AND a.as_of = c.as_of WHERE a.current_balance > 10000`. V2 approach: Replace with a SQL Transformation.
+
+- **AP-4: Unused Columns Sourced** -- The accounts DataSourcing includes `account_status` in its columns list, but the External module never references `account_status`. V2 approach: Remove `account_status` from the DataSourcing columns.
+
+- **AP-6: Row-by-Row Iteration in External Module** -- The External module iterates over accounts rows one by one with a `foreach` loop to filter and join. This is a set-based operation expressible as a single SQL query. V2 approach: Replace with SQL Transformation (see AP-3).
+
+- **AP-7: Hardcoded Magic Values** -- The threshold `10000` appears as a literal in the filter condition without explanation of its business meaning. V2 approach: Document that 10000 is the high-balance threshold in the FSD; add SQL comment.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [HighBalanceFilter.cs:39], [curated data verification] |
-| BR-2 | [HighBalanceFilter.cs:26-33, 41-42] |
-| BR-3 | [HighBalanceFilter.cs:42] |
-| BR-4 | [HighBalanceFilter.cs:29], [high_balance_accounts.json:16] |
-| BR-5 | [HighBalanceFilter.cs:37-55], [curated data verification] |
-| BR-6 | [HighBalanceFilter.cs:37-55], [high_balance_accounts.json:10] |
-| BR-7 | [high_balance_accounts.json:28], [curated data observation] |
-| BR-8 | [HighBalanceFilter.cs:19-23] |
-| BR-9 | [HighBalanceFilter.cs:52] |
-| BR-10 | [HighBalanceFilter.cs:30] |
+| BR-1 | [ExternalModules/HighBalanceFilter.cs:39] `if (balance > 10000)` |
+| BR-2 | [ExternalModules/HighBalanceFilter.cs:42-50] customer lookup and output assignment |
+| BR-3 | [ExternalModules/HighBalanceFilter.cs:42] `GetValueOrDefault(customerId, ("", ""))` |
+| BR-4 | [JobExecutor/Jobs/high_balance_accounts.json:28] `"writeMode": "Overwrite"` |
+| BR-5 | [ExternalModules/HighBalanceFilter.cs:36-55] only filter is balance > 10000 |
+| BR-6 | [ExternalModules/HighBalanceFilter.cs:19-23] null/empty guard |
 
 ## Open Questions
-- None. The logic is straightforward with no ambiguity.
+
+- None. All business rules are directly observable in code with HIGH confidence.

@@ -1,40 +1,56 @@
-# FSD: MonthlyTransactionTrendV2
+# MonthlyTransactionTrend -- Functional Specification Document
 
-## Overview
-Replaces the original MonthlyTransactionTrend job with a V2 implementation that writes to the `double_secret_curated` schema instead of `curated`. The V2 uses the same Transformation SQL as the original but replaces the DataFrameWriter with a V2Writer External module that writes to `double_secret_curated.monthly_transaction_trend` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern B (Transformation + V2Writer)**: The original job uses DataSourcing (x2) -> Transformation -> DataFrameWriter. The V2 retains the same DataSourcing and Transformation steps, and replaces DataFrameWriter with a thin External writer module.
-- The Transformation SQL is kept exactly as-is (same CTE structure, same aggregations, same ordering).
-- Write mode is Append (matching original), so DscWriterUtil.Write is called with overwrite=false.
-- The branches DataSourcing step is retained (matching the original) even though the SQL does not reference it.
-- **SameDay dependency on DailyTransactionVolume**: The V2 job inherits this dependency. The V2 must be registered with the same dependency to ensure correct execution order.
+SQL-first with AP-2 dependency fix. The original job re-derives daily transaction statistics (count, total amount, average) from raw `datalake.transactions`, duplicating logic already computed by the upstream DailyTransactionVolume job and written to `curated.daily_transaction_volume`. The V2 reads from the upstream curated table instead, renaming columns to match the expected output schema. This eliminates duplicated computation and properly leverages the declared dependency.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=transactions, columns=[transaction_id, account_id, txn_type, amount], resultName=transactions |
-| 2 | DataSourcing | schema=datalake, table=branches, columns=[branch_id, branch_name], resultName=branches (unused by SQL) |
-| 3 | Transformation | SQL aggregates transactions by as_of: COUNT, ROUND(SUM, 2), ROUND(AVG, 2); resultName=monthly_trend |
-| 4 | External | MonthlyTransactionTrendV2Writer -- reads monthly_trend DataFrame, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: MonthlyTransactionTrendV2Writer
-- File: ExternalModules/MonthlyTransactionTrendV2Writer.cs
-- Processing logic: Reads "monthly_trend" DataFrame from shared state (result of Transformation). Writes to double_secret_curated via DscWriterUtil with overwrite=false (Append). Puts result in sharedState["output"].
-- Output columns: as_of, daily_transactions, daily_amount, avg_transaction_amount
-- Target table: double_secret_curated.monthly_transaction_trend
-- Write mode: Append (overwrite=false)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed `branches` DataSourcing module (never referenced in SQL) |
+| AP-2    | Y                   | Y                  | V2 reads from curated.daily_transaction_volume instead of re-deriving from datalake.transactions |
+| AP-3    | N                   | N/A                | Original already uses Transformation (not External module) |
+| AP-4    | Y                   | Y                  | Original sourced account_id and txn_type which were unused; V2 reads only needed columns from upstream table |
+| AP-5    | N                   | N/A                | No NULL/default handling involved |
+| AP-6    | N                   | N/A                | No External module with row-by-row iteration |
+| AP-7    | Y                   | Y                  | Removed hardcoded date '2024-10-01' from WHERE clause (DataSourcing handles date filtering) |
+| AP-8    | Y                   | Y                  | Removed unnecessary CTE wrapper; V2 is a simple column-renaming SELECT |
+| AP-9    | Y                   | N (documented)     | Name "MonthlyTransactionTrend" is misleading (produces daily data, not monthly); cannot rename for output compatibility |
+| AP-10   | N                   | N/A                | Dependency on DailyTransactionVolume already declared; V2 now actually uses upstream output |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** `daily_volume`: Read `total_transactions`, `total_amount`, `avg_amount` from `curated.daily_transaction_volume`
+2. **Transformation** `monthly_trend`: Rename columns to match expected output schema
+3. **DataFrameWriter**: Write `monthly_trend` to `double_secret_curated.monthly_transaction_trend` in Append mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    as_of,
+    total_transactions AS daily_transactions,
+    total_amount AS daily_amount,
+    avg_amount AS avg_transaction_amount
+FROM daily_volume
+ORDER BY as_of
+```
+
+**Key design notes:**
+- Reads pre-computed values from curated.daily_transaction_volume (populated by upstream DailyTransactionVolume job)
+- Column renaming: total_transactions -> daily_transactions, total_amount -> daily_amount, avg_amount -> avg_transaction_amount
+- Values are already ROUND'd to 2 decimal places by the upstream job
+- No WHERE clause needed: DataSourcing handles effective date filtering
+- Depends on DailyTransactionVolume running first (SameDay dependency already declared)
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | Transformation SQL computes COUNT, ROUND(SUM, 2), ROUND(AVG, 2) grouped by as_of |
-| BR-2 | WHERE as_of >= '2024-10-01' retained in SQL (redundant but preserved for behavioral equivalence) |
-| BR-3 | CTE structure preserved exactly as-is |
-| BR-4 | ORDER BY as_of preserved in SQL |
-| BR-5 | DscWriterUtil.Write with overwrite=false (Append) |
-| BR-6 | Single date per run produces one output row |
-| BR-7 | No txn_type filter in SQL |
-| BR-8 | branches sourced but not referenced in SQL |
-| BR-9 | SameDay dependency on DailyTransactionVolume must be registered |
-| BR-10 | Transactions available for all 31 days |
+|-----------------|-------------------|
+| BR-1 | Reads pre-computed count, sum, avg from daily_transaction_volume (same computation, different source) |
+| BR-2 | One row per as_of from upstream table (daily_transaction_volume has one row per date) |
+| BR-3 | Rounding already applied by upstream job; values pass through as-is |
+| BR-4 | No txn_type filter applied (upstream includes all transaction types in its aggregation) |
+| BR-5 | DataFrameWriter writeMode: "Append" |
+| BR-6 | ORDER BY as_of |

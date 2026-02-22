@@ -1,19 +1,34 @@
-# Review: DailyTransactionSummary BRD
+# DailyTransactionSummary BRD — Review Report
 
-## Status: PASS
+**Reviewer:** reviewer
+**Date:** 2026-02-22
+**BRD:** Phase3/brd/daily_transaction_summary_brd.md
+**Result:** PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Citation Verification
 
-## Verification Details
-All 14 business rules verified against daily_transaction_summary.json config. SQL verified: subquery pattern with GROUP BY account_id/as_of, CASE-based debit/credit separation, total_amount as sum of debit+credit (not raw SUM(amount)), ROUND to 2 dp, ORDER BY as_of/account_id. Append mode at JSON line 28. Branches sourced (lines 12-17) but not used in SQL. txn_timestamp and description sourced but unused in SQL (JSON line 10).
+| Requirement | Citation | Verified? | Notes |
+|-------------|----------|-----------|-------|
+| BR-1 | daily_transaction_summary.json:22 | YES | `GROUP BY t.account_id, t.as_of` in SQL |
+| BR-2 | daily_transaction_summary.json:22 | YES | SUM(CASE Debit) + SUM(CASE Credit) expression |
+| BR-3 | daily_transaction_summary.json:22 | YES | COUNT(*) |
+| BR-4 | daily_transaction_summary.json:22 | YES | Debit CASE expression |
+| BR-5 | daily_transaction_summary.json:22 | YES | Credit CASE expression |
+| BR-6 | daily_transaction_summary.json:22 | YES | ORDER BY sub.as_of, sub.account_id |
+| BR-7 | daily_transaction_summary.json:28 | YES | `"writeMode": "Append"` |
+| BR-8 | datalake data patterns | YES | transactions have weekend data |
+| BR-9 | daily_transaction_summary.json:22 | YES | ROUND(..., 2) on all amounts |
 
-## Notes
-- Important observation that total_amount = SUM(debit) + SUM(credit), not SUM(amount).
-- This means non-Debit/non-Credit types would contribute 0 to total_amount but be counted in COUNT(*).
-- Pure SQL Transformation job; all evidence from JSON config.
-- Unused branches and extra columns properly flagged.
+## Anti-Pattern Assessment
+
+| AP Code | BRD Finding | Reviewer Assessment |
+|---------|-------------|---------------------|
+| AP-1 | YES — branches sourced but unused | CONFIRMED. SQL only references transactions. |
+| AP-4 | YES — transaction_id, txn_timestamp, description unused | CONFIRMED. SQL only uses account_id, as_of, txn_type, amount. |
+| AP-8 | YES — verbose total_amount calc + unnecessary subquery | CONFIRMED. SUM(amount) simpler than SUM(Debit)+SUM(Credit). Subquery wrapper adds nothing. |
+
+Excellent AP-8 analysis identifying both complexities (verbose total_amount and unnecessary subquery).
+
+## Verdict: PASS
+
+Well-structured BRD with clear SQL analysis. Good observation that total_amount calculation is functionally equivalent to SUM(amount). All anti-patterns correctly identified.

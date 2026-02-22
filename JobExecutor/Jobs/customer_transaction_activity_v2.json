@@ -7,7 +7,7 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": ["account_id", "txn_type", "amount"]
     },
     {
       "type": "DataSourcing",
@@ -18,8 +18,15 @@
     },
     {
       "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.CustomerTransactionActivityV2Processor"
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CustomerTransactionActivityV2"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "activity_output",
+      "targetTable": "customer_transaction_activity",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

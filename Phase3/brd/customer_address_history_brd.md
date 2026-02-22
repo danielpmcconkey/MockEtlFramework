@@ -1,89 +1,83 @@
-# BRD: CustomerAddressHistory
+# CustomerAddressHistory — Business Requirements Document
 
 ## Overview
-This job produces a historical log of customer addresses for each effective date, filtering out addresses with null customer_id. It appends a daily snapshot of customer addresses to the curated table, building an accumulating history over time.
+
+Produces a historical record of customer addresses by selecting address records for each effective date, filtering out rows where customer_id is NULL, and appending daily. Output captures the address state for each customer on each date.
 
 ## Source Tables
 
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| addresses | datalake | address_id, customer_id, address_line1, city, state_province, postal_code, country | Sourced via DataSourcing for effective date range | [customer_address_history.json:7-12] |
-| branches | datalake | branch_id, branch_name | Sourced via DataSourcing but NOT USED in the SQL transformation | [customer_address_history.json:14-18] |
+| Table | Schema | Columns Used | Purpose |
+|-------|--------|-------------|---------|
+| `datalake.addresses` | datalake | address_id, customer_id, address_line1, city, state_province, postal_code, country | Source address records |
+| `datalake.branches` | datalake | branch_id, branch_name | **SOURCED BUT NEVER USED** — not referenced in the Transformation SQL |
 
 ## Business Rules
 
-BR-1: Only addresses with a non-null customer_id are included.
+BR-1: Address records are selected from the datalake for the effective date, filtering out rows where customer_id IS NULL.
 - Confidence: HIGH
-- Evidence: [customer_address_history.json:22] SQL contains `WHERE a.customer_id IS NOT NULL`
+- Evidence: [JobExecutor/Jobs/customer_address_history.json:22] SQL: `WHERE a.customer_id IS NOT NULL`
+- Evidence: [curated.customer_address_history] All rows have non-null customer_id
 
-BR-2: The output includes address fields from the addresses table and the as_of date for temporal tracking.
+BR-2: Output columns are: customer_id, address_line1, city, state_province, postal_code, country, as_of.
 - Confidence: HIGH
-- Evidence: [customer_address_history.json:22] SQL selects: `customer_id, address_line1, city, state_province, postal_code, country, as_of`
+- Evidence: [JobExecutor/Jobs/customer_address_history.json:22] SQL SELECT clause lists these exact columns
+- Evidence: [curated.customer_address_history] Schema matches
 
 BR-3: Output is ordered by customer_id ascending.
 - Confidence: HIGH
-- Evidence: [customer_address_history.json:22] SQL contains `ORDER BY sub.customer_id`
+- Evidence: [JobExecutor/Jobs/customer_address_history.json:22] `ORDER BY sub.customer_id`
 
-BR-4: Data is written in Append mode -- each date's address snapshot accumulates in the curated table.
+BR-4: Output uses Append mode — each daily run appends its rows.
 - Confidence: HIGH
-- Evidence: [customer_address_history.json:28] `"writeMode": "Append"`
-- Evidence: [curated.customer_address_history] Has rows for all 31 dates with counts matching source
+- Evidence: [JobExecutor/Jobs/customer_address_history.json:27] `"writeMode": "Append"`
 
-BR-5: The branches DataSourcing module is declared in the job config but NOT used in the SQL transformation.
+BR-5: The address_id column is NOT included in the output despite being sourced.
 - Confidence: HIGH
-- Evidence: [customer_address_history.json:14-18] branches is sourced; SQL at line 22 only references `addresses` alias `a` -- no reference to branches
+- Evidence: [JobExecutor/Jobs/customer_address_history.json:12] address_id in DataSourcing columns
+- Evidence: [JobExecutor/Jobs/customer_address_history.json:22] SQL SELECT does not include address_id
+- Evidence: [curated.customer_address_history] No address_id column in output
 
-BR-6: The SQL uses a subquery pattern (SELECT from subquery) but the subquery does not add any filtering beyond customer_id IS NOT NULL.
+BR-6: Addresses are present every day including weekends (datalake.addresses has data for all dates).
 - Confidence: HIGH
-- Evidence: [customer_address_history.json:22] `SELECT sub.* FROM (SELECT a.* FROM addresses a WHERE a.customer_id IS NOT NULL) sub ORDER BY sub.customer_id`
-
-BR-7: The address_id column is sourced but NOT included in the output -- only customer_id and address fields are output.
-- Confidence: HIGH
-- Evidence: [customer_address_history.json:22] The SQL selects `a.customer_id, a.address_line1, a.city, a.state_province, a.postal_code, a.country, a.as_of` -- no address_id
-- Evidence: [curated.customer_address_history schema] Columns are: customer_id, address_line1, city, state_province, postal_code, country, as_of -- no address_id
-
-BR-8: This is a Transformation-based pipeline (no External module) using the framework's SQLite SQL engine.
-- Confidence: HIGH
-- Evidence: [customer_address_history.json:20-23] Module type is "Transformation" with inline SQL
+- Evidence: [datalake.addresses] Row counts present for all dates Oct 1-31 including weekends
 
 ## Output Schema
 
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| customer_id | addresses.customer_id | Pass-through (NOT NULL filtered) | [customer_address_history.json:22] |
-| address_line1 | addresses.address_line1 | Pass-through | [customer_address_history.json:22] |
-| city | addresses.city | Pass-through | [customer_address_history.json:22] |
-| state_province | addresses.state_province | Pass-through | [customer_address_history.json:22] |
-| postal_code | addresses.postal_code | Pass-through | [customer_address_history.json:22] |
-| country | addresses.country | Pass-through | [customer_address_history.json:22] |
-| as_of | addresses.as_of (from DataSourcing) | Pass-through | [customer_address_history.json:22] |
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| customer_id | addresses.customer_id | Direct |
+| address_line1 | addresses.address_line1 | Direct |
+| city | addresses.city | Direct |
+| state_province | addresses.state_province | Direct |
+| postal_code | addresses.postal_code | Direct |
+| country | addresses.country | Direct |
+| as_of | Framework-injected effective date | Via DataSourcing |
 
 ## Edge Cases
 
-- **NULL handling**: Addresses with null customer_id are explicitly excluded. Other null fields (address_line1, city, etc.) pass through without filtering.
-  - Evidence: [customer_address_history.json:22] `WHERE a.customer_id IS NOT NULL`
-- **Weekend/date fallback**: Addresses have data for all 31 days including weekends. Output row counts match source row counts (223-225 per date).
-  - Evidence: [datalake.addresses] All 31 dates; [curated.customer_address_history] Matching row counts per date
-- **Zero-row behavior**: If no addresses exist for a date (or all have null customer_id), the Transformation produces an empty DataFrame. In Append mode, no rows are written for that date.
-  - Evidence: Framework behavior for empty Transformation results
-- **Branches not used**: The branches table is loaded into shared state but the SQL transformation never references it. It occupies memory but has no effect on output.
-  - Evidence: [customer_address_history.json:14-18,22]
+- **NULL customer_id**: Rows are filtered out (BR-1). In practice, customer_id is NOT NULL in the addresses table schema, so this filter has no effect on current data.
+- **Addresses with data every day**: Unlike tables that skip weekends (customers, accounts), addresses have data for all dates, so this job produces output for every day including weekends.
+- **Row count growth**: Oct 1 has 223 rows, Oct 2 onwards has 224-225 as new addresses appear.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `branches` table is sourced via DataSourcing (branch_id, branch_name) but is never referenced in the Transformation SQL. The SQL only references the `addresses` table. Evidence: [JobExecutor/Jobs/customer_address_history.json:16-19] branches sourced; [line 22] SQL only uses `addresses a`. V2 approach: Remove the branches DataSourcing module entirely.
+
+- **AP-4: Unused Columns Sourced** — The `address_id` column is sourced from addresses but not included in the output SQL. Evidence: [JobExecutor/Jobs/customer_address_history.json:12] includes address_id; [line 22] SQL does not SELECT address_id. V2 approach: Remove address_id from DataSourcing columns.
+
+- **AP-8: Overly Complex SQL** — The SQL wraps a simple query in an unnecessary subquery: `SELECT sub.* FROM (SELECT ... FROM addresses a WHERE ...) sub ORDER BY sub.customer_id`. The subquery adds no value — the same result is achieved with `SELECT ... FROM addresses a WHERE ... ORDER BY a.customer_id`. Evidence: [JobExecutor/Jobs/customer_address_history.json:22] Unnecessary subquery wrapper. V2 approach: Simplify to a direct SELECT with WHERE and ORDER BY.
 
 ## Traceability Matrix
 
-| Requirement | Evidence Citations |
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [customer_address_history.json:22] |
-| BR-2 | [customer_address_history.json:22] |
-| BR-3 | [customer_address_history.json:22] |
-| BR-4 | [customer_address_history.json:28], [curated.customer_address_history row counts] |
-| BR-5 | [customer_address_history.json:14-18,22] |
-| BR-6 | [customer_address_history.json:22] |
-| BR-7 | [customer_address_history.json:22], [curated.customer_address_history schema] |
-| BR-8 | [customer_address_history.json:20-23] |
+| BR-1 | [JobExecutor/Jobs/customer_address_history.json:22] |
+| BR-2 | [JobExecutor/Jobs/customer_address_history.json:22], [curated.customer_address_history schema] |
+| BR-3 | [JobExecutor/Jobs/customer_address_history.json:22] |
+| BR-4 | [JobExecutor/Jobs/customer_address_history.json:27] |
+| BR-5 | [JobExecutor/Jobs/customer_address_history.json:12,22] |
+| BR-6 | [datalake.addresses row counts per as_of] |
 
 ## Open Questions
 
-- **Branches sourced but unused**: Same pattern as multiple other jobs. Confidence: HIGH that unused.
-- **Subquery pattern**: The SQL wraps the query in a subquery for no apparent reason -- `SELECT sub.* FROM (...) sub` could be simplified. This may be a coding style preference or artifact. Confidence: HIGH (no functional impact).
-- **No deduplication**: If multiple address records exist for the same customer_id on the same as_of, all are included. This is appropriate for an address history table. Confidence: HIGH.
+- **NULL customer_id filter**: The datalake.addresses table has `customer_id INTEGER NOT NULL` constraint, making the `WHERE a.customer_id IS NOT NULL` filter redundant for current data. It may be a defensive measure. Confidence: HIGH that the filter is functionally redundant but harmless.

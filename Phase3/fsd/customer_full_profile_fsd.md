@@ -1,45 +1,76 @@
-# FSD: CustomerFullProfileV2
+# CustomerFullProfile — Functional Specification Document
 
-## Overview
-Replaces the original CustomerFullProfile job with a V2 implementation that writes to the `double_secret_curated` schema instead of `curated`. The V2 External module replicates the exact same business logic as the original FullProfileAssembler and then writes directly to `double_secret_curated.customer_full_profile` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module replacement)**: The original job uses DataSourcing x5 -> External (FullProfileAssembler) -> DataFrameWriter. The V2 replaces both the External and DataFrameWriter steps with a single V2 External module that combines the processing logic and writing.
-- The V2 module replicates the original's age computation, age bracket classification, primary phone/email lookup, and segment name resolution (comma-separated list from customers_segments + segments join).
-- Write mode is Overwrite (matching original), so DscWriterUtil.Write is called with overwrite=true.
-- The segment_code column is sourced from segments but not used in output (matching original behavior).
+**SQL-first with AP-2 fix.** The original External module (FullProfileAssembler.cs) re-derives age, age_bracket, primary_phone, and primary_email using identical logic to CustomerDemographics. The V2 eliminates this duplication by reading pre-computed demographics from `curated.customer_demographics`, then enriching with segment data from datalake.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=customers, columns=[id, first_name, last_name, birthdate], resultName=customers |
-| 2 | DataSourcing | schema=datalake, table=phone_numbers, columns=[phone_id, customer_id, phone_type, phone_number], resultName=phone_numbers |
-| 3 | DataSourcing | schema=datalake, table=email_addresses, columns=[email_id, customer_id, email_address, email_type], resultName=email_addresses |
-| 4 | DataSourcing | schema=datalake, table=customers_segments, columns=[customer_id, segment_id], resultName=customers_segments |
-| 5 | DataSourcing | schema=datalake, table=segments, columns=[segment_id, segment_name, segment_code], resultName=segments |
-| 6 | External | CustomerFullProfileV2Processor -- replicates original logic + writes to dsc |
+The V2 reads from `curated` schema (populated by the original CustomerDemographics job during comparison runs), avoiding V2-to-V2 dependency chains.
 
-## V2 External Module: CustomerFullProfileV2Processor
-- File: ExternalModules/CustomerFullProfileV2Processor.cs
-- Processing logic: Reads customers, phone_numbers, email_addresses, customers_segments, segments from shared state. Builds phone/email/segment lookups. Iterates customers, computes age/age_bracket, looks up phone/email/segments, produces comma-separated segment names. Writes to double_secret_curated via DscWriterUtil with overwrite=true.
-- Output columns: customer_id, first_name, last_name, age, age_bracket, primary_phone, primary_email, segments, as_of
-- Target table: double_secret_curated.customer_full_profile
-- Write mode: Overwrite (overwrite=true)
+No External module is needed. SQL can handle the segment concatenation via GROUP_CONCAT.
 
-## Traceability
+## Anti-Patterns Eliminated
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | N | N/A | No unused data sources in original |
+| AP-2    | Y | Y | Instead of re-deriving age, age_bracket, primary_phone, primary_email from raw datalake tables, V2 reads them from `curated.customer_demographics` |
+| AP-3    | Y | Y | Replaced External module with SQL Transformation + DataFrameWriter |
+| AP-4    | Y | Y | Removed unused columns: `phone_id`, `phone_type` from phone_numbers; `email_id`, `email_type` from email_addresses; `segment_code` from segments. V2 no longer sources phone_numbers or email_addresses at all (reads from curated.customer_demographics). |
+| AP-5    | N | N/A | NULL handling consistent |
+| AP-6    | Y | Y | Five foreach loops replaced with set-based SQL JOINs and GROUP_CONCAT |
+| AP-7    | Y | Documented | Age bracket magic values no longer computed here (delegated to CustomerDemographics). Documented in that job's FSD. |
+| AP-8    | N | N/A | No complex SQL in original |
+| AP-9    | N | N/A | Name reasonably reflects output |
+| AP-10   | Y | Y | V2 declares SameDay dependency on CustomerDemographics (required for curated.customer_demographics to be populated) |
+
+## V2 Pipeline Design
+
+1. **DataSourcing** `customer_demographics` — `curated.customer_demographics` (customer_id, first_name, last_name, age, age_bracket, primary_phone, primary_email)
+2. **DataSourcing** `customers_segments` — `datalake.customers_segments` (customer_id, segment_id)
+3. **DataSourcing** `segments` — `datalake.segments` (segment_id, segment_name)
+4. **Transformation** `profile_output` — SQL joining demographics with segment data, concatenating segment names
+5. **DataFrameWriter** — writes to `double_secret_curated.customer_full_profile`, Overwrite mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    cd.customer_id,
+    cd.first_name,
+    cd.last_name,
+    cd.age,
+    cd.age_bracket,
+    cd.primary_phone,
+    cd.primary_email,
+    /* Comma-separated segment names, ordered by segment_id to match original iteration order */
+    COALESCE(seg_agg.segment_list, '') AS segments,
+    cd.as_of
+FROM customer_demographics cd
+LEFT JOIN (
+    SELECT
+        cs.customer_id,
+        cs.as_of,
+        GROUP_CONCAT(s.segment_name) AS segment_list
+    FROM customers_segments cs
+    JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of
+    GROUP BY cs.customer_id, cs.as_of
+) seg_agg ON cd.customer_id = seg_agg.customer_id AND cd.as_of = seg_agg.as_of
+ORDER BY cd.customer_id
+```
+
+**Key design decision:** GROUP_CONCAT in SQLite concatenates values in the order they appear in the group. Since DataSourcing returns rows from `customers_segments` ordered by the table's primary key (`id`), and the `id` column happens to sort consistently with `segment_id`, the segment names will be concatenated in segment_id order. This matches the original External module's iteration behavior.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | V2 processor iterates all customer rows, producing one output row per customer |
-| BR-2 | V2 processor computes age = asOfDate.Year - birthdate.Year with birthday adjustment |
-| BR-3 | V2 processor uses same age bracket switch expression |
-| BR-4 | V2 processor builds phoneByCustomer dictionary, taking first phone per customer |
-| BR-5 | V2 processor builds emailByCustomer dictionary, taking first email per customer |
-| BR-6 | V2 processor joins customers_segments to segments, producing comma-separated segment names |
-| BR-7 | V2 processor defaults to empty list for customers with no segments, resulting in empty string |
-| BR-8 | V2 processor filters unmatched segment_ids with Where clause |
-| BR-9 | V2 processor uses string.Join(",", ...) with no space after comma |
-| BR-10 | V2 processor has guard clause returning empty DataFrame when customers is null/empty |
-| BR-11 | DscWriterUtil.Write called with overwrite=true (Overwrite) |
-| BR-12 | segment_code sourced but not used in output (matching original) |
-| BR-13 | V2 processor uses dictionary assignment for segmentNames, last value wins on duplicate segment_id |
-| BR-14 | V2 processor null-coalesces names to empty string, defaults phone/email to empty string |
+|-----------------|-------------------|
+| BR-1: One row per customer per date | Main query driven by `customer_demographics` which has one row per customer |
+| BR-2: Age calculation | Read directly from `curated.customer_demographics.age` (AP-2 fix) |
+| BR-3: Age bracket | Read directly from `curated.customer_demographics.age_bracket` (AP-2 fix) |
+| BR-4: Primary phone | Read directly from `curated.customer_demographics.primary_phone` (AP-2 fix) |
+| BR-5: Primary email | Read directly from `curated.customer_demographics.primary_email` (AP-2 fix) |
+| BR-6: Comma-separated segment names | `GROUP_CONCAT(s.segment_name)` with inner join ensuring only valid segments included (BR-8) |
+| BR-7: Empty string for no segments | `COALESCE(seg_agg.segment_list, '')` handles customers with no segment mappings |
+| BR-8: Only segments with valid segment_id | Inner JOIN between customers_segments and segments filters invalid segment_ids |
+| BR-9: Overwrite mode | DataFrameWriter `writeMode: "Overwrite"` |
+| BR-10: Empty DataFrame on zero customers | When customer_demographics has no rows (weekend), query returns zero rows |

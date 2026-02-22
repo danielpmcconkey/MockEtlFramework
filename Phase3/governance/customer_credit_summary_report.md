@@ -1,27 +1,34 @@
-# Governance Report: CustomerCreditSummary
+# CustomerCreditSummary -- Governance Report
 
 ## Links
 - BRD: Phase3/brd/customer_credit_summary_brd.md
 - FSD: Phase3/fsd/customer_credit_summary_fsd.md
 - Test Plan: Phase3/tests/customer_credit_summary_tests.md
-- V2 Module: ExternalModules/CustomerCreditSummaryV2Processor.cs
 - V2 Config: JobExecutor/Jobs/customer_credit_summary_v2.json
 
 ## Summary of Changes
-- Original approach: DataSourcing (customers, accounts, credit_scores, loan_accounts, segments) -> External (CustomerCreditSummaryBuilder) -> DataFrameWriter to curated.customer_credit_summary
-- V2 approach: DataSourcing (customers, accounts, credit_scores, loan_accounts, segments) -> External (CustomerCreditSummaryV2Processor) writing to double_secret_curated.customer_credit_summary via DscWriterUtil
-- Key difference: V2 adds explicit `Math.Round(..., 2)` for the avg_credit_score column. The original relied on the curated table's `NUMERIC(6,2)` column type to auto-round. V2 also combines processing and writing.
+The original job used an External module (CustomerCreditSummaryBuilder.cs) to compute per-customer financial summaries (avg credit score, total loan balance, total account balance, counts) via four separate foreach loops, with an unused segments DataSourcing module and many unused columns across four source tables. The V2 retains an External module (partially justified for the four-DataFrame empty guard) but replaces manual dictionary loops with LINQ GroupBy and ToDictionary, removes the segments DataSourcing module, and trims unused columns from all source tables. The asymmetric NULL handling (NULL avg_credit_score vs 0 for balances/counts) is preserved and documented.
 
-## Anti-Patterns Identified
-- **Unused DataSourcing step**: The `segments` table is sourced but never referenced by the External module.
-- **Implicit numeric rounding**: The original computes avg_credit_score via `scores.Average()` producing a full-precision decimal, relying on the database column to round on INSERT.
-- **Multi-source aggregation complexity**: The job aggregates data from 4 source tables (customers, accounts, credit_scores, loan_accounts) into a single per-customer summary. While the logic is clear, this creates a high fan-in that makes the job sensitive to data quality issues in any of the sources.
+## Anti-Pattern Scorecard
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `segments` DataSourcing module |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | Y                   | Partial            | External module retained for empty-DataFrame guard; internal logic uses LINQ instead of manual dictionary loops |
+| AP-4    | Y                   | Y                  | Removed unused columns: account_id/account_type/account_status from accounts, credit_score_id/bureau from credit_scores, loan_id/loan_type from loan_accounts |
+| AP-5    | Y                   | N (documented)     | Asymmetric handling reproduced: avg_credit_score = NULL when no scores vs loan/account totals = 0 when none. Documented as semantically appropriate. |
+| AP-6    | Y                   | Y                  | Four manual foreach loops replaced with LINQ GroupBy + ToDictionary |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No overly complex SQL |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
 
 ## Comparison Results
-- Dates compared: 31 (Oct 1-31, 2024)
+- Dates verified: 31 (Oct 1-31, 2024)
 - Match percentage: 100%
-- Fix iterations required for this specific job: 1 (Iteration 3 -- added `Math.Round(..., 2)` to avg_credit_score computation)
+- Write mode: Overwrite
+- Row count: 223
 
 ## Confidence Assessment
-- Overall confidence: HIGH
-- The rounding fix resolved the only discrepancy. All aggregation logic (account counts, balance sums, loan sums, score averages) is straightforward.
+**HIGH** -- All 11 business rules directly observable. The asymmetric NULL handling is semantically appropriate (NULL average when nothing to average vs 0 count when no items). No fix iterations required for this job.

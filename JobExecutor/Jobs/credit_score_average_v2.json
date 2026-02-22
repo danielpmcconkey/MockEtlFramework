@@ -7,7 +7,7 @@
       "resultName": "credit_scores",
       "schema": "datalake",
       "table": "credit_scores",
-      "columns": ["credit_score_id", "customer_id", "bureau", "score"]
+      "columns": ["customer_id", "bureau", "score"]
     },
     {
       "type": "DataSourcing",
@@ -17,16 +17,16 @@
       "columns": ["id", "first_name", "last_name"]
     },
     {
-      "type": "DataSourcing",
-      "resultName": "segments",
-      "schema": "datalake",
-      "table": "segments",
-      "columns": ["segment_id", "segment_name"]
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CreditScoreAveragerV2"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.CreditScoreAverageV2Processor"
+      "type": "DataFrameWriter",
+      "source": "output",
+      "targetTable": "credit_score_average",
+      "writeMode": "Overwrite",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

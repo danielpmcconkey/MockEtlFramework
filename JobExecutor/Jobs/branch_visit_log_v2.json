@@ -14,7 +14,7 @@
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name", "address_line1", "city", "state_province", "postal_code", "country"]
+      "columns": ["branch_id", "branch_name"]
     },
     {
       "type": "DataSourcing",
@@ -24,16 +24,16 @@
       "columns": ["id", "first_name", "last_name"]
     },
     {
-      "type": "DataSourcing",
-      "resultName": "addresses",
-      "schema": "datalake",
-      "table": "addresses",
-      "columns": ["address_id", "customer_id", "address_line1", "city"]
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.BranchVisitLogV2"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.BranchVisitLogV2Processor"
+      "type": "DataFrameWriter",
+      "source": "visit_log_result",
+      "targetTable": "branch_visit_log",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

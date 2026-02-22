@@ -1,40 +1,53 @@
-# FSD: CustomerContactInfoV2
+# CustomerContactInfo -- Functional Specification Document
 
-## Overview
-CustomerContactInfoV2 replicates the exact Transformation-based logic of CustomerContactInfo, consolidating phone numbers and email addresses into a unified contact schema using UNION ALL. The V2 keeps the same DataSourcing and Transformation steps, replacing DataFrameWriter with a thin External writer that uses DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern B (Transformation + V2 Writer)**: Original uses DataSourcing + Transformation + DataFrameWriter. V2 keeps DataSourcing and Transformation identical, replaces DataFrameWriter with External writer.
-- **Write mode**: Append (overwrite=false) to match original.
-- **Same SQL**: The Transformation SQL is kept identical to ensure behavioral equivalence.
-- **Segments DataSourcing retained**: Original sources segments but SQL never references them. V2 retains this.
+**SQL-first.** The original job already uses a Transformation module with a UNION ALL query. The V2 removes the unnecessary CTE wrapper, removes the unused `segments` DataSourcing module, and removes unused columns (`phone_id`, `email_id`) from the DataSourcing configurations.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | phone_numbers: phone_id, customer_id, phone_type, phone_number |
-| 2 | DataSourcing | email_addresses: email_id, customer_id, email_address, email_type |
-| 3 | DataSourcing | segments: segment_id, segment_name |
-| 4 | Transformation | SQL UNION ALL of phone and email records, ordered. Result: "contact_info" |
-| 5 | External | CustomerContactInfoV2Writer - reads contact_info, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: CustomerContactInfoV2Writer
-- File: ExternalModules/CustomerContactInfoV2Writer.cs
-- Processing logic: Reads "contact_info" DataFrame from shared state, writes to dsc
-- Output columns: customer_id, contact_type, contact_subtype, contact_value, as_of
-- Target table: double_secret_curated.customer_contact_info
-- Write mode: Append (overwrite=false)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `segments` DataSourcing module |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | N                   | N/A                | Original already uses SQL Transformation |
+| AP-4    | Y                   | Y                  | Removed `phone_id` and `email_id` from DataSourcing columns |
+| AP-5    | N                   | N/A                | No NULL/default asymmetry |
+| AP-6    | N                   | N/A                | No row-by-row iteration |
+| AP-7    | N                   | N/A                | No magic values (string literals 'Phone'/'Email' are descriptive, not magic) |
+| AP-8    | Y                   | Y                  | Removed unnecessary CTE wrapper; UNION ALL with ORDER BY directly |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** - `phone_numbers` from `datalake.phone_numbers` with columns: `customer_id`, `phone_type`, `phone_number`
+2. **DataSourcing** - `email_addresses` from `datalake.email_addresses` with columns: `customer_id`, `email_address`, `email_type`
+3. **Transformation** - UNION ALL of phone and email records with ORDER BY
+4. **DataFrameWriter** - Write to `customer_contact_info` in `double_secret_curated` schema, Append mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT customer_id, 'Phone' AS contact_type, phone_type AS contact_subtype, phone_number AS contact_value, as_of
+FROM phone_numbers
+UNION ALL
+SELECT customer_id, 'Email' AS contact_type, email_type AS contact_subtype, email_address AS contact_value, as_of
+FROM email_addresses
+ORDER BY customer_id, contact_type, contact_subtype
+```
+
+This eliminates the unnecessary CTE from the original:
+`WITH all_contacts AS (...) SELECT ... FROM all_contacts ORDER BY ...`
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 (Phone mapping) | SQL: 'Phone' AS contact_type, phone_type AS contact_subtype |
-| BR-2 (Email mapping) | SQL: 'Email' AS contact_type, email_type AS contact_subtype |
-| BR-3 (UNION ALL) | SQL UNION ALL preserves duplicates |
-| BR-4 (Order by customer_id, type, subtype) | SQL ORDER BY clause |
-| BR-5 (Append mode) | DscWriterUtil.Write with overwrite=false |
-| BR-6 (Segments unused) | Segments DataSourcing retained, SQL doesn't reference |
-| BR-7 (Transformation pipeline) | Same SQL as original |
-| BR-8 (phone_id, email_id excluded) | SQL doesn't select these IDs |
-| BR-9 (No filtering) | No WHERE clause in SQL |
-| BR-10 (All 31 days) | Phone and email data available every day |
+|-----------------|-------------------|
+| BR-1 | UNION ALL combines phone and email records |
+| BR-2 | Phone SELECT maps phone_type to contact_subtype, phone_number to contact_value, literal 'Phone' to contact_type |
+| BR-3 | Email SELECT maps email_type to contact_subtype, email_address to contact_value, literal 'Email' to contact_type |
+| BR-4 | ORDER BY customer_id, contact_type, contact_subtype |
+| BR-5 | DataFrameWriter configured with writeMode: Append |
+| BR-6 | No WHERE clause -- all records included |
+| BR-7 | UNION ALL preserves all rows including duplicates |

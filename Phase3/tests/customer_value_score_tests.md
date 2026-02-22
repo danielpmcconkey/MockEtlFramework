@@ -1,32 +1,63 @@
-# Test Plan: CustomerValueScoreV2
+# CustomerValueScore — Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Verify one output row per customer | Row count matches customer count |
-| TC-2 | BR-2 | Verify empty guard | When customers or accounts null/empty, empty output |
-| TC-3 | BR-3 | Verify transaction_score formula | min(txn_count * 10, 1000), capped at 1000 |
-| TC-4 | BR-4 | Verify balance_score formula | min(total_balance / 1000, 1000), capped at 1000 |
-| TC-5 | BR-5 | Verify visit_score formula | min(visit_count * 50, 1000), capped at 1000 |
-| TC-6 | BR-6 | Verify composite_score formula | txn_score*0.4 + bal_score*0.35 + visit_score*0.25 |
-| TC-7 | BR-7 | Verify rounding | All scores rounded to 2 decimal places |
-| TC-8 | BR-8 | Verify transaction counting via account lookup | Transactions mapped to customers through accounts |
-| TC-9 | BR-9 | Verify orphan transaction skipping | Unmatched account_ids skipped |
-| TC-10 | BR-10 | Verify negative balance_score allowed | Customer with negative balance gets negative balance_score |
-| TC-11 | BR-11 | Verify zero transaction default | Customers with no transactions get transaction_score = 0 |
-| TC-12 | BR-12 | Verify zero visit default | Customers with no visits get visit_score = 0 |
-| TC-13 | BR-13 | Verify Overwrite mode | Only latest effective date's data |
-| TC-14 | BR-14 | Verify as_of from customers row | as_of matches effective date |
-| TC-15 | BR-1,13 | Compare V2 output to original | EXCEPT query yields zero rows |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | Customers empty | Empty output DataFrame |
-| EC-2 | Accounts empty | Empty output DataFrame |
-| EC-3 | Transactions null | transaction_score = 0 for all customers |
-| EC-4 | Branch visits null | visit_score = 0 for all customers |
-| EC-5 | Customer with negative total balance | balance_score negative (no floor) |
-| EC-6 | Customer with >100 transactions | transaction_score capped at 1000 |
-| EC-7 | Customer with >20 branch visits | visit_score capped at 1000 |
-| EC-8 | Weekend effective date | Empty output (customers/accounts weekday-only) |
+### TC-1: Row count matches customer count
+- **Traces to:** BR-1
+- **Method:** Compare `SELECT COUNT(*) FROM double_secret_curated.customer_value_score WHERE as_of = {date}` with `SELECT COUNT(*) FROM datalake.customers WHERE as_of = {date}`
+- **Expected:** 223 on weekdays, 0 on weekends
+
+### TC-2: transaction_score calculation
+- **Traces to:** BR-2
+- **Method:** For customer 1001 (1 transaction on 2024-10-31), verify transaction_score = MIN(1*10, 1000) = 10.00.
+- **Expected:** transaction_score = 10.00
+
+### TC-3: balance_score calculation
+- **Traces to:** BR-3
+- **Method:** For customer 1001 (total_balance = 2362.32), verify balance_score = MIN(2362.32/1000, 1000) = ROUND(2.36232, 2) = 2.36.
+- **Expected:** balance_score = 2.36
+
+### TC-4: visit_score calculation
+- **Traces to:** BR-4
+- **Method:** For customer 1001 (1 visit), verify visit_score = MIN(1*50, 1000) = 50.00.
+- **Expected:** visit_score = 50.00
+
+### TC-5: composite_score weighted sum
+- **Traces to:** BR-5
+- **Method:** For customer 1001: composite = 10*0.4 + 2.36*0.35 + 50*0.25 = 4 + 0.826 + 12.5 = 17.326 -> ROUND to 17.33.
+- **Expected:** composite_score = 17.33
+
+### TC-6: Score rounding
+- **Traces to:** BR-6
+- **Method:** Verify all score columns have at most 2 decimal places.
+- **Expected:** No values with more than 2 decimal places
+
+### TC-7: Customer with no transactions or visits
+- **Traces to:** BR-7
+- **Method:** Find a customer with no transactions and no visits. Verify transaction_score=0, visit_score=0.
+- **Expected:** Zero scores for components with no data
+
+### TC-8: Negative balance_score
+- **Traces to:** BR-10
+- **Method:** Verify customer 1003 (negative total balance of -758.40) has balance_score = ROUND(-758.40/1000, 2) = -0.76.
+- **Expected:** balance_score = -0.76
+
+### TC-9: Score cap at 1000
+- **Traces to:** BR-2, BR-3, BR-4
+- **Method:** Verify no score exceeds 1000 (theoretical max composite = 1000).
+- **Expected:** All component scores <= 1000
+
+### TC-10: Weekend produces empty output
+- **Traces to:** BR-8
+- **Method:** Verify 0 rows for weekend dates.
+- **Expected:** 0 rows
+
+### TC-11: Overwrite mode
+- **Traces to:** BR-9
+- **Method:** After running for multiple dates, verify only one as_of value exists.
+- **Expected:** Single as_of date
+
+### TC-12: Full EXCEPT comparison with original
+- **Traces to:** All BRs
+- **Method:** For each date: `SELECT * FROM curated.customer_value_score WHERE as_of = {date} EXCEPT SELECT * FROM double_secret_curated.customer_value_score WHERE as_of = {date}` and vice versa.
+- **Expected:** Both EXCEPT queries return 0 rows

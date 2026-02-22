@@ -1,100 +1,92 @@
-# BRD: CustomerBranchActivity
+# CustomerBranchActivity — Business Requirements Document
 
 ## Overview
-This job produces a per-customer visit count summary for each effective date, showing how many branch visits each customer made on that day, enriched with the customer's name.
+
+Produces a per-customer count of branch visits for each effective date, enriched with customer name. Shows how many times each customer visited any branch on a given day. Output is appended daily.
 
 ## Source Tables
 
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| branch_visits | datalake | visit_id, customer_id, branch_id, visit_purpose | Sourced via DataSourcing for effective date range | [customer_branch_activity.json:7-11] |
-| customers | datalake | id, first_name, last_name | Sourced via DataSourcing for effective date range | [customer_branch_activity.json:13-17] |
-| branches | datalake | branch_id, branch_name | Sourced via DataSourcing but NOT USED in the External module | [customer_branch_activity.json:19-23] |
+| Table | Schema | Columns Used | Purpose |
+|-------|--------|-------------|---------|
+| `datalake.branch_visits` | datalake | visit_id, customer_id, branch_id, visit_purpose | Branch visit records; only customer_id is used for counting |
+| `datalake.customers` | datalake | id, first_name, last_name | Customer name lookup |
+| `datalake.branches` | datalake | branch_id, branch_name | **SOURCED BUT NEVER USED** — not referenced by the External module |
 
 ## Business Rules
 
-BR-1: Branch visits are grouped by customer_id and counted to produce visit_count per customer.
+BR-1: One output row per customer who has at least one branch visit on the effective date.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:42-49] Loop counts visits per customer_id using `visitCounts` dictionary
+- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:42-49] Groups visits by customer_id, counts per customer
+- Evidence: [curated.customer_branch_activity] Each customer_id appears once per as_of
 
-BR-2: Only customers who have branch visits are included in the output (INNER JOIN equivalent with visits).
+BR-2: visit_count is the total number of branch visit records for each customer on the effective date.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:56] Loop iterates `visitCounts` (customers with visits), not all customers
+- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:46-49] `visitCounts[custId]++`
+- Evidence: [curated.customer_branch_activity] visit_count values match counts from datalake.branch_visits
 
-BR-3: Customer name is looked up from the customers DataFrame; if not found, first_name and last_name are null.
+BR-3: Customer name (first_name, last_name) is looked up from the customers DataFrame. If a customer is not found in the customers table, both name fields are NULL.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:61-68] `firstName` and `lastName` start as null; only set if `customerNames.ContainsKey(customerId)`
+- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:61-68] `if (customerNames.ContainsKey(customerId))` else names stay null
+- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:32-39] Customer lookup built from customers DataFrame
 
-BR-4: The as_of value is taken from the first branch_visit row in the DataFrame.
+BR-4: The as_of value comes from the first row of the branch_visits DataFrame.
 - Confidence: HIGH
 - Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:52] `var asOf = branchVisits.Rows[0]["as_of"];`
 
-BR-5: Data is written in Append mode -- each effective date's activity accumulates.
+BR-5: When either branch_visits or customers DataFrames are empty, an empty output is produced.
 - Confidence: HIGH
-- Evidence: [customer_branch_activity.json:35] `"writeMode": "Append"`
-- Evidence: [curated.customer_branch_activity] Multiple as_of dates with varying row counts
+- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:19-29] Null/empty checks for both DataFrames return empty output
 
-BR-6: If either customers or branch_visits DataFrame is empty, an empty DataFrame is returned.
+BR-6: Output uses Append mode — each daily run appends rows.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:19-29] Two separate guards: `customers.Count == 0` and `branchVisits.Count == 0` both return empty
+- Evidence: [JobExecutor/Jobs/customer_branch_activity.json:34] `"writeMode": "Append"`
 
-BR-7: Output rows appear to be unordered -- the iteration order depends on the Dictionary enumeration order of visitCounts.
-- Confidence: MEDIUM
-- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:56] `foreach (var kvp in visitCounts)` -- Dictionary enumeration order is not guaranteed but is typically insertion order in .NET
-
-BR-8: The branches DataSourcing module is declared in the job config but NOT used by the External module.
+BR-7: Weekend behavior — branch_visits has data every day including weekends, but customers does NOT have weekend data. Since the External module returns empty when customers is empty, no output is produced on weekends.
 - Confidence: HIGH
-- Evidence: [customer_branch_activity.json:19-23] branches is sourced but [CustomerBranchActivityBuilder.cs] never references `sharedState["branches"]`
-
-BR-9: Output contains only customers with at least one visit; no weekday data gaps exist for branch_visits since branch_visits has data for all 31 days including weekends.
-- Confidence: HIGH
-- Evidence: [datalake.branch_visits] All 31 dates present
-- Evidence: [curated.customer_branch_activity] 23 dates present (only weekdays, because customers only has weekday data and empty customers triggers empty output)
-
-BR-10: The output only has rows for weekdays (23 dates) even though branch_visits has weekend data, because the customers DataFrame is empty on weekends (customers table is weekday-only), triggering the empty guard.
-- Confidence: HIGH
-- Evidence: [curated.customer_branch_activity] 23 rows by date matching weekday-only pattern
-- Evidence: [datalake.customers] 23 distinct as_of dates (weekdays only)
-- Evidence: [CustomerBranchActivityBuilder.cs:19-20] `if (customers == null || customers.Count == 0)` returns empty
+- Evidence: [datalake.branch_visits] Has data for Oct 5-6 (20 and 17 rows)
+- Evidence: [datalake.customers] No data for Oct 5-6
+- Evidence: [curated.customer_branch_activity] No rows for Oct 5-6 (weekends)
+- Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:19-22] Returns empty when customers is empty
 
 ## Output Schema
 
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| customer_id | branch_visits.customer_id | Cast to int | [CustomerBranchActivityBuilder.cs:45,72] |
-| first_name | customers.first_name | ToString or null if customer not found | [CustomerBranchActivityBuilder.cs:37,65,73] |
-| last_name | customers.last_name | ToString or null if customer not found | [CustomerBranchActivityBuilder.cs:38,66,74] |
-| as_of | branch_visits.Rows[0].as_of | From first visit row | [CustomerBranchActivityBuilder.cs:52,75] |
-| visit_count | Computed | Count of visits per customer_id | [CustomerBranchActivityBuilder.cs:48,76] |
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| customer_id | branch_visits.customer_id | Direct (integer) |
+| first_name | customers.first_name | Direct; NULL if customer not found |
+| last_name | customers.last_name | Direct; NULL if customer not found |
+| as_of | branch_visits (first row) | Direct from DataFrame |
+| visit_count | Computed | COUNT of branch_visits per customer_id |
 
 ## Edge Cases
 
-- **NULL handling**: Customer names are null if the customer_id from visits is not found in the customers DataFrame. visit_count is always at least 1 (only customers with visits appear).
-  - Evidence: [CustomerBranchActivityBuilder.cs:61-68] Null defaults for names
-- **Weekend/date fallback**: Branch visits exist on weekends, but customers data does not. The customers-empty guard means no output is produced on weekends. With Append mode, this simply means no weekend rows exist.
-  - Evidence: [curated.customer_branch_activity] Only 23 dates (weekdays); [datalake.branch_visits] 31 dates
-- **Zero-row behavior**: If no visits exist for a date, empty DataFrame is returned. No rows written for that date in Append mode.
-  - Evidence: [CustomerBranchActivityBuilder.cs:25-29]
-- **Output ordering**: No explicit ordering -- rows appear in dictionary enumeration order. This may differ between runs.
-  - Evidence: [CustomerBranchActivityBuilder.cs:56] Dictionary iteration order
+- **No branch visits for effective date**: Empty output (BR-5).
+- **No customers for effective date (weekends)**: Empty output (BR-5). Branch visits exist on weekends but customers don't, so no output on Sat/Sun.
+- **Customer in branch_visits but not in customers table**: Row is still produced with NULL first_name and last_name (BR-3). This could happen if a customer record is missing.
+- **Output ordering**: The External module does not sort output rows. Order depends on dictionary iteration order of `visitCounts`. In practice this means customer_id ordering is not deterministic.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `branches` table is sourced via DataSourcing (branch_id, branch_name) but never referenced by the External module. The module only uses `branch_visits` and `customers`. Evidence: [JobExecutor/Jobs/customer_branch_activity.json:22-26] branches sourced; [ExternalModules/CustomerBranchActivityBuilder.cs] no reference to "branches". V2 approach: Remove the branches DataSourcing module.
+
+- **AP-3: Unnecessary External Module** — The logic is: count branch visits per customer, join with customer names. This is a simple GROUP BY + LEFT JOIN, expressible entirely in SQL. Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:42-78] Row-by-row grouping and joining. V2 approach: Replace with a SQL Transformation using `GROUP BY customer_id` and `LEFT JOIN customers`.
+
+- **AP-4: Unused Columns Sourced** — From branch_visits: `visit_id`, `branch_id`, and `visit_purpose` are sourced but only `customer_id` is used for counting (and `as_of` which is auto-added). Evidence: [JobExecutor/Jobs/customer_branch_activity.json:11] includes visit_id, branch_id, visit_purpose; [ExternalModules/CustomerBranchActivityBuilder.cs:43-49] only customer_id is accessed. V2 approach: Only source customer_id from branch_visits.
+
+- **AP-6: Row-by-Row Iteration in External Module** — The module iterates over visits one by one to count them, then iterates over the count dictionary to build output. SQL GROUP BY does this natively. Evidence: [ExternalModules/CustomerBranchActivityBuilder.cs:42-78] foreach loops. V2 approach: Replace with SQL.
 
 ## Traceability Matrix
 
-| Requirement | Evidence Citations |
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [CustomerBranchActivityBuilder.cs:42-49] |
-| BR-2 | [CustomerBranchActivityBuilder.cs:56] |
-| BR-3 | [CustomerBranchActivityBuilder.cs:61-68] |
-| BR-4 | [CustomerBranchActivityBuilder.cs:52] |
-| BR-5 | [customer_branch_activity.json:35], [curated.customer_branch_activity dates] |
-| BR-6 | [CustomerBranchActivityBuilder.cs:19-29] |
-| BR-7 | [CustomerBranchActivityBuilder.cs:56] |
-| BR-8 | [customer_branch_activity.json:19-23], [CustomerBranchActivityBuilder.cs full source] |
-| BR-9 | [datalake.branch_visits dates], [curated.customer_branch_activity dates] |
-| BR-10 | [curated.customer_branch_activity dates], [datalake.customers dates], [CustomerBranchActivityBuilder.cs:19-20] |
+| BR-1 | [ExternalModules/CustomerBranchActivityBuilder.cs:42-49] |
+| BR-2 | [ExternalModules/CustomerBranchActivityBuilder.cs:46-49] |
+| BR-3 | [ExternalModules/CustomerBranchActivityBuilder.cs:61-68,32-39] |
+| BR-4 | [ExternalModules/CustomerBranchActivityBuilder.cs:52] |
+| BR-5 | [ExternalModules/CustomerBranchActivityBuilder.cs:19-29] |
+| BR-6 | [JobExecutor/Jobs/customer_branch_activity.json:34] |
+| BR-7 | [datalake data patterns], [ExternalModules/CustomerBranchActivityBuilder.cs:19-22] |
 
 ## Open Questions
 
-- **Branches sourced but unused**: Same pattern as other jobs. Confidence: HIGH that unused.
-- **Output ordering**: No guaranteed ordering. In Append mode with comparison testing, row ordering differences may cause false mismatches. Confidence: MEDIUM (behavior depends on .NET dictionary implementation).
-- **as_of from first visit row**: Using `Rows[0]["as_of"]` means all output rows get the same as_of. If the DataSourcing returns multiple dates' data (e.g., during a backfill), all rows would still get the as_of from the first visit row. In normal single-date operation this is correct. Confidence: HIGH for single-date runs.
+- **Output ordering**: The External module does not define a sort order for output rows. Dictionary iteration order in C# is insertion order for `Dictionary<int, int>`, which follows the order visits are encountered. V2 should either match this order or establish a deterministic ORDER BY. Confidence: MEDIUM — order may not matter for Append mode output.

@@ -1,40 +1,55 @@
-# Review: BranchVisitLog BRD
+# BranchVisitLog — BRD Review
 
-## Status: PASS
+## Review Status: PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Verification
+- [x] All citations checked (9 business rules, all line references verified)
+- [x] All citations accurate
 
-## Verification Details
+Detailed verification:
+- BR-1 [lines 38-43, 62]: Confirmed branch name lookup and GetValueOrDefault("") — match
+- BR-2 [lines 47-53, 63]: Confirmed customer name lookup and GetValueOrDefault((null!, null!)) — match
+- BR-3 [line 62]: Confirmed empty string default for missing branches — exact match
+- BR-4 [line 63]: Confirmed null default for missing customers — exact match
+- BR-5 [lines 10-14]: Confirmed 9-column outputColumns — exact match. Schema verified (9 columns, first_name/last_name nullable).
+- BR-6 [job config line 42]: Confirmed `"writeMode": "Append"` — exact match
+- BR-7 [lines 21-25]: Confirmed customers null/empty guard comes first — exact match
+- BR-8 [lines 27-30]: Confirmed branch_visits guard — exact match
+- BR-9 [lines 56-76]: Confirmed foreach with no conditions — exact match
 
-### Evidence Citation Checks
-| Claim | Citation | Verified |
-|-------|----------|----------|
-| BR-1: Branch name enrichment via branch_id lookup | BranchVisitEnricher.cs:34-43, :62 | YES - Dictionary keyed by branch_id; GetValueOrDefault lookup |
-| BR-2: Customer name enrichment via customer_id lookup | BranchVisitEnricher.cs:46-53, :63 | YES - Dictionary keyed by custRow["id"]; GetValueOrDefault lookup |
-| BR-3: Empty string default for missing branches | BranchVisitEnricher.cs:62 | YES - `GetValueOrDefault(branchId, "")` |
-| BR-4: Null default for missing customers | BranchVisitEnricher.cs:63 | YES - `GetValueOrDefault(customerId, (null!, null!))` |
-| BR-5: Addresses sourced but unused | BranchVisitEnricher.cs:16-18, JSON:26-31 | YES - Only 3 DataFrames read; addresses in config |
-| BR-6: Append mode | JSON:42, DB dates | YES - `"writeMode": "Append"`; 23 dates in output |
-| BR-7: Weekend guard on customers empty | BranchVisitEnricher.cs:21-25 | YES - Null/empty check returns empty DF |
-| BR-8: Empty guard on branch_visits | BranchVisitEnricher.cs:27-30 | YES - Second null/empty check |
-| BR-9: visit_timestamp pass-through | BranchVisitEnricher.cs:72 | MINOR: actual line is 73, but claim correct |
-| BR-10: Weekday-only output | BranchVisitEnricher.cs:21-25, DB | YES - 23 dates, weekday-only |
-| BR-11: No visit filtering | BranchVisitEnricher.cs:56-77 | YES - foreach iterates all rows unconditionally |
-| BR-12: Dictionary last-write-wins | BranchVisitEnricher.cs:37-42, :48-53 | YES - MEDIUM confidence appropriate |
+Database spot-checks:
+- Output has only weekday dates (23 dates, no weekends) — confirms weekend behavior analysis
+- Schema: first_name/last_name are nullable (YES), branch_name is NOT NULL — confirms AP-5 asymmetry
+- Grep confirms zero references to "address" in BranchVisitEnricher.cs (AP-1)
+- Grep confirms address_line1, city, state_province, postal_code, country never referenced (AP-4)
 
-### Database Verification
-- curated.branch_visit_log: 23 weekday dates, varying row counts (13-29 per date)
-- Schema: visit_id (int), customer_id (int), first_name (varchar), last_name (varchar), branch_id (int), branch_name (varchar), visit_timestamp (timestamp), visit_purpose (varchar), as_of (date) — matches BRD
+## Anti-Pattern Assessment
+- [x] AP identification is plausible and complete
 
-### Line Number Accuracy
-Most line references accurate. Output schema line references are off by 1-2 in places (e.g., BRD cites line 72 for visit_timestamp but actual is line 73, as_of cited as 74 but actual is 75). These are minor and do not affect validity.
+Identified patterns correctly assessed:
+- **AP-1**: Correctly identified — addresses DataSourcing entirely unused. Grep confirms.
+- **AP-3**: Correctly identified — two LEFT JOINs are standard SQL. The V2 note about matching NULL vs empty string behavior is important.
+- **AP-4**: Correctly identified — 5 branch columns sourced but never referenced.
+- **AP-5**: Correctly identified — excellent catch. Missing branch -> empty string, missing customer -> NULL. Database schema confirms (branch_name NOT NULL, first_name/last_name nullable). This asymmetry must be carefully reproduced in V2.
+- **AP-6**: Correctly identified — foreach loop for LEFT JOIN operations.
 
-## Notes
-- Good catch on the asymmetric null defaults (empty string for branches, null for customers). This is an important behavioral difference for V2 implementation.
-- Weekend data loss observation is valuable — branch_visits has weekend data but it gets dropped due to the customers-based weekend guard.
-- Addresses unused, consistent with pattern in other jobs.
+Remaining APs correctly omitted:
+- AP-2: N/A — no curated dependencies
+- AP-7: N/A — no magic values
+- AP-8: N/A — no SQL
+- AP-9: N/A — name accurately describes the output
+- AP-10: N/A — no curated dependencies
+
+## Completeness Check
+- [x] All required sections present (Overview, Source Tables, Business Rules, Output Schema, Edge Cases, Anti-Patterns Identified, Traceability Matrix, Open Questions)
+- [x] Traceability matrix complete — all 9 BRs mapped to evidence
+- [x] Output schema documents all 9 columns with source and transformation
+- [x] Edge cases section thoroughly covers the weekend behavior nuance
+
+## Issues Found
+None.
+
+## Verdict
+PASS: BRD approved for Phase B.
+
+Thorough BRD with strong analysis. The weekend behavior edge case (customers-first empty guard causing no output on weekends despite visits existing) is an important finding. The AP-5 identification of the branch vs customer NULL asymmetry is well-documented and critical for V2 correctness. The open question about whether the weekend behavior is intentional is appropriate at MEDIUM confidence.

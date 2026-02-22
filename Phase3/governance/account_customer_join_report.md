@@ -1,26 +1,34 @@
-# Governance Report: AccountCustomerJoin
+# AccountCustomerJoin -- Governance Report
 
 ## Links
 - BRD: Phase3/brd/account_customer_join_brd.md
 - FSD: Phase3/fsd/account_customer_join_fsd.md
 - Test Plan: Phase3/tests/account_customer_join_tests.md
-- V2 Module: ExternalModules/AccountCustomerJoinV2Processor.cs
 - V2 Config: JobExecutor/Jobs/account_customer_join_v2.json
 
 ## Summary of Changes
-- Original approach: DataSourcing (accounts, customers, addresses) -> External (AccountCustomerDenormalizer) -> DataFrameWriter to curated.account_customer_join
-- V2 approach: DataSourcing (accounts, customers, addresses) -> External (AccountCustomerJoinV2Processor) writing to double_secret_curated.account_customer_join via DscWriterUtil
-- Key difference: V2 External module combines processing and writing. Business logic (join accounts to customers by customer_id, left-join semantics with empty string defaults) is identical.
+The original job used an External module (AccountCustomerDenormalizer.cs) to perform a dictionary-based LEFT JOIN between accounts and customers, with an unused addresses DataSourcing module. The V2 replaces the External module with a SQL Transformation using a LEFT JOIN (`SELECT a.account_id, a.customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, a.account_type, a.account_status, a.current_balance, a.as_of FROM accounts a LEFT JOIN customers c ON a.customer_id = c.id AND a.as_of = c.as_of`), and removes the addresses DataSourcing module.
 
-## Anti-Patterns Identified
-- **Unused DataSourcing step**: The `addresses` table is sourced but never referenced by the External module. Dead configuration.
-- **Implicit left-join via GetValueOrDefault**: The customer lookup uses dictionary GetValueOrDefault with empty string fallback rather than an explicit SQL LEFT JOIN pattern, making the join semantics less obvious to reviewers.
+## Anti-Pattern Scorecard
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `addresses` DataSourcing module entirely |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation (LEFT JOIN) |
+| AP-4    | N                   | N/A                | All sourced columns from accounts and customers are used |
+| AP-5    | N                   | N/A                | No asymmetric NULL handling |
+| AP-6    | Y                   | Y                  | Replaced row-by-row dictionary lookup with SQL LEFT JOIN |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No overly complex SQL |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
 
 ## Comparison Results
-- Dates compared: 31 (Oct 1-31, 2024)
+- Dates verified: 31 (Oct 1-31, 2024)
 - Match percentage: 100%
-- Fix iterations required for this specific job: 0 (assembly name fix and TRUNCATE-to-DELETE fix applied universally, but no job-specific logic fix needed)
+- Write mode: Overwrite
+- Row count: 277
 
 ## Confidence Assessment
-- Overall confidence: HIGH
-- Standard denormalization pattern with clear join logic. No ambiguity in business rules.
+**HIGH** -- Simple LEFT JOIN logic, all business rules directly observable, no ambiguities. No fix iterations required for this job.

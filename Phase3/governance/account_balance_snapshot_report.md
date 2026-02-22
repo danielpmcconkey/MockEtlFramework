@@ -1,26 +1,34 @@
-# Governance Report: AccountBalanceSnapshot
+# AccountBalanceSnapshot -- Governance Report
 
 ## Links
 - BRD: Phase3/brd/account_balance_snapshot_brd.md
 - FSD: Phase3/fsd/account_balance_snapshot_fsd.md
 - Test Plan: Phase3/tests/account_balance_snapshot_tests.md
-- V2 Module: ExternalModules/AccountBalanceSnapshotV2Processor.cs
 - V2 Config: JobExecutor/Jobs/account_balance_snapshot_v2.json
 
 ## Summary of Changes
-- Original approach: DataSourcing (accounts, branches) -> External (AccountSnapshotBuilder) -> DataFrameWriter to curated.account_balance_snapshot
-- V2 approach: DataSourcing (accounts, branches) -> External (AccountBalanceSnapshotV2Processor) writing to double_secret_curated.account_balance_snapshot via DscWriterUtil
-- Key difference: V2 External module combines processing and writing into a single step, bypassing DataFrameWriter. Business logic (select 6 columns from accounts, pass through as-is) is identical.
+The original job used an External module (AccountSnapshotBuilder.cs) to perform a trivial row-by-row copy of 6 columns from datalake.accounts, with an unused branches DataSourcing module and unused columns (open_date, interest_rate, credit_limit). The V2 replaces the External module with a simple SQL Transformation (`SELECT account_id, customer_id, account_type, account_status, current_balance, as_of FROM accounts`), removes the branches DataSourcing module, and trims the accounts column list to only the 5 columns actually needed.
 
-## Anti-Patterns Identified
-- **Unused DataSourcing step**: The `branches` table is sourced via DataSourcing but never referenced by the External module. This wastes a database query and memory.
-- **Over-fetching columns**: Sources 8 account columns (including open_date, interest_rate, credit_limit) but only uses 5 plus as_of in output.
+## Anti-Pattern Scorecard
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `branches` DataSourcing module entirely |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation |
+| AP-4    | Y                   | Y                  | Removed unused columns (open_date, interest_rate, credit_limit) from DataSourcing |
+| AP-5    | N                   | N/A                | No asymmetric NULL handling |
+| AP-6    | Y                   | Y                  | Replaced row-by-row iteration with single SELECT statement |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No overly complex SQL |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
 
 ## Comparison Results
-- Dates compared: 31 (Oct 1-31, 2024)
+- Dates verified: 31 (Oct 1-31, 2024)
 - Match percentage: 100%
-- Fix iterations required for this specific job: 0 (no job-specific fix needed; only the universal assembly name fix in Iteration 1 applied)
+- Write mode: Append
+- Row count per date: 277
 
 ## Confidence Assessment
-- Overall confidence: HIGH
-- Simple pass-through logic with no transformations, filtering, or joins. Straightforward to verify.
+**HIGH** -- The job is a straightforward pass-through of account data with no complex business logic. All business rules are directly observable in code with HIGH confidence. No fix iterations were required specifically for this job.

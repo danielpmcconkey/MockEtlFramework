@@ -1,18 +1,41 @@
-# Review: CustomerSegmentMap BRD
+# CustomerSegmentMap BRD — Review Report
 
-## Status: PASS
+**Reviewer:** reviewer
+**Date:** 2026-02-22
+**BRD:** Phase3/brd/customer_segment_map_brd.md
+**Result:** PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Citation Verification
 
-## Verification Details
-All 9 business rules verified against customer_segment_map.json config. SQL verified: INNER JOIN on segment_id AND as_of, SELECT with 5 columns (customer_id, segment_id, segment_name, segment_code, as_of), ORDER BY customer_id/segment_id. Append mode at JSON line 35 confirmed. Branches sourced (lines 19-24) but not used in SQL confirmed. Pure Transformation job with no External module.
+| Requirement | Citation | Verified? | Notes |
+|-------------|----------|-----------|-------|
+| BR-1 | customer_segment_map.json:29 | YES | SQL JOIN produces one row per customer-segment pair |
+| BR-2 | customer_segment_map.json:29 | YES | `JOIN ... ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of` |
+| BR-3 | customer_segment_map.json:29 | YES | `ORDER BY cs.customer_id, cs.segment_id` |
+| BR-4 | customer_segment_map.json:35 | YES | `"writeMode": "Append"` at line 35 |
+| BR-5 | datalake data patterns | YES | Both tables have weekend data (verifiable via DB) |
+| BR-6 | customer_segment_map.json:29 | YES | INNER JOIN filters non-matching rows |
 
-## Notes
-- Clean SQL Transformation job with straightforward join logic.
-- Date alignment in JOIN condition (cs.as_of = s.as_of) properly documented.
-- Unused branches table correctly flagged.
+## Anti-Pattern Assessment
+
+| AP Code | BRD Finding | Reviewer Assessment |
+|---------|-------------|---------------------|
+| AP-1 | YES — branches sourced but unused | CONFIRMED. Branches at lines 20-25. SQL only references customers_segments and segments. |
+| AP-4 | Listed as N/A for used tables | CORRECT. All sourced columns from customers_segments and segments appear in output or join condition. |
+
+Anti-pattern analysis is accurate. Only AP-1 applies.
+
+## Completeness Check
+
+- [x] Overview present
+- [x] Source tables documented with join logic
+- [x] Business rules (6) with confidence and evidence
+- [x] Output schema with transformations
+- [x] Edge cases documented
+- [x] Anti-patterns identified (1, with AP-4 correctly noted as N/A for used tables)
+- [x] Traceability matrix
+- [x] Open questions (none — appropriate for a simple SQL job)
+
+## Verdict: PASS
+
+Clean, well-structured BRD for a straightforward SQL Transformation job. Anti-pattern identification is accurate.

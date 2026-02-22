@@ -17,16 +17,16 @@
       "columns": ["id", "first_name", "last_name"]
     },
     {
-      "type": "DataSourcing",
-      "resultName": "addresses",
-      "schema": "datalake",
-      "table": "addresses",
-      "columns": ["address_id", "customer_id", "address_line1", "city", "state_province"]
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.AccountCustomerJoinV2"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.AccountCustomerJoinV2Processor"
+      "type": "DataFrameWriter",
+      "source": "join_result",
+      "targetTable": "account_customer_join",
+      "writeMode": "Overwrite",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

@@ -1,95 +1,98 @@
-# BRD: TopBranches
+# TopBranches -- Business Requirements Document
 
 ## Overview
-This job ranks branches by their total number of visits (across all as_of dates loaded for the current effective date) and produces a ranked list. The output is written to `curated.top_branches` in Overwrite mode.
+
+This job ranks branches by their total visit count for the current effective date and produces a ranked list with branch names. The output is written in Overwrite mode, so only the latest effective date's ranking persists.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| branch_visits | datalake | visit_id, branch_id | Aggregated by branch_id: COUNT(*) as total_visits; filtered by as_of >= '2024-10-01' (redundant) | [JobExecutor/Jobs/top_branches.json:5-10] DataSourcing config; [top_branches.json:21-22] SQL |
-| branches | datalake | branch_id, branch_name | Joined to visit_totals on branch_id to get branch_name; also provides as_of for output | [top_branches.json:12-16] DataSourcing config; [top_branches.json:21-22] SQL JOIN |
+
+### datalake.branch_visits
+- **Columns used**: `branch_id`, `as_of` (via WHERE filter)
+- **Column sourced but unused**: `visit_id` (see AP-4)
+- **Filter**: `as_of >= '2024-10-01'` in the SQL, but this is redundant because DataSourcing already filters to the current effective date
+- **Evidence**: [JobExecutor/Jobs/top_branches.json:22] SQL CTE with `WHERE bv.as_of >= '2024-10-01'`
+
+### datalake.branches
+- **Columns used**: `branch_id`, `branch_name`, `as_of`
+- **Join logic**: Joined to visit totals via `branch_id` to get branch names
+- **Evidence**: [JobExecutor/Jobs/top_branches.json:22] `JOIN branches b ON vt.branch_id = b.branch_id`
 
 ## Business Rules
 
-BR-1: Branch visits are aggregated by branch_id to compute total_visits (COUNT(*)) for the effective date.
+BR-1: Visits are counted per branch_id for the current effective date.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/top_branches.json:22] SQL CTE: `SELECT bv.branch_id, COUNT(*) AS total_visits FROM branch_visits bv WHERE bv.as_of >= '2024-10-01' GROUP BY bv.branch_id`
-- Evidence: Since DataSourcing loads only one day's data, this counts visits for that single day
+- Evidence: [JobExecutor/Jobs/top_branches.json:22] `COUNT(*) AS total_visits FROM branch_visits bv ... GROUP BY bv.branch_id`
+- Evidence: [curated.top_branches] For as_of = 2024-10-31, branch_id 27 has total_visits = 4. Direct query: `SELECT COUNT(*) FROM datalake.branch_visits WHERE branch_id = 27 AND as_of = '2024-10-31'` yields 4.
 
-BR-2: The SQL includes `WHERE bv.as_of >= '2024-10-01'` but since DataSourcing loads only the current effective date's data, this filter is redundant for dates on or after 2024-10-01.
+BR-2: Branches are ranked by total_visits in descending order using the RANK() window function.
 - Confidence: HIGH
-- Evidence: [top_branches.json:22] SQL WHERE clause
-- Evidence: [Lib/Control/JobExecutorService.cs:100-101] Single date injection into DataSourcing
+- Evidence: [JobExecutor/Jobs/top_branches.json:22] `RANK() OVER (ORDER BY vt.total_visits DESC) AS rank`
+- Evidence: [curated.top_branches] Branches with tied visit counts share the same rank (e.g., branches 5, 17, 22 all have rank=2 with total_visits=3)
 
-BR-3: Branches are ranked using RANK() window function ordered by total_visits DESC. Ties receive the same rank, and the next rank is skipped (standard RANK behavior).
+BR-3: Each output row includes the branch_name from the branches table.
 - Confidence: HIGH
-- Evidence: [top_branches.json:22] `RANK() OVER (ORDER BY vt.total_visits DESC) AS rank`
-- Evidence: [curated.top_branches] Multiple branches with rank=2 (3 visits each), next rank is 5
+- Evidence: [JobExecutor/Jobs/top_branches.json:22] `JOIN branches b ON vt.branch_id = b.branch_id` and `SELECT ... b.branch_name`
 
-BR-4: The visit_totals CTE is joined to the branches table on branch_id. This is an INNER JOIN, so only branches that have at least one visit appear in the output.
+BR-4: The as_of column in the output comes from the branches table, not branch_visits.
 - Confidence: HIGH
-- Evidence: [top_branches.json:22] `FROM visit_totals vt JOIN branches b ON vt.branch_id = b.branch_id` — JOIN without LEFT means INNER
-- Evidence: [curated.top_branches] 16 rows, less than total branch count, confirms branches without visits are excluded
+- Evidence: [JobExecutor/Jobs/top_branches.json:22] `SELECT ... b.as_of FROM visit_totals vt JOIN branches b`
 
-BR-5: The as_of column in the output comes from the branches table (b.as_of), not from branch_visits.
+BR-5: Only branches that have at least one visit are included (the GROUP BY in the CTE excludes branches with zero visits).
 - Confidence: HIGH
-- Evidence: [top_branches.json:22] `b.as_of` in SELECT clause
-- Evidence: [curated.top_branches] All rows have as_of = 2024-10-31
+- Evidence: [JobExecutor/Jobs/top_branches.json:22] CTE aggregates branch_visits, so only branches present in branch_visits appear
+- Evidence: [curated.top_branches] 16 distinct branches vs 40 total branches in datalake.branches -- 24 branches with no visits on Oct 31 are excluded
 
-BR-6: Output is ordered by rank ASC, then branch_id ASC.
+BR-6: Results are ordered by rank (ascending), then by branch_id (ascending) as tiebreaker.
 - Confidence: HIGH
-- Evidence: [top_branches.json:22] `ORDER BY rank, vt.branch_id`
+- Evidence: [JobExecutor/Jobs/top_branches.json:22] `ORDER BY rank, vt.branch_id`
 
-BR-7: Output is written in Overwrite mode — each run truncates the entire table before writing.
+BR-7: The output uses Overwrite mode.
 - Confidence: HIGH
 - Evidence: [JobExecutor/Jobs/top_branches.json:28] `"writeMode": "Overwrite"`
-- Evidence: [curated.top_branches] Only one as_of date (2024-10-31) present
-
-BR-8: The job has a SameDay dependency on BranchVisitSummary.
-- Confidence: HIGH
-- Evidence: [control.job_dependencies] Query shows TopBranches depends on BranchVisitSummary with dependency_type = 'SameDay'
-
-BR-9: Branch_visits data exists for all 31 days (including weekends), while branches data also exists for all 31 days. So the JOIN can produce output for any effective date.
-- Confidence: HIGH
-- Evidence: [datalake.branch_visits] 31 distinct as_of dates
-- Evidence: [datalake.branches] 31 distinct as_of dates
-
-BR-10: The join between visit_totals (which has no as_of — it was removed by GROUP BY) and branches (which has as_of) means each visit_totals row is replicated once per branch row. Since DataSourcing loads only one day's branches data, there is exactly one branches row per branch_id, so the join is effectively 1:1.
-- Confidence: HIGH
-- Evidence: [top_branches.json:22] visit_totals CTE groups away as_of; branches table retains as_of
-- Evidence: [Lib/Control/JobExecutorService.cs:100-101] Single-day DataSourcing
-- Evidence: [curated.top_branches] No duplicate branch_ids in output
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| branch_id | visit_totals.branch_id (from branch_visits) | GROUP BY key | [top_branches.json:22] |
-| branch_name | branches.branch_name | Joined lookup | [top_branches.json:22] |
-| total_visits | COUNT(*) of branch_visits | Integer count per branch | [top_branches.json:22] |
-| rank | RANK() window function | Rank by total_visits DESC | [top_branches.json:22] |
-| as_of | branches.as_of | From branches table join | [top_branches.json:22] |
+
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| branch_id | datalake.branch_visits.branch_id (via CTE) | GROUP BY key |
+| branch_name | datalake.branches.branch_name | Joined via branch_id |
+| total_visits | Derived: COUNT(*) of branch_visits per branch_id | Aggregate count |
+| rank | Derived: RANK() OVER (ORDER BY total_visits DESC) | Window function |
+| as_of | datalake.branches.as_of | From the branches table row |
 
 ## Edge Cases
-- **NULL handling**: No explicit NULL handling. branch_id is expected to be non-null in both tables.
-- **Weekend/date fallback**: Both branch_visits and branches have data on weekends, so the job can produce output for all 31 days.
-- **Zero-row behavior**: If no branch visits exist for the effective date, the CTE produces zero rows, the JOIN produces zero rows, and an empty DataFrame is written after truncate.
-- **Branches with no visits**: Excluded by INNER JOIN behavior (BR-4). Only visited branches appear in output.
-- **RANK vs DENSE_RANK**: RANK is used, meaning gaps appear after ties. For example, if 3 branches tie at rank 2, the next rank is 5, not 3.
-- **SQLite RANK**: The Transformation runs in SQLite which supports RANK() window function.
+
+- **Tied visit counts**: Branches with the same total_visits share the same rank (RANK function, not DENSE_RANK). The next rank after a tie is offset (e.g., 1, 2, 2, 2, 5 not 1, 2, 2, 2, 3).
+- **Branches with zero visits**: Excluded from output (only branches present in branch_visits appear in the CTE).
+- **Overwrite mode**: Only the last effective date's ranking persists.
+- **Hardcoded date filter**: The `WHERE bv.as_of >= '2024-10-01'` is redundant since DataSourcing filters to one effective date. It has no practical effect.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** -- Note: Unlike other jobs, both DataSourcing modules (branch_visits and branches) are actually used by the Transformation SQL. No redundant sourcing here.
+
+- **AP-2: Duplicated Transformation Logic** -- This job has a declared SameDay dependency on `BranchVisitSummary`, which already computes per-branch visit counts and writes them to `curated.branch_visit_summary` (columns: branch_id, branch_name, as_of, visit_count). TopBranches re-derives visit counts from raw `datalake.branch_visits` instead of reading from the upstream curated table. The only additional logic TopBranches needs beyond BranchVisitSummary is the RANK() window function. V2 approach: Read from `curated.branch_visit_summary` and apply RANK() directly, instead of re-deriving visit counts from datalake.
+
+- **AP-4: Unused Columns Sourced** -- The branch_visits DataSourcing includes `visit_id`, which is never referenced in the Transformation SQL. The SQL only uses `branch_id` and `as_of` from branch_visits. V2 approach: Remove `visit_id` from the branch_visits DataSourcing columns. If fixing AP-2, the branch_visits DataSourcing module is removed entirely.
+
+- **AP-7: Hardcoded Magic Values** -- The date `'2024-10-01'` is hardcoded in the SQL WHERE clause. Since DataSourcing handles effective date filtering, this is redundant and misleading. V2 approach: Remove the hardcoded date filter.
+
+- **AP-8: Overly Complex SQL** -- The SQL uses a CTE (`WITH visit_totals AS (...)`) to compute visit counts, then selects from it with a JOIN and window function. While the CTE provides some logical separation, the query could be written as a single query with a subquery or even directly if reading from the upstream curated table (AP-2 fix). V2 approach: Simplify SQL.
+
+- **AP-10: Missing Dependency Declarations** -- A dependency on BranchVisitSummary IS declared. However, the job does not actually read from `curated.branch_visit_summary`. If the V2 fixes AP-2 by reading from the upstream curated table, this dependency becomes meaningful and correct.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [top_branches.json:22], [curated data verification] |
-| BR-2 | [top_branches.json:22], [JobExecutorService.cs:100-101] |
-| BR-3 | [top_branches.json:22], [curated data verification] |
-| BR-4 | [top_branches.json:22], [curated data count analysis] |
-| BR-5 | [top_branches.json:22], [curated data observation] |
-| BR-6 | [top_branches.json:22] |
-| BR-7 | [top_branches.json:28], [curated data observation] |
-| BR-8 | [control.job_dependencies query] |
-| BR-9 | [datalake date analysis] |
-| BR-10 | [top_branches.json:22], [JobExecutorService.cs:100-101], [curated data observation] |
+| BR-1 | [JobExecutor/Jobs/top_branches.json:22] `COUNT(*) ... GROUP BY bv.branch_id` |
+| BR-2 | [JobExecutor/Jobs/top_branches.json:22] `RANK() OVER (ORDER BY vt.total_visits DESC)` |
+| BR-3 | [JobExecutor/Jobs/top_branches.json:22] `JOIN branches b` and `b.branch_name` |
+| BR-4 | [JobExecutor/Jobs/top_branches.json:22] `b.as_of` in SELECT |
+| BR-5 | [JobExecutor/Jobs/top_branches.json:22] CTE only includes branches with visits |
+| BR-6 | [JobExecutor/Jobs/top_branches.json:22] `ORDER BY rank, vt.branch_id` |
+| BR-7 | [JobExecutor/Jobs/top_branches.json:28] `"writeMode": "Overwrite"` |
 
 ## Open Questions
-- The name "TopBranches" implies there should be a LIMIT or TOP N, but the SQL does not include a LIMIT clause. All branches with visits are ranked and included. Confidence: HIGH that this is the intended behavior — the ranking allows consumers to filter as needed.
+
+- None. All business rules are directly observable with HIGH confidence.

@@ -17,21 +17,16 @@
       "columns": ["segment_id", "segment_name", "segment_code"]
     },
     {
-      "type": "DataSourcing",
-      "resultName": "branches",
-      "schema": "datalake",
-      "table": "branches",
-      "columns": ["branch_id", "branch_name", "city", "state_province"]
-    },
-    {
       "type": "Transformation",
       "resultName": "seg_map",
       "sql": "SELECT cs.customer_id, cs.segment_id, s.segment_name, s.segment_code, cs.as_of FROM customers_segments cs JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of ORDER BY cs.customer_id, cs.segment_id"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.CustomerSegmentMapV2Writer"
+      "type": "DataFrameWriter",
+      "source": "seg_map",
+      "targetTable": "customer_segment_map",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

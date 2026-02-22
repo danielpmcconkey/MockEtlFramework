@@ -14,7 +14,7 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": ["account_id"]
     },
     {
       "type": "DataSourcing",
@@ -28,12 +28,19 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id"]
+      "columns": ["customer_id"]
     },
     {
       "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.CustomerValueScoreV2Processor"
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CustomerValueScoreV2"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "score_output",
+      "targetTable": "customer_value_score",
+      "writeMode": "Overwrite",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

@@ -1,39 +1,58 @@
-# FSD: CustomerBranchActivityV2
+# CustomerBranchActivity -- Functional Specification Document
 
-## Overview
-CustomerBranchActivityV2 replicates the exact per-customer visit count logic of CustomerBranchActivity. It counts branch visits per customer, enriches with customer names, and writes to `double_secret_curated.customer_branch_activity`.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module)**: Original uses DataSourcing + External + DataFrameWriter. V2 keeps DataSourcing steps identical and replaces External+DataFrameWriter with a single V2 External.
-- **Write mode**: Append (overwrite=false) to match original.
-- **Branches DataSourcing retained**: Original sources branches but never uses them. V2 retains this.
-- **No explicit ordering**: Original iterates dictionary (insertion order). V2 replicates this behavior exactly.
+**SQL-equivalent logic in External module with empty-DataFrame guard.** The original External module counts branch visits per customer and enriches with customer names. This is a simple GROUP BY + LEFT JOIN in SQL. However, the framework's Transformation module does not register empty DataFrames as SQLite tables. On weekends, `customers` has no data (while `branch_visits` does), so the original returns empty output. A pure SQL approach would crash because the `customers` table wouldn't exist in SQLite.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | branch_visits: visit_id, customer_id, branch_id, visit_purpose |
-| 2 | DataSourcing | customers: id, first_name, last_name |
-| 3 | DataSourcing | branches: branch_id, branch_name |
-| 4 | External | CustomerBranchActivityV2Processor |
+The V2 uses a clean External module that:
+1. Returns empty output when customers DataFrame is empty (weekend guard)
+2. Returns empty output when branch_visits DataFrame is empty
+3. Uses LINQ-based aggregation to count visits and enrich with names
 
-## V2 External Module: CustomerBranchActivityV2Processor
-- File: ExternalModules/CustomerBranchActivityV2Processor.cs
-- Processing logic: Counts visits per customer_id, joins with customer names, uses as_of from first visit row
-- Output columns: customer_id, first_name, last_name, as_of, visit_count
-- Target table: double_secret_curated.customer_branch_activity
-- Write mode: Append (overwrite=false)
+## Anti-Patterns Eliminated
 
-## Traceability
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `branches` DataSourcing module |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | Y                   | Partial            | External module retained for empty-DataFrame guard; internal logic simplified with LINQ |
+| AP-4    | Y                   | Y                  | Removed `visit_id`, `branch_id`, `visit_purpose` from DataSourcing (only `customer_id` needed) |
+| AP-5    | N                   | N/A                | No asymmetric NULL handling (NULL names are intentional for missing customers) |
+| AP-6    | Y                   | Y                  | Manual dictionary-building loops replaced with LINQ GroupBy and ToDictionary |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No overly complex SQL |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
+
+## V2 Pipeline Design
+
+1. **DataSourcing** - `branch_visits` from `datalake.branch_visits` with columns: `customer_id`
+2. **DataSourcing** - `customers` from `datalake.customers` with columns: `id`, `first_name`, `last_name`
+3. **External** - `CustomerBranchActivityBuilderV2`: empty-check guard + LINQ-based aggregation
+4. **DataFrameWriter** - Write to `customer_branch_activity` in `double_secret_curated` schema, Append mode
+
+## External Module Design
+
+```
+IF customers is empty OR branch_visits is empty:
+    Return empty DataFrame
+ELSE:
+    1. Build customer name lookup from customers DataFrame
+    2. Group branch_visits by customer_id, count visits per customer (LINQ GroupBy)
+    3. Get as_of from first branch_visit row
+    4. For each customer group:
+       - Look up name (NULL if not found)
+       - Emit row: customer_id, first_name, last_name, as_of, visit_count
+```
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 (Visit count per customer) | visitCounts dictionary counting |
-| BR-2 (Only customers with visits) | Loop iterates visitCounts only |
-| BR-3 (Customer name lookup, null if missing) | customerNames dictionary, null defaults |
-| BR-4 (as_of from first visit row) | branchVisits.Rows[0]["as_of"] |
-| BR-5 (Append mode) | DscWriterUtil.Write with overwrite=false |
-| BR-6 (Empty guard) | Early return if customers or visits empty |
-| BR-7 (Dictionary order) | Iterates visitCounts in insertion order |
-| BR-8 (Branches unused) | Branches DataSourcing retained |
-| BR-9 (Weekend exclusion) | No output on weekends (customers empty) |
-| BR-10 (Weekday-only output) | 23 dates, driven by customers availability |
+|-----------------|-------------------|
+| BR-1 | LINQ GroupBy customer_id produces one row per customer with visits |
+| BR-2 | Count() on each group gives visit_count |
+| BR-3 | Customer name lookup with NULL fallback when customer not found |
+| BR-4 | as_of from first row of branch_visits DataFrame |
+| BR-5 | Empty-check guard for both DataFrames |
+| BR-6 | DataFrameWriter configured with writeMode: Append |
+| BR-7 | Empty output on weekends (customers empty) |

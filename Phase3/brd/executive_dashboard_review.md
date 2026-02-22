@@ -1,57 +1,41 @@
-# Review: ExecutiveDashboard BRD
+# ExecutiveDashboard BRD — Review Report
 
-## Status: PASS
+**Reviewer:** reviewer
+**Date:** 2026-02-22
+**BRD:** Phase3/brd/executive_dashboard_brd.md
+**Result:** PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Citation Verification
 
-## Verification Details
+| Requirement | Citation | Verified? | Notes |
+|-------------|----------|-----------|-------|
+| BR-1 | ExecutiveDashboardBuilder.cs:83-94 | YES | 9 metric tuples built |
+| BR-2 | ExecutiveDashboardBuilder.cs:38 | YES | `customers.Count` |
+| BR-3 | ExecutiveDashboardBuilder.cs:41 | YES | `accounts.Count` |
+| BR-4 | ExecutiveDashboardBuilder.cs:44-48 | YES | Sum of current_balance |
+| BR-5 | ExecutiveDashboardBuilder.cs:51-52 | MINOR | Count assignment is at line 55. Lines 51-52 are initialization. Close. |
+| BR-6 | ExecutiveDashboardBuilder.cs:53-57 | MINOR | Amount summing is at 56-59. Close. |
+| BR-7 | ExecutiveDashboardBuilder.cs:63 | YES | Division with zero guard |
+| BR-8 | ExecutiveDashboardBuilder.cs:66 | YES | `loanAccounts.Count` |
+| BR-9 | ExecutiveDashboardBuilder.cs:69-73 | YES | Sum loan balances |
+| BR-10 | ExecutiveDashboardBuilder.cs:76-80 | YES | Branch visits count with null guard |
+| BR-11 | ExecutiveDashboardBuilder.cs:85-93 | YES | Math.Round on all 9 metrics |
+| BR-12 | ExecutiveDashboardBuilder.cs:31-35 | YES | as_of fallback logic |
+| BR-13 | ExecutiveDashboardBuilder.cs:22-28 | YES | Triple empty guard |
+| BR-14 | ExecutiveDashboardBuilder.cs:50-53,76-79 | YES | Null guards for optional tables |
+| BR-15 | executive_dashboard.json:63 | YES | `"writeMode": "Overwrite"` |
 
-### Evidence Citation Checks
-| Claim | Citation | Verified |
-|-------|----------|----------|
-| BR-1: 9 metrics produced | ExecutiveDashboardBuilder.cs:83-94, DB | YES - 9 tuples constructed; DB has 9 rows |
-| BR-2: total_customers = customers.Count | ExecutiveDashboardBuilder.cs:38, DB | YES - `(decimal)customers.Count`; DB: 223.00 = source 223 |
-| BR-3: total_accounts = accounts.Count | ExecutiveDashboardBuilder.cs:41, DB | YES - `(decimal)accounts.Count`; DB: 277.00 = source 277 |
-| BR-4: total_balance = SUM(current_balance), rounded | ExecutiveDashboardBuilder.cs:44-48, 87 | YES - iteration + Math.Round; DB: 1064917.73 = source sum |
-| BR-5: total_transactions = transactions.Count | ExecutiveDashboardBuilder.cs:52-55 | YES - count assigned; DB: 400.00 = source 400 |
-| BR-6: total_txn_amount = SUM(amount), rounded | ExecutiveDashboardBuilder.cs:56-59, 89 | YES - iteration + Math.Round; DB: 365391.00 = source sum |
-| BR-7: avg_txn_amount = total/count or 0, rounded | ExecutiveDashboardBuilder.cs:63, 90 | YES - ternary division; DB: 913.48 = ROUND(365391/400, 2) |
-| BR-8: total_loans = loanAccounts.Count | ExecutiveDashboardBuilder.cs:66 | YES - `(decimal)loanAccounts.Count`; DB: 90.00 = source 90 |
-| BR-9: total_loan_balance = SUM(current_balance) | ExecutiveDashboardBuilder.cs:69-73 | YES - iteration; DB: 12069052.90 = source sum |
-| BR-10: total_branch_visits = branchVisits.Count | ExecutiveDashboardBuilder.cs:76-80 | YES - count; DB: 27.00 = source 27 |
-| BR-11: All metrics Math.Round(..., 2) | ExecutiveDashboardBuilder.cs:85-93 | YES - all 9 wrapped in Math.Round |
-| BR-12: as_of from customers, fallback transactions | ExecutiveDashboardBuilder.cs:31-35 | YES - `customers.Rows[0]["as_of"]` with null check fallback |
-| BR-13: Overwrite mode | executive_dashboard.json:63 | YES - `"writeMode": "Overwrite"` |
-| BR-14: Empty guard on customers/accounts/loan_accounts | ExecutiveDashboardBuilder.cs:22-28 | YES - OR null/empty check returns empty DF |
-| BR-15: branches and segments unused | ExecutiveDashboardBuilder.cs (no refs), JSON:40-52 | YES - not retrieved from sharedState |
+Minor line offsets on BR-5, BR-6 but substantively correct.
 
-### Database Cross-Verification (all for as_of = 2024-10-31)
-| Metric | Curated Value | Source Verification | Match |
-|--------|--------------|---------------------|-------|
-| total_customers | 223.00 | datalake.customers COUNT = 223 | YES |
-| total_accounts | 277.00 | datalake.accounts COUNT = 277 | YES |
-| total_balance | 1064917.73 | datalake.accounts SUM(current_balance) = 1064917.73 | YES |
-| total_transactions | 400.00 | datalake.transactions COUNT = 400 | YES |
-| total_txn_amount | 365391.00 | datalake.transactions SUM(amount) = 365391.00 | YES |
-| avg_txn_amount | 913.48 | ROUND(365391/400, 2) = 913.48 | YES |
-| total_loans | 90.00 | datalake.loan_accounts COUNT = 90 | YES |
-| total_loan_balance | 12069052.90 | datalake.loan_accounts SUM(current_balance) = 12069052.90 | YES |
-| total_branch_visits | 27.00 | datalake.branch_visits COUNT = 27 | YES |
+## Anti-Pattern Assessment
 
-### Schema Verification
-- curated.executive_dashboard: metric_name (varchar), metric_value (numeric), as_of (date) — matches BRD
+| AP Code | BRD Finding | Reviewer Assessment |
+|---------|-------------|---------------------|
+| AP-1 | YES — branches and segments sourced but unused | CONFIRMED. Grep shows zero references in .cs file. |
+| AP-3 | YES — unnecessary External for COUNT/SUM | CONFIRMED. UNION ALL of aggregate queries in SQL. |
+| AP-4 | YES — many unused columns across all sourced tables | CONFIRMED. Most sourced columns are unused. |
+| AP-6 | YES — three foreach loops for SUM aggregation | CONFIRMED. Lines 45, 56, 70. |
 
-### Line Number Accuracy
-All line references for ExecutiveDashboardBuilder.cs verified as accurate. JSON config line references are within acceptable ranges (off by 1 in some module block boundaries, but all point to correct config sections).
+## Verdict: PASS
 
-## Notes
-- Most complex job reviewed so far: 7 source tables, 9 computed KPI metrics.
-- All 9 metric values independently cross-verified against source data queries — all match exactly.
-- The avg_txn_amount calculation was verified: 365391/400 = 913.4775, Math.Round(913.4775, 2) = 913.48. Correct.
-- Edge case analysis is thorough: empty guard, null fallback for as_of, weekend behavior noted.
-- Unused branches/segments pattern consistent with other jobs.
+Comprehensive BRD with 15 well-documented business rules. Excellent analysis of the metric-row output pattern. Good edge case documentation for weekend Overwrite behavior.

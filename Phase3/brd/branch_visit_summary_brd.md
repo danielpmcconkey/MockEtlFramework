@@ -1,83 +1,96 @@
-# BRD: BranchVisitSummary
+# BranchVisitSummary — Business Requirements Document
 
 ## Overview
-Produces a summary of total branch visit counts per branch per effective date, joining with branches to include branch_name. Uses Append mode to accumulate results across all effective dates.
+
+This job produces a daily summary of total visit counts per branch, joining branch visit counts with branch names. The result is written to `curated.branch_visit_summary` using Append mode, accumulating daily summaries over time.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| branch_visits | datalake | visit_id, customer_id, branch_id, visit_purpose | Filtered by effective date range. Grouped by (branch_id, as_of) to count visits. | [JobExecutor/Jobs/branch_visit_summary.json:6-10] |
-| branches | datalake | branch_id, branch_name | Filtered by effective date range. Joined to visit counts via branch_id AND as_of. | [JobExecutor/Jobs/branch_visit_summary.json:12-16] |
+
+### datalake.branch_visits
+- **Columns sourced:** visit_id, customer_id, branch_id, visit_purpose
+- **Columns actually used:** branch_id (group key), as_of (group key). COUNT(*) counts all rows.
+- **Evidence:** [JobExecutor/Jobs/branch_visit_summary.json:22] SQL groups by `bv.branch_id, bv.as_of` and counts.
+
+### datalake.branches
+- **Columns sourced:** branch_id, branch_name
+- **Columns actually used:** Both (branch_id as join key, branch_name in output)
+- **Evidence:** [JobExecutor/Jobs/branch_visit_summary.json:22] SQL joins on `vc.branch_id = b.branch_id AND vc.as_of = b.as_of` and selects `b.branch_name`.
 
 ## Business Rules
-BR-1: Branch visits are counted by grouping on (branch_id, as_of) to produce a total visit_count per branch per date.
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] SQL CTE: `SELECT bv.branch_id, COUNT(*) AS visit_count, bv.as_of FROM branch_visits bv GROUP BY bv.branch_id, bv.as_of`
 
-BR-2: The visit counts are joined to branches using INNER JOIN on both branch_id AND as_of to get the branch_name.
+BR-1: Branch visits are grouped by branch_id and as_of, and the total count of visits per branch per day is computed.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] SQL: `JOIN branches b ON vc.branch_id = b.branch_id AND vc.as_of = b.as_of`
+- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] `SELECT bv.branch_id, COUNT(*) AS visit_count, bv.as_of FROM branch_visits bv GROUP BY bv.branch_id, bv.as_of`.
+- Evidence: [curated.branch_visit_summary] For as_of 2024-10-01, branch 7 (Denver CO Branch) has visit_count 4, matching the 4 visit records in branch_visit_purpose_breakdown.
 
-BR-3: The INNER JOIN means only visits to branches that exist in the branches table for the same as_of date are included. Visits to non-existent branch_ids are dropped.
+BR-2: Each output row includes the branch_name, looked up by joining with branches on branch_id and as_of.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] INNER JOIN semantics
+- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] `JOIN branches b ON vc.branch_id = b.branch_id AND vc.as_of = b.as_of` and `b.branch_name` in SELECT.
 
-BR-4: Write mode is Append -- each effective date's summary is added to the curated table.
+BR-3: The output contains 4 columns: branch_id, branch_name, as_of, visit_count.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:28] `"writeMode": "Append"`
-- Evidence: [curated.branch_visit_summary] 31 as_of dates present (all calendar days in October 2024)
+- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] SELECT lists these 4 columns.
+- Evidence: [curated.branch_visit_summary] Schema confirms these 4 columns.
 
-BR-5: The output is ordered by (as_of, branch_id).
+BR-4: Results are ordered by as_of then branch_id.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] SQL: `ORDER BY vc.as_of, vc.branch_id`
+- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] `ORDER BY vc.as_of, vc.branch_id`.
 
-BR-6: The job processes ALL calendar days including weekends, since both branch_visits and branches have weekend data.
+BR-5: Data is written in Append mode, accumulating daily summaries.
 - Confidence: HIGH
-- Evidence: [curated.branch_visit_summary] 31 dates including weekends
-- Evidence: [datalake.branch_visits] Has weekend as_of dates
-- Evidence: [datalake.branches] Has weekend as_of dates
+- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:27] `"writeMode": "Append"`.
+- Evidence: [curated.branch_visit_summary] Contains multiple as_of dates with varying counts.
 
-BR-7: This job has a SameDay dependency on BranchDirectory.
+BR-6: Only branches with at least one visit for the effective date appear in the output (INNER JOIN behavior).
 - Confidence: HIGH
-- Evidence: [control.job_dependencies] BranchVisitSummary depends on BranchDirectory with dependency_type = SameDay
-- Note: Like BranchVisitPurposeBreakdown, this job reads from datalake.branches directly, not curated.branch_directory.
+- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] Uses `JOIN` (inner join). Branches with zero visits are excluded from the visit_counts CTE, and thus from the output.
 
-BR-8: Only branches with at least one visit for a given as_of appear in the output (due to the GROUP BY on branch_visits driving the rows, then INNER JOIN limiting to existing branches).
+BR-7: The join between visit_counts and branches matches on both branch_id AND as_of.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] SQL logic: CTE groups branch_visits, then INNER JOIN with branches
-- Evidence: [curated.branch_visit_summary] Varying row counts per date (20, 21, 15, 17...) indicate not all 40 branches have visits every day
-
-BR-9: This is a simpler version of BranchVisitPurposeBreakdown -- it aggregates total visits per branch instead of per (branch, purpose).
-- Confidence: HIGH
-- Evidence: Compare SQL: BranchVisitSummary groups by (branch_id, as_of) while BranchVisitPurposeBreakdown groups by (branch_id, visit_purpose, as_of)
+- Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] `ON vc.branch_id = b.branch_id AND vc.as_of = b.as_of`.
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| branch_id | datalake.branch_visits.branch_id | Grouping key | [branch_visit_summary.json:22] |
-| branch_name | datalake.branches.branch_name | Joined via branch_id AND as_of | [branch_visit_summary.json:22] |
-| as_of | datalake.branch_visits.as_of | Grouping key | [branch_visit_summary.json:22] |
-| visit_count | Computed | COUNT(*) of all visits per (branch_id, as_of) regardless of purpose | [branch_visit_summary.json:22] |
+
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| branch_id | datalake.branch_visits.branch_id | Group key |
+| branch_name | datalake.branches.branch_name | Joined via branch_id + as_of |
+| as_of | datalake.branch_visits.as_of | Group key |
+| visit_count | Computed | COUNT(*) of visits per (branch_id, as_of) |
 
 ## Edge Cases
-- **NULL handling**: No explicit NULL handling in the SQL. NULLs in grouping columns would be grouped as their own category.
-- **Empty branch_visits**: If no visits for a date, the GROUP BY produces zero rows, and the INNER JOIN produces nothing.
-- **Branch not found**: If a branch_id in branch_visits has no match in branches for the same as_of, the INNER JOIN drops those visits.
-- **Weekend data**: Both branch_visits and branches have weekend data, so the job produces output for all 31 calendar days.
-- **No visit_purpose in output**: Unlike BranchVisitPurposeBreakdown, this job does not break down by purpose -- it shows total visits per branch.
+
+- **Weekend dates:** branch_visits AND branches both have weekend data. This job uses SQL Transformation (no External module empty guards), so weekend data IS processed and output. Confirmed by curated output containing weekend dates (e.g., 2024-10-05, 2024-10-06).
+- **Branch with no visits:** Not included in output (INNER JOIN, BR-6).
+- **Empty source data:** If no visits exist for an as_of date, the GROUP BY produces no rows.
+- **Visit with no branch record:** Excluded by INNER JOIN (unlikely in practice).
+
+## Anti-Patterns Identified
+
+- **AP-4: Unused Columns Sourced** — The branch_visits DataSourcing fetches visit_id, customer_id, and visit_purpose, but the SQL only uses branch_id and as_of (the COUNT(*) counts rows, not specific columns).
+  - Evidence: [JobExecutor/Jobs/branch_visit_summary.json:10] columns include visit_id, customer_id, visit_purpose; [JobExecutor/Jobs/branch_visit_summary.json:22] SQL only references bv.branch_id and bv.as_of.
+  - V2 approach: Only source branch_id from branch_visits.
+
+- **AP-8: Overly Complex SQL** — The SQL uses a CTE (`visit_counts`) to first aggregate visits by branch, then joins with branches. This could be simplified to a single query with GROUP BY and JOIN combined.
+  - Evidence: [JobExecutor/Jobs/branch_visit_summary.json:22] CTE wraps a simple GROUP BY.
+  - V2 approach: Simplify to `SELECT bv.branch_id, b.branch_name, bv.as_of, COUNT(*) AS visit_count FROM branch_visits bv JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of GROUP BY bv.branch_id, b.branch_name, bv.as_of ORDER BY bv.as_of, bv.branch_id`.
+
+- **AP-10: Missing Dependency Declarations** — BranchVisitSummary (job_id=24) has a declared dependency on BranchDirectory (job_id=22) via `control.job_dependencies`. However, BranchVisitSummary reads from `datalake.branches` directly (not `curated.branch_directory`), so this dependency is unnecessary — it doesn't actually consume the output of BranchDirectory.
+  - Evidence: [control.job_dependencies] row: job_id=24, depends_on_job_id=22, SameDay; [JobExecutor/Jobs/branch_visit_summary.json:22] SQL reads from the `branches` DataFrame (sourced from datalake.branches, not curated).
+  - V2 approach: The V2 job should not declare a dependency on BranchDirectory since it reads directly from datalake, not from curated.branch_directory. However, if the V2 is redesigned to read from curated.branch_directory (fixing AP-2-like redundancy), then the dependency would be appropriate. For simplicity and output equivalence, the V2 should read from datalake.branches and remove the unnecessary dependency.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [branch_visit_summary.json:22] SQL GROUP BY |
-| BR-2 | [branch_visit_summary.json:22] SQL JOIN ON |
-| BR-3 | [branch_visit_summary.json:22] INNER JOIN |
-| BR-4 | [branch_visit_summary.json:28], [curated output dates] |
-| BR-5 | [branch_visit_summary.json:22] SQL ORDER BY |
-| BR-6 | [curated output 31 dates], [datalake dates] |
-| BR-7 | [control.job_dependencies] |
-| BR-8 | [branch_visit_summary.json:22] SQL logic, [curated row counts vary] |
-| BR-9 | [branch_visit_summary.json:22] vs [branch_visit_purpose_breakdown.json:29] |
+| BR-1 | [JobExecutor/Jobs/branch_visit_summary.json:22] GROUP BY + COUNT |
+| BR-2 | [JobExecutor/Jobs/branch_visit_summary.json:22] JOIN branches |
+| BR-3 | [JobExecutor/Jobs/branch_visit_summary.json:22], [curated.branch_visit_summary] schema |
+| BR-4 | [JobExecutor/Jobs/branch_visit_summary.json:22] ORDER BY |
+| BR-5 | [JobExecutor/Jobs/branch_visit_summary.json:27] |
+| BR-6 | [JobExecutor/Jobs/branch_visit_summary.json:22] INNER JOIN |
+| BR-7 | [JobExecutor/Jobs/branch_visit_summary.json:22] ON clause |
 
 ## Open Questions
-- **SameDay dependency on BranchDirectory**: The job reads from datalake.branches, not curated.branch_directory. The dependency ensures BranchDirectory has run for the same date, but the data flow is not directly linked. Confidence: MEDIUM that this is an orchestration requirement rather than a data dependency.
+
+- **Q1:** The existing dependency on BranchDirectory (job_id=22) in `control.job_dependencies` appears unnecessary since BranchVisitSummary reads from datalake.branches, not curated.branch_directory. This may have been intentional (to ensure branches data is "validated" first) or accidental. The V2 should evaluate whether reading from curated.branch_directory would be beneficial. Confidence: MEDIUM that the dependency is unnecessary for correctness.

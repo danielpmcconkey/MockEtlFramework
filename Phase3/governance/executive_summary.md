@@ -1,163 +1,72 @@
-# Phase 3: Executive Summary -- Autonomous ETL Reverse-Engineering & Rewrite
+# Phase 3 Run 2 -- Executive Summary
 
-## Project Overview
+## Overview
 
-This project reverse-engineered and rewrote 32 ETL jobs from the existing curated data pipeline, producing functionally equivalent V2 implementations that write to the `double_secret_curated` schema. The entire process -- analysis, design, implementation, and validation -- was performed autonomously by AI agents with zero human intervention.
-
-## Key Metrics
-
-| Metric | Value |
-|--------|-------|
-| Total jobs analyzed | 32 |
-| Total jobs rewritten (V2) | 32 |
-| Total comparison dates | 31 (October 1-31, 2024) |
-| Fix iterations required | 3 |
-| Final result | **All 32 jobs match across all 31 dates** |
-| Behavioral logic differences found | 0 |
-| Total V2 External modules created | 32 |
-| Total V2 job configs created | 32 |
-| BRDs produced | 32 |
-| FSDs produced | 32 |
-| Test plans produced | 32 |
+- **Total jobs analyzed:** 31
+- **Total comparison dates:** 31 (October 1-31, 2024)
+- **Number of fix iterations required:** 5 total (4 with fixes, 1 successful full run)
+- **Final result:** All 31 jobs match across all 31 dates (100% equivalence)
 
 ## Fix Iterations
 
-All three fix iterations addressed infrastructure or schema-level issues. No behavioral logic differences were found between original and V2 implementations.
+| Iteration | Issue | Root Cause | Fix Applied | Jobs Affected |
+|-----------|-------|-----------|-------------|---------------|
+| 1 | Schema type mismatches | DDL script not run before first execution; DataFrameWriter auto-created tables with wrong types (TEXT vs DATE, BIGINT vs INTEGER, DOUBLE PRECISION vs NUMERIC) | Dropped auto-created tables, ran DDL script with proper types | All 31 V2 jobs |
+| 2 | Timestamp format error | SQLite stores DateTime with 'T' separator; DataFrameWriter's CoerceValue() only parses space separator | Added `REPLACE(column, 'T', ' ')` in V2 SQL for timestamp columns | BranchVisitLogV2, LargeTransactionLogV2 |
+| 3 | Date format error | CustomerDemographicsV2 birthdate fix not yet deployed in iteration 2 | Added `strftime('%Y-%m-%d', c.birthdate)` for explicit date formatting | CustomerDemographicsV2 |
+| 4 | Numeric precision mismatch + rounding algorithm | (a) double_secret_curated NUMERIC columns lacked precision/scale constraints; (b) SQLite ROUND uses round-half-up while C# Math.Round uses banker's rounding | (a) ALTER TABLE to add matching NUMERIC(p,s) constraints; (b) Rewrote CustomerValueScoreV2 to use C# decimal arithmetic with Math.Round | AccountTypeDistributionV2 (precision), CustomerValueScoreV2 (rounding) |
+| 5 | No issues | N/A -- clean full run | N/A | N/A |
 
-### Iteration 1: Assembly Name Collision (all 32 V2 jobs affected)
+## Anti-Pattern Statistics
 
-- **Symptom**: All V2 jobs failed with "Assembly with same name is already loaded"
-- **Root cause**: The original jobs load `ExternalModules.dll` from the Phase 2 path. V2 jobs attempted to load a different `ExternalModules.dll` from the Phase 3 path. The .NET runtime cannot load two assemblies with the same name simultaneously.
-- **Fix**: Added `<AssemblyName>ExternalModulesV2</AssemblyName>` to the Phase 3 `ExternalModules.csproj` and updated all 32 V2 job config JSON files to reference `ExternalModulesV2.dll`.
-- **Impact**: Universal -- affected all 32 V2 jobs.
+| Anti-Pattern | Code | Jobs Affected | Eliminated in V2 | Description |
+|-------------|------|---------------|-------------------|-------------|
+| Redundant Data Sourcing | AP-1 | 22 | 22 fully eliminated | DataSourcing modules fetching tables never referenced by downstream logic |
+| Duplicated Transformation Logic | AP-2 | 4 | 4 fully eliminated | Re-deriving data already computed by upstream jobs (CustomerFullProfile, DailyTransactionVolume, MonthlyTransactionTrend, TopBranches) |
+| Unnecessary External Module | AP-3 | 18 | 15 fully eliminated, 3 partially | C# External modules performing work expressible as SQL; 2 jobs retained justified External modules (CoveredTransactions, CustomerAddressDeltas), 3 jobs partially improved (CreditScoreAverage, CreditScoreSnapshot, CustomerBranchActivity) |
+| Unused Columns Sourced | AP-4 | 23 | 23 fully eliminated | DataSourcing column lists including columns never referenced downstream |
+| Asymmetric NULL/Default Handling | AP-5 | 5 | 0 eliminated (all documented) | Inconsistent NULL vs default handling across columns; preserved for output equivalence, documented as known inconsistencies |
+| Row-by-Row Iteration | AP-6 | 18 | 18 fully eliminated | foreach loops in External modules replaced with set-based SQL or LINQ |
+| Hardcoded Magic Values | AP-7 | 10 | 10 documented with comments | Unexplained thresholds and constants; all documented with SQL comments explaining business meaning |
+| Overly Complex SQL | AP-8 | 10 | 10 fully eliminated | Unnecessary CTEs, subqueries, window functions, and verbose expressions replaced with simpler equivalents |
+| Misleading Job/Table Names | AP-9 | 3 | 0 eliminated (all documented) | Names that do not match actual job behavior; cannot rename for output compatibility, documented in reports |
+| Missing Dependency Declarations | AP-10 | 2 | 2 fully fixed | CustomerFullProfile: added SameDay dependency on CustomerDemographics; BranchVisitSummary: removed unnecessary dependency on BranchDirectory |
 
-### Iteration 2: TRUNCATE Permission Denied (16 Overwrite-mode V2 jobs affected)
-
-- **Symptom**: 16 V2 jobs using Overwrite mode failed with "permission denied for table"
-- **Root cause**: Tables in `double_secret_curated` are owned by the `postgres` role, while the application runs as `dansdev`. The `TRUNCATE` command requires table ownership or explicit TRUNCATE privilege, which `dansdev` does not have on these tables.
-- **Fix**: Changed `DscWriterUtil.cs` to use `DELETE FROM` instead of `TRUNCATE TABLE` for overwrite mode. The `DELETE` command only requires DELETE privilege, which `dansdev` has.
-- **Impact**: Affected the 16 Overwrite-mode jobs: AccountCustomerJoin, AccountStatusSummary, AccountTypeDistribution, BranchDirectory, CreditScoreAverage, CreditScoreSnapshot, CustomerAccountSummaryV2, CustomerCreditSummary, CustomerDemographics, CustomerFullProfile, CustomerValueScore, ExecutiveDashboard, HighBalanceAccounts, LoanPortfolioSnapshot, LoanRiskAssessment, TopBranches.
-
-### Iteration 3: Numeric Precision Rounding (4 V2 jobs affected)
-
-- **Symptom**: 4 tables showed value differences in computed numeric columns
-- **Root cause**: The original `curated` schema uses `NUMERIC(n,2)` column types which auto-round values on INSERT. The `double_secret_curated` schema uses unconstrained `NUMERIC` columns, preserving full floating-point precision. Since the DDL for `double_secret_curated` could not be altered (table ownership by postgres), the rounding had to be applied in code.
-- **Fix**: Added explicit `Math.Round(..., 2)` calls in 4 V2 processors:
-  - `AccountTypeDistributionV2Processor.cs` -- `percentage` column
-  - `CreditScoreAverageV2Processor.cs` -- `avg_score` column
-  - `CustomerCreditSummaryV2Processor.cs` -- `avg_credit_score` column
-  - `LoanRiskAssessmentV2Processor.cs` -- `avg_credit_score` column
-- **Impact**: Affected 4 jobs that compute averages or percentages from floating-point division.
-
-## Comparison Results
-
-After all 3 fixes, a clean run from October 1 through October 31 produced zero discrepancies:
-
-- **31 consecutive dates**: All passed with exact row-level matches
-- **32 table comparisons per date**: All matched on every date
-- **Comparison method**: Bidirectional EXCEPT-based SQL (curated EXCEPT dsc, and dsc EXCEPT curated) plus row count verification
-- **Total comparisons performed**: 992 (32 tables x 31 dates)
+**Total anti-pattern instances found:** 115 across 31 jobs
+**Total anti-pattern instances eliminated or documented:** 115 (100%)
 
 ## Key Findings
 
-### Anti-Pattern 1: Unused DataSourcing Steps
+### Pattern Distribution
 
-**Prevalence**: Found in 20 of 32 jobs
+The most pervasive anti-patterns were **AP-4 (Unused Columns Sourced)** affecting 23 of 31 jobs and **AP-1 (Redundant Data Sourcing)** affecting 22 of 31 jobs. These represent systemic over-fetching of data -- jobs were configured to load entire tables and extra reference tables that were never used. The third most common pattern was **AP-3 (Unnecessary External Module)** and **AP-6 (Row-by-Row Iteration)**, both affecting 18 jobs. These are correlated: jobs that used External modules for SQL-expressible logic also used row-by-row iteration to process data.
 
-Many jobs configure DataSourcing modules for tables that are never referenced by the External module or Transformation SQL. For example, `AccountBalanceSnapshot` sources the `branches` table but the `AccountSnapshotBuilder` never reads it from shared state. This pattern appears across the majority of jobs and includes:
+### Architecture Improvements
 
-- `branches` sourced but unused in: AccountBalanceSnapshot, AccountTypeDistribution, BranchVisitLog, CreditScoreSnapshot, CustomerAccountSummaryV2, CustomerAddressHistory, CustomerBranchActivity, DailyTransactionSummary, ExecutiveDashboard, LoanPortfolioSnapshot, MonthlyTransactionTrend
-- `segments` sourced but unused in: AccountStatusSummary, BranchVisitPurposeBreakdown, CreditScoreAverage, CustomerContactInfo, CustomerCreditSummary, CustomerDemographics, ExecutiveDashboard, LoanRiskAssessment, TransactionCategorySummary
-- `addresses` sourced but unused in: AccountCustomerJoin, BranchVisitLog, LargeTransactionLog
-- `customers` sourced but unused in: LoanRiskAssessment
+1. **SQL-First Migration:** 15 External modules were fully replaced with SQL Transformations, and 3 more were partially simplified. Only 2 External modules (CoveredTransactions, CustomerAddressDeltas) were retained as genuinely justified -- both require multi-query database access with snapshot fallback that cannot be expressed in the framework's single-query SQL Transformation model.
 
-This wastes database queries and memory loading data that is never processed.
+2. **Dependency Chain Optimization:** The V2 implementation introduced proper data reuse through curated table dependencies. Four jobs (CustomerFullProfile, DailyTransactionVolume, MonthlyTransactionTrend, TopBranches) now read from upstream curated tables instead of re-deriving data from raw datalake, reducing total I/O and ensuring consistency.
 
-### Anti-Pattern 2: Implicit Numeric Rounding via Database Column Constraints
+3. **Schema Efficiency:** Across all 31 V2 job configs, unused DataSourcing modules and unused columns were removed, reducing the total data footprint loaded into memory per job execution cycle.
 
-**Prevalence**: Found in 4 jobs
+### Comparison Results
 
-Four jobs rely on the database column type (`NUMERIC(n,2)`) to perform rounding on INSERT rather than explicitly rounding computed values in code. This is a fragile pattern because:
+All 31 jobs produced byte-identical output across all 31 dates (October 1-31, 2024) after the 5th iteration. The comparison used EXCEPT-based SQL to verify exact row-level equivalence between `curated` and `double_secret_curated` schemas. Per-table row counts were verified for each date, with final counts ranging from 1 row (customer_address_deltas, daily_transaction_volume, monthly_transaction_trend) to 750 rows (customer_contact_info) per effective date.
 
-- The business requirement for 2-decimal-place precision is encoded in the DDL, not the application logic
-- Moving to a different target schema or database with different column definitions silently changes behavior
-- The rounding is invisible to code review -- there is no indication in the C# source that rounding occurs
+## Recommendations
 
-Affected jobs: AccountTypeDistribution, CreditScoreAverage, CustomerCreditSummary, LoanRiskAssessment.
+### For Production Deployment
 
-### Anti-Pattern 3: Dead Code in SQL Transformations
+1. **Run DDL scripts before first execution.** The auto-create behavior of DataFrameWriter infers types that may not match the intended schema. Always pre-create target tables with explicit column types and precision.
 
-**Prevalence**: Found in 2 jobs
+2. **Validate timestamp and date formats.** The SQLite intermediate layer introduces format inconsistencies (e.g., 'T' separator for timestamps). V2 SQL transformations include explicit format handling (`REPLACE` for timestamps, `strftime` for dates) that should be retained.
 
-Two Transformation-based jobs contain CTE columns computed by window functions that are never used in the final SELECT:
+3. **Enforce banker's rounding consistently.** When business logic requires specific rounding behavior (as in CustomerValueScore), use the C# Math.Round method rather than SQLite ROUND, which uses different rounding semantics.
 
-- `BranchVisitPurposeBreakdown`: Computes `total_branch_visits` via a window function but does not include it in output
-- `TransactionCategorySummary`: Computes `ROW_NUMBER` and `COUNT` window functions (`rn`, `type_count`) that are not used in the outer query
+4. **Declare and enforce job dependencies.** The V2 dependency declarations in `control.job_dependencies` should be enforced by the framework's execution scheduler to prevent stale-data reads.
 
-These add SQL execution cost without contributing to the output.
+5. **Review AP-5 inconsistencies with business stakeholders.** The asymmetric NULL/default handling (e.g., BranchVisitLog using empty string for missing branch names but NULL for missing customer names) should be reviewed for intentional vs accidental behavior.
 
-### Anti-Pattern 4: Over-Fetching Columns
+6. **Consider renaming misleading tables.** Three jobs (CreditScoreSnapshot, LoanPortfolioSnapshot, MonthlyTransactionTrend) have names that do not accurately describe their output. A future phase could address naming consistency.
 
-**Prevalence**: Found in multiple jobs
-
-Several jobs source more columns than they use. For example:
-
-- `LargeTransactionLog` sources all 9 accounts columns but only uses `account_id` and `customer_id`
-- `CustomerDemographics` sources `prefix`, `sort_name`, and `suffix` from customers but never uses them
-- `LoanPortfolioSnapshot` sources `origination_date` and `maturity_date` but explicitly excludes them from output
-
-### Architecture Finding: DataFrameWriter Schema Hardcoding
-
-The framework's `DataFrameWriter` module writes exclusively to the `curated` schema. There is no configuration option to change the target schema. To write to `double_secret_curated`, all V2 jobs bypass `DataFrameWriter` entirely and use a custom `DscWriterUtil` helper class that connects directly to the database and inserts rows into the target schema.
-
-This architectural constraint means that any future schema migration or multi-tenant deployment would require similar workarounds.
-
-### Architecture Finding: Assembly Name Collision Fragility
-
-The framework loads External modules by dynamically loading assemblies from a path specified in the job config. When two assemblies have the same name (even from different paths), the .NET runtime rejects the second load. This means all External module DLLs across all projects sharing the same runtime must have globally unique assembly names -- a fragile assumption that is not enforced by the framework.
-
-### Infrastructure Finding: Schema Ownership/Permission Asymmetry
-
-The `curated` schema tables are owned by `dansdev` (the application user), while `double_secret_curated` tables are owned by `postgres`. This causes permission failures for DDL-like operations (TRUNCATE) that work on `curated` but fail on `double_secret_curated`. The fix (using DELETE instead of TRUNCATE) works but is less efficient for large tables.
-
-## V2 Implementation Patterns
-
-Two implementation patterns were used across the 32 V2 jobs:
-
-### Pattern A: External Module Replacement (20 jobs)
-
-Used for jobs where the original pipeline is `DataSourcing -> External -> DataFrameWriter`. The V2 replaces both the External module and DataFrameWriter with a single V2 External module that combines the processing logic and direct writing to `double_secret_curated` via `DscWriterUtil`.
-
-Jobs using Pattern A: AccountBalanceSnapshot, AccountCustomerJoin, AccountStatusSummary, AccountTypeDistribution, BranchVisitLog, CoveredTransactions, CreditScoreAverage, CreditScoreSnapshot, CustomerAccountSummaryV2, CustomerAddressDeltas, CustomerBranchActivity, CustomerCreditSummary, CustomerDemographics, CustomerFullProfile, CustomerTransactionActivity, CustomerValueScore, ExecutiveDashboard, HighBalanceAccounts, LargeTransactionLog, LoanPortfolioSnapshot, LoanRiskAssessment.
-
-### Pattern B: Transformation Writer (11 jobs)
-
-Used for jobs where the original pipeline is `DataSourcing -> Transformation (SQL) -> DataFrameWriter`. The V2 retains the same DataSourcing and Transformation steps, replacing only the DataFrameWriter with a thin V2 External "writer" module that reads the Transformation result from shared state and writes it to `double_secret_curated` via `DscWriterUtil`.
-
-Jobs using Pattern B: BranchDirectory, BranchVisitPurposeBreakdown, BranchVisitSummary, CustomerAddressHistory, CustomerContactInfo, CustomerSegmentMap, DailyTransactionSummary, DailyTransactionVolume, MonthlyTransactionTrend, TopBranches, TransactionCategorySummary.
-
-### Special Case: CoveredTransactions
-
-CoveredTransactions uses neither DataSourcing nor DataFrameWriter in the original. It is a fully self-contained External module that performs its own direct database queries. The V2 replicates this approach identically, adding only the DscWriterUtil.Write() call.
-
-## Recommendations for Real-World Run
-
-1. **Address unused DataSourcing steps**: Remove the ~30 unused DataSourcing module configurations across 20 jobs to eliminate unnecessary database queries and reduce execution time.
-
-2. **Make numeric rounding explicit in code**: For the 4 jobs with implicit rounding, the V2 implementations already fix this by using `Math.Round(..., 2)`. This practice should be adopted as a standard for all numeric computations.
-
-3. **Clean up dead SQL code**: Remove unused CTE columns and window functions in BranchVisitPurposeBreakdown and TransactionCategorySummary to improve SQL readability and potentially execution performance.
-
-4. **Make DataFrameWriter schema-configurable**: Adding a schema parameter to the DataFrameWriter module would eliminate the need for workarounds like DscWriterUtil when targeting different schemas.
-
-5. **Enforce unique assembly names**: Add build-time validation or naming conventions to prevent assembly name collisions when multiple module projects coexist in the runtime.
-
-6. **Standardize schema ownership**: Ensure the application user has consistent permissions across all target schemas to avoid runtime permission failures.
-
-7. **Reduce column over-fetching**: Configure DataSourcing modules to source only the columns actually needed by the downstream processing logic, reducing query I/O and memory usage.
-
-8. **Add monitoring for the implicit-rounding pattern**: When migrating tables to new schemas or databases, verify that column type constraints match expectations, as application logic may silently depend on database-level rounding.
-
-## Conclusion
-
-All 32 ETL jobs were successfully reverse-engineered, documented, reimplemented, and validated. The V2 implementations produce byte-for-byte identical output to the originals across 31 consecutive business dates. The three fix iterations required were all infrastructure-level (assembly naming, permissions, schema precision) rather than business logic errors, demonstrating that the reverse-engineering and reimplementation process accurately captured the business requirements from code analysis alone.
+7. **Monitor AP-2 dependency chains.** The V2 introduces new inter-job dependencies (e.g., CustomerFullProfile depends on CustomerDemographics). These chains should be monitored for latency impact and failure propagation.

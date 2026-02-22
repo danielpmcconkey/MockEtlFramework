@@ -1,39 +1,59 @@
-# FSD: AccountTypeDistributionV2
+# AccountTypeDistribution -- Functional Specification Document
 
-## Overview
-Replaces the original AccountTypeDistribution job with a V2 implementation that writes to `double_secret_curated` instead of `curated`. The V2 External module replicates the exact AccountDistributionCalculator logic -- grouping accounts by account_type, computing counts, total, and percentage -- then writes to `double_secret_curated.account_type_distribution` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module replacement)**: The original uses DataSourcing -> External (AccountDistributionCalculator) -> DataFrameWriter. The V2 replaces both with a single V2 External module.
-- Write mode is Overwrite (matching original), so DscWriterUtil.Write is called with overwrite=true.
-- The branches DataSourcing step is retained in the config (matching the original) even though it is unused.
-- The percentage calculation uses `(double)typeCount / totalAccounts * 100.0` -- identical to the original, preserving floating-point behavior.
-- The as_of value is taken from accounts.Rows[0]["as_of"], identical to the original.
-- NULL account_type is coalesced to empty string via `?.ToString() ?? ""`, identical to the original.
+SQL-first. The original External module (AccountDistributionCalculator) performs a GROUP BY count by account_type, computes total accounts, and calculates percentage. This is expressible in SQL using a subquery for total count and arithmetic for percentage.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=accounts, columns=[account_id, customer_id, account_type, account_status, current_balance], resultName=accounts |
-| 2 | DataSourcing | schema=datalake, table=branches, columns=[branch_id, branch_name, city], resultName=branches (unused but retained) |
-| 3 | External | AccountTypeDistributionV2Processor -- computes distribution, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: AccountTypeDistributionV2Processor
-- File: ExternalModules/AccountTypeDistributionV2Processor.cs
-- Processing logic: Reads "accounts" from shared state; gets as_of from first row; computes total_accounts = accounts.Count; groups by account_type and counts; computes percentage = (double)typeCount / totalAccounts * 100.0; writes to double_secret_curated
-- Output columns: account_type, account_count, total_accounts, percentage, as_of
-- Target table: double_secret_curated.account_type_distribution
-- Write mode: Overwrite (overwrite=true)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `branches` DataSourcing module entirely |
+| AP-2    | N                   | N/A                | N/A |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation (GROUP BY + subquery) |
+| AP-4    | Y                   | Y                  | Removed unused columns (account_id, customer_id, account_status, current_balance) from DataSourcing |
+| AP-5    | N                   | N/A                | N/A |
+| AP-6    | Y                   | Y                  | Replaced row-by-row dictionary counting with SQL GROUP BY + COUNT |
+| AP-7    | N                   | N/A                | N/A |
+| AP-8    | N                   | N/A                | N/A |
+| AP-9    | N                   | N/A                | N/A |
+| AP-10   | N                   | N/A                | N/A |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** (`accounts`): Read from `datalake.accounts` with only the column actually used: account_type. The framework automatically appends as_of.
+
+2. **Transformation** (`distribution_result`): GROUP BY account_type, as_of with COUNT(*) for account_count, a correlated subquery for total_accounts, and arithmetic division for percentage.
+
+3. **DataFrameWriter**: Write `distribution_result` to `account_type_distribution` in `double_secret_curated` schema with Overwrite mode.
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    account_type,
+    COUNT(*) AS account_count,
+    (SELECT COUNT(*) FROM accounts) AS total_accounts,
+    CAST(COUNT(*) AS REAL) / (SELECT COUNT(*) FROM accounts) * 100.0 AS percentage,
+    as_of
+FROM accounts
+GROUP BY account_type, as_of
+```
+
+The percentage is computed as floating-point division (CAST to REAL ensures non-integer division). The result is a double-precision value that, when written to PostgreSQL's NUMERIC(5,2) column, will be rounded to 2 decimal places -- matching the original behavior where C# double arithmetic produces the same precision and the database rounds on storage.
+
+Example verification: Checking = 96/277 * 100 = 34.6570... -> stored as 34.66 in NUMERIC(5,2).
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | V2 groups by account_type and counts occurrences |
-| BR-2 | total_accounts = accounts.Count |
-| BR-3 | percentage = (double)typeCount / totalAccounts * 100.0 |
-| BR-4 | percentage stored as double (C# double type) |
-| BR-5 | as_of taken from accounts.Rows[0]["as_of"] |
-| BR-6 | branches DataSourcing retained in config but not read by V2 processor |
-| BR-7 | DscWriterUtil.Write called with overwrite=true (Overwrite) |
-| BR-8 | NULL account_type coalesced to "" via ?.ToString() ?? "" |
-| BR-9 | Framework handles date filtering; empty guard returns empty DataFrame |
+|-----------------|-------------------|
+| BR-1            | GROUP BY account_type with COUNT(*) |
+| BR-2            | Subquery (SELECT COUNT(*) FROM accounts) computes total |
+| BR-3            | CAST(COUNT(*) AS REAL) / total * 100.0 matches C# double division |
+| BR-4            | as_of included in GROUP BY; equivalent to taking from first row since all rows share same as_of |
+| BR-5            | SELECT produces exactly 5 columns: account_type, account_count, total_accounts, percentage, as_of |
+| BR-6            | DataFrameWriter writeMode is "Overwrite" |
+| BR-7            | When accounts is empty, GROUP BY produces zero rows |
+| BR-8            | NULL coalesce unnecessary since schema enforces NOT NULL on account_type |
+| BR-9            | REAL division produces floating-point result; NUMERIC(5,2) in PostgreSQL rounds to 2 decimal places |

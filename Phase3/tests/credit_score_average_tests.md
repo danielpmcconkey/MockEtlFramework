@@ -1,22 +1,53 @@
-# Test Plan: CreditScoreAverageV2
+# CreditScoreAverage -- Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Average score computed across all bureaus per customer | avg_score = mean of all bureau scores for customer |
-| TC-2 | BR-2 | Individual bureau scores in separate columns | equifax_score, transunion_score, experian_score populated correctly |
-| TC-3 | BR-3 | Bureau matching is case-insensitive | "Equifax", "equifax", "EQUIFAX" all map to equifax_score |
-| TC-4 | BR-4 | Only customers in both credit_scores and customers appear | Customers with scores but no customer record excluded |
-| TC-5 | BR-5 | Missing bureau score is DBNull.Value | If customer has no Equifax score, equifax_score = DBNull.Value |
-| TC-6 | BR-6 | as_of comes from customers DataFrame | Output as_of matches customers row as_of |
-| TC-7 | BR-7 | Overwrite write mode | Only most recent date's data in output table |
-| TC-8 | BR-8 | Empty input returns empty DataFrame | No rows when credit_scores or customers empty |
-| TC-9 | BR-1-8 | V2 output matches original for each date Oct 1-31 | EXCEPT query returns zero rows |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | No credit scores for date (weekend) | Empty DataFrame, table truncated |
-| EC-2 | Customer with scores but no customer name record | Customer excluded from output |
-| EC-3 | Customer with only one bureau score | avg_score = that score; other two bureaus = DBNull.Value |
-| EC-4 | Duplicate bureau scores for same customer | Last encountered overwrites column; all in average |
+TC-1: One output row per customer with credit scores AND customer record -- Traces to BR-1
+- Input: 223 customers, 669 credit scores (223 customers x 3 bureaus) for 2024-10-31
+- Expected: 223 rows in output
+- Verification: Row count comparison; EXCEPT query returns zero rows
+
+TC-2: avg_score is arithmetic mean rounded to 2 decimal places -- Traces to BR-2
+- Input: Customer 1001 has scores 850, 836, 850
+- Expected: avg_score = 845.33 (ROUND((850+836+850)/3, 2))
+- Verification: Compare specific customer's avg_score value
+
+TC-3: Bureau scores are pivoted into separate columns -- Traces to BR-3
+- Input: Customer 1001 with Equifax=850, TransUnion=836, Experian=850
+- Expected: equifax_score=850, transunion_score=836, experian_score=850
+- Verification: Compare individual bureau column values
+
+TC-4: Missing bureau score produces NULL -- Traces to BR-4
+- Input: A customer with fewer than 3 bureau scores (if any exist)
+- Expected: Missing bureau column is NULL
+- Verification: Check for NULL values in bureau score columns
+
+TC-5: as_of comes from customers table -- Traces to BR-5
+- Input: Run for any effective date
+- Expected: as_of matches the effective date from the customers data
+- Verification: All rows have the same as_of matching the run date
+
+TC-6: Empty input produces empty output -- Traces to BR-6
+- Input: Weekend date with no credit_scores or customers data
+- Expected: Zero rows in output; table is empty after Overwrite
+- Verification: Count rows after weekend run
+
+TC-7: Bureau matching is case-insensitive -- Traces to BR-7
+- Input: Bureau values like "Equifax", "TransUnion", "Experian"
+- Expected: Correctly mapped to equifax_score, transunion_score, experian_score
+- Verification: No NULL bureau columns when bureau data exists
+
+TC-8: Overwrite mode replaces previous data -- Traces to BR-8
+- Input: Run for Oct 30, then Oct 31
+- Expected: Only Oct 31 data remains
+- Verification: Single distinct as_of after second run
+
+TC-9: Name fields coalesced to empty string -- Traces to BR-5 / AP-5
+- Input: Customer records with NULL first_name or last_name (if any)
+- Expected: first_name and last_name are empty string (not NULL)
+- Verification: Check that no NULL name fields exist in output
+
+TC-10: Data values match curated output exactly -- Traces to all BRs
+- Input: All dates Oct 1-31
+- Expected: Exact match between curated and double_secret_curated per date
+- Verification: EXCEPT-based comparison

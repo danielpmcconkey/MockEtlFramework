@@ -1,38 +1,58 @@
-# FSD: BranchVisitSummaryV2
+# BranchVisitSummary -- Functional Specification Document
 
-## Overview
-Replaces the original BranchVisitSummary job with a V2 implementation that writes to `double_secret_curated` instead of `curated`. The original uses a Transformation (SQL) step for counting visits per branch, so the V2 retains the exact same SQL and replaces only the DataFrameWriter with a V2 External writer module.
+## Design Approach
 
-## Design Decisions
-- **Pattern B (Transformation writer)**: The original uses DataSourcing -> Transformation (SQL) -> DataFrameWriter. The V2 retains the same DataSourcing and Transformation steps, replacing DataFrameWriter with a V2 External writer.
-- The SQL is preserved exactly as-is, including the CTE grouping by (branch_id, as_of), INNER JOIN on both branch_id and as_of, and ORDER BY.
-- Write mode is Append (matching original), so DscWriterUtil.Write is called with overwrite=false.
-- The V2 writer reads the "visit_summary" result from shared state (matching the Transformation step's resultName).
+SQL-first. The original already uses a SQL Transformation with a CTE. The V2 simplifies by removing the unnecessary CTE and using a direct GROUP BY with JOIN.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=branch_visits, columns=[visit_id, customer_id, branch_id, visit_purpose], resultName=branch_visits |
-| 2 | DataSourcing | schema=datalake, table=branches, columns=[branch_id, branch_name], resultName=branches |
-| 3 | Transformation | resultName=visit_summary, SQL with CTE grouping by (branch_id, as_of), INNER JOIN to branches |
-| 4 | External | BranchVisitSummaryV2Writer -- reads "visit_summary" from shared state, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: BranchVisitSummaryV2Writer
-- File: ExternalModules/BranchVisitSummaryV2Writer.cs
-- Processing logic: Reads "visit_summary" DataFrame from shared state (produced by Transformation step); writes to double_secret_curated via DscWriterUtil
-- Output columns: branch_id, branch_name, as_of, visit_count
-- Target table: double_secret_curated.branch_visit_summary
-- Write mode: Append (overwrite=false)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | N                   | N/A                | N/A |
+| AP-2    | N                   | N/A                | N/A |
+| AP-3    | N                   | N/A                | Already uses SQL Transformation |
+| AP-4    | Y                   | Y                  | Removed unused columns (visit_id, customer_id, visit_purpose) from branch_visits DataSourcing |
+| AP-5    | N                   | N/A                | N/A |
+| AP-6    | N                   | N/A                | N/A |
+| AP-7    | N                   | N/A                | N/A |
+| AP-8    | Y                   | Y                  | Removed unnecessary CTE; simplified to direct GROUP BY with JOIN |
+| AP-9    | N                   | N/A                | N/A |
+| AP-10   | Y                   | Y                  | Original declares unnecessary dependency on BranchDirectory (reads from datalake.branches, not curated.branch_directory). V2 does not declare this dependency. |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** (`branch_visits`): Read from `datalake.branch_visits` with only the column actually used: branch_id. The framework automatically appends as_of.
+
+2. **DataSourcing** (`branches`): Read from `datalake.branches` with columns: branch_id, branch_name.
+
+3. **Transformation** (`visit_summary`): Direct GROUP BY with INNER JOIN to branches. No CTE needed.
+
+4. **DataFrameWriter**: Write `visit_summary` to `branch_visit_summary` in `double_secret_curated` schema with Append mode.
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    bv.branch_id,
+    b.branch_name,
+    bv.as_of,
+    COUNT(*) AS visit_count
+FROM branch_visits bv
+JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of
+GROUP BY bv.branch_id, b.branch_name, bv.as_of
+ORDER BY bv.as_of, bv.branch_id
+```
+
+The original SQL used a CTE (`visit_counts`) to first aggregate by branch, then joined with branches. This is unnecessary -- the JOIN and GROUP BY can be combined into a single query. The INNER JOIN ensures only branches with visits appear (matching original behavior). The ORDER BY matches the original ordering.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | Same SQL CTE GROUP BY bv.branch_id, bv.as_of with COUNT(*) |
-| BR-2 | Same SQL INNER JOIN branches ON branch_id AND as_of |
-| BR-3 | Same SQL INNER JOIN semantics -- only matching branches included |
-| BR-4 | DscWriterUtil.Write called with overwrite=false (Append) |
-| BR-5 | Same SQL ORDER BY vc.as_of, vc.branch_id |
-| BR-6 | Framework sources all calendar days; both tables have weekend data |
-| BR-7 | Dependency on BranchDirectory handled in Phase C |
-| BR-8 | SQL GROUP BY on branch_visits drives rows; INNER JOIN limits to existing branches |
-| BR-9 | Simpler aggregation than BranchVisitPurposeBreakdown -- no purpose dimension |
+|-----------------|-------------------|
+| BR-1            | GROUP BY bv.branch_id, bv.as_of with COUNT(*) |
+| BR-2            | JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of; b.branch_name in SELECT |
+| BR-3            | SELECT produces exactly 4 columns: branch_id, branch_name, as_of, visit_count |
+| BR-4            | ORDER BY bv.as_of, bv.branch_id |
+| BR-5            | DataFrameWriter writeMode is "Append" |
+| BR-6            | INNER JOIN excludes branches with zero visits |
+| BR-7            | JOIN condition includes both branch_id AND as_of |

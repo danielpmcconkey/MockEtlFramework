@@ -1,37 +1,62 @@
-# FSD: AccountCustomerJoinV2
+# AccountCustomerJoin -- Functional Specification Document
 
-## Overview
-Replaces the original AccountCustomerJoin job with a V2 implementation that writes to `double_secret_curated` instead of `curated`. The V2 External module replicates the exact AccountCustomerDenormalizer logic -- joining accounts with customer names -- then writes to `double_secret_curated.account_customer_join` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module replacement)**: The original uses DataSourcing -> External (AccountCustomerDenormalizer) -> DataFrameWriter. The V2 replaces both External and DataFrameWriter with a single V2 External module.
-- Write mode is Overwrite (matching original), so DscWriterUtil.Write is called with overwrite=true.
-- The addresses DataSourcing step is retained in the config (matching the original) even though it is unused.
-- The customer lookup dictionary uses `Convert.ToInt32` for customer_id matching, with `GetValueOrDefault` returning ("", "") for missing customers -- identical to the original.
+SQL-first. The original External module (AccountCustomerDenormalizer) performs a LEFT JOIN between accounts and customers by customer_id, defaulting missing customer names to empty strings. This is directly expressible as a SQL LEFT JOIN with COALESCE.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=accounts, columns=[account_id, customer_id, account_type, account_status, current_balance], resultName=accounts |
-| 2 | DataSourcing | schema=datalake, table=customers, columns=[id, first_name, last_name], resultName=customers |
-| 3 | DataSourcing | schema=datalake, table=addresses, columns=[address_id, customer_id, address_line1, city, state_province], resultName=addresses (unused but retained) |
-| 4 | External | AccountCustomerJoinV2Processor -- joins accounts with customers, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: AccountCustomerJoinV2Processor
-- File: ExternalModules/AccountCustomerJoinV2Processor.cs
-- Processing logic: Reads "accounts" and "customers" from shared state; builds customer_id -> (first_name, last_name) lookup; iterates accounts adding customer names; writes to double_secret_curated
-- Output columns: account_id, customer_id, first_name, last_name, account_type, account_status, current_balance, as_of
-- Target table: double_secret_curated.account_customer_join
-- Write mode: Overwrite (overwrite=true)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `addresses` DataSourcing module entirely |
+| AP-2    | N                   | N/A                | N/A |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation (LEFT JOIN) |
+| AP-4    | N                   | N/A                | All sourced columns from accounts and customers are used |
+| AP-5    | N                   | N/A                | N/A |
+| AP-6    | Y                   | Y                  | Replaced row-by-row dictionary lookup with SQL LEFT JOIN |
+| AP-7    | N                   | N/A                | N/A |
+| AP-8    | N                   | N/A                | N/A |
+| AP-9    | N                   | N/A                | N/A |
+| AP-10   | N                   | N/A                | N/A |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** (`accounts`): Read from `datalake.accounts` with columns: account_id, customer_id, account_type, account_status, current_balance.
+
+2. **DataSourcing** (`customers`): Read from `datalake.customers` with columns: id, first_name, last_name.
+
+3. **Transformation** (`join_result`): LEFT JOIN accounts with customers on customer_id = id and matching as_of. COALESCE customer names to empty string for missing matches. When both accounts and customers are empty (weekends), the SQL produces zero rows naturally.
+
+4. **DataFrameWriter**: Write `join_result` to `account_customer_join` in `double_secret_curated` schema with Overwrite mode.
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    a.account_id,
+    a.customer_id,
+    COALESCE(c.first_name, '') AS first_name,
+    COALESCE(c.last_name, '') AS last_name,
+    a.account_type,
+    a.account_status,
+    a.current_balance,
+    a.as_of
+FROM accounts a
+LEFT JOIN customers c ON a.customer_id = c.id AND a.as_of = c.as_of
+```
+
+The LEFT JOIN ensures all accounts are included even if no matching customer exists. COALESCE converts NULL names to empty strings, matching the original GetValueOrDefault("", "") behavior.
+
+Note: On weekends, both accounts and customers DataFrames are empty (no data in datalake for weekends). The SELECT from an empty accounts table produces zero rows, which matches the original behavior (empty guard returns empty output). The original External module also checks `accounts == null || accounts.Count == 0 || customers == null || customers.Count == 0` and returns empty -- since accounts is also empty on weekends, both implementations produce the same result.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | V2 builds customer lookup from customers.Rows keyed by id, joins to accounts via customer_id |
-| BR-2 | GetValueOrDefault returns ("", "") for missing customers |
-| BR-3 | Dictionary built from all customer rows; last-write-wins for duplicates (identical to original) |
-| BR-4 | addresses DataSourcing retained in config but not read by V2 processor |
-| BR-5 | DscWriterUtil.Write called with overwrite=true (Overwrite) |
-| BR-6 | All accounts iterated without filtering |
-| BR-7 | All values passed through as-is |
-| BR-8 | Framework handles date filtering; empty guard returns empty DataFrame |
+|-----------------|-------------------|
+| BR-1            | LEFT JOIN on a.customer_id = c.id joins each account with its customer |
+| BR-2            | COALESCE(c.first_name, '') and COALESCE(c.last_name, '') default to empty string |
+| BR-3            | No WHERE clause; all accounts included |
+| BR-4            | SELECT lists exactly 8 columns in correct order |
+| BR-5            | DataFrameWriter writeMode is "Overwrite" |
+| BR-6            | When accounts is empty (weekends), SQL produces zero rows |
+| BR-7            | LEFT JOIN with last-write-wins: SQLite handles duplicate customer IDs by returning whichever row the LEFT JOIN matches; in practice customer IDs are unique per as_of |

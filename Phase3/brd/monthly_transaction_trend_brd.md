@@ -1,93 +1,94 @@
-# BRD: MonthlyTransactionTrend
+# MonthlyTransactionTrend -- Business Requirements Document
 
 ## Overview
-This job produces a daily summary of transaction activity (count, total amount, average amount) for each effective date. Despite the name suggesting monthly aggregation, the job actually computes per-day statistics and appends them to a running trend table. The output is written to `curated.monthly_transaction_trend` in Append mode.
+
+This job computes daily transaction statistics (count, total amount, average amount) from raw transaction data and appends one row per effective date. It produces a running log of daily transaction metrics across all processed dates.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| transactions | datalake | transaction_id, account_id, txn_type, amount | Aggregated by as_of: COUNT, SUM(amount), AVG(amount) | [JobExecutor/Jobs/monthly_transaction_trend.json:5-11] DataSourcing config; [monthly_transaction_trend.json:21-22] Transformation SQL |
-| branches | datalake | branch_id, branch_name | Sourced but NOT used in Transformation SQL | [monthly_transaction_trend.json:13-18] DataSourcing config; SQL does not reference branches table |
+
+### datalake.transactions
+- **Columns used**: `transaction_id` (implicitly via COUNT), `amount`, `as_of`
+- **Columns sourced but unused**: `account_id`, `txn_type` (see AP-4)
+- **Filter**: `as_of >= '2024-10-01'` in the SQL, but this is redundant because DataSourcing already filters to the current effective date
+- **Evidence**: [JobExecutor/Jobs/monthly_transaction_trend.json:22] SQL with `WHERE as_of >= '2024-10-01'`
+
+### datalake.branches (UNUSED)
+- **Columns sourced**: `branch_id`, `branch_name`
+- **Usage**: NONE -- the Transformation SQL does not reference the `branches` table
+- **Evidence**: [JobExecutor/Jobs/monthly_transaction_trend.json:22] SQL only references `transactions` table
+- See AP-1.
 
 ## Business Rules
 
-BR-1: The job aggregates transactions by as_of date, computing daily_transactions (COUNT), daily_amount (SUM of amount rounded to 2 decimals), and avg_transaction_amount (AVG of amount rounded to 2 decimals).
+BR-1: For each effective date, count all transactions, sum their amounts, and compute the average amount.
 - Confidence: HIGH
 - Evidence: [JobExecutor/Jobs/monthly_transaction_trend.json:22] SQL: `COUNT(*) AS daily_transactions, ROUND(SUM(amount), 2) AS daily_amount, ROUND(AVG(amount), 2) AS avg_transaction_amount`
-- Evidence: [curated.monthly_transaction_trend] Sample: as_of 2024-10-01 has daily_transactions=405, daily_amount=362968.14, avg_transaction_amount=896.22
+- Evidence: [curated.monthly_transaction_trend] For as_of = 2024-10-01: daily_transactions = 405, daily_amount = 362968.14, avg_transaction_amount = 896.22. Verified by direct query: `SELECT COUNT(*), ROUND(SUM(amount), 2), ROUND(AVG(amount), 2) FROM datalake.transactions WHERE as_of = '2024-10-01'` yields 405, 362968.14, 896.22.
 
-BR-2: The SQL includes a WHERE clause `as_of >= '2024-10-01'` — however, since DataSourcing only loads data for the single effective date (min and max effective dates are set to the same day by the executor), this filter is effectively redundant for dates on or after 2024-10-01.
+BR-2: Results are grouped by as_of (one row per effective date).
 - Confidence: HIGH
-- Evidence: [monthly_transaction_trend.json:22] SQL contains `WHERE as_of >= '2024-10-01'`
-- Evidence: [Lib/Control/JobExecutorService.cs:100-101] Both MinDateKey and MaxDateKey set to same effDate
-- Evidence: [Lib/Modules/DataSourcing.cs:74-78] Only loads data for that date range
+- Evidence: [JobExecutor/Jobs/monthly_transaction_trend.json:22] `GROUP BY as_of`
+- Evidence: [curated.monthly_transaction_trend] Each as_of has exactly 1 row (31 rows for 31 dates)
 
-BR-3: The SQL uses a CTE (`base`) but the outer query simply selects all columns from it without further transformation. The CTE structure is functionally equivalent to a direct query.
+BR-3: Amount values are rounded to 2 decimal places.
 - Confidence: HIGH
-- Evidence: [monthly_transaction_trend.json:22] `WITH base AS (...) SELECT as_of, daily_transactions, daily_amount, avg_transaction_amount FROM base ORDER BY as_of`
+- Evidence: [JobExecutor/Jobs/monthly_transaction_trend.json:22] `ROUND(SUM(amount), 2)` and `ROUND(AVG(amount), 2)`
 
-BR-4: Results are ordered by as_of (ascending).
+BR-4: All transaction types (Debit and Credit) are included -- no txn_type filter.
 - Confidence: HIGH
-- Evidence: [monthly_transaction_trend.json:22] `ORDER BY as_of` in the outer query
+- Evidence: [JobExecutor/Jobs/monthly_transaction_trend.json:22] SQL has no WHERE clause filtering on txn_type
 
-BR-5: Output is written in Append mode — each daily run adds one row per effective date without truncating prior data.
+BR-5: The output uses Append mode -- each effective date's row accumulates in the target table.
 - Confidence: HIGH
 - Evidence: [JobExecutor/Jobs/monthly_transaction_trend.json:28] `"writeMode": "Append"`
-- Evidence: [curated.monthly_transaction_trend] Contains 31 distinct as_of dates (one row per date, all 31 days Oct 1-31)
+- Evidence: [curated.monthly_transaction_trend] Contains 31 rows (one per day for Oct 1-31)
 
-BR-6: Since DataSourcing loads exactly one day's data per run, the GROUP BY as_of in the SQL produces exactly one output row per run.
+BR-6: Results are ordered by as_of.
 - Confidence: HIGH
-- Evidence: [Lib/Control/JobExecutorService.cs:100-101] Single date injection
-- Evidence: [curated.monthly_transaction_trend] Each as_of has exactly 1 row
-
-BR-7: All transaction types (Credit, Debit) are included in the aggregation — no txn_type filter.
-- Confidence: HIGH
-- Evidence: [monthly_transaction_trend.json:22] No txn_type filter in SQL
-- Evidence: [curated.monthly_transaction_trend] daily_transactions counts match total transactions per as_of in datalake
-
-BR-8: The branches DataFrame is sourced but NOT used in the Transformation SQL.
-- Confidence: HIGH
-- Evidence: [monthly_transaction_trend.json:13-18] Branches sourced; SQL only references `transactions` table
-
-BR-9: The job has a SameDay dependency on DailyTransactionVolume.
-- Confidence: HIGH
-- Evidence: [control.job_dependencies] Query shows MonthlyTransactionTrend depends on DailyTransactionVolume with dependency_type = 'SameDay'
-
-BR-10: Transactions data is available for all 31 days of October (including weekends), so this job produces output for every day.
-- Confidence: HIGH
-- Evidence: [datalake.transactions] 31 distinct as_of dates from 2024-10-01 to 2024-10-31
-- Evidence: [curated.monthly_transaction_trend] 31 rows, one per day
+- Evidence: [JobExecutor/Jobs/monthly_transaction_trend.json:22] `ORDER BY as_of`
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| as_of | transactions.as_of | GROUP BY key | [monthly_transaction_trend.json:22] |
-| daily_transactions | COUNT(*) of transactions | Integer count | [monthly_transaction_trend.json:22] |
-| daily_amount | SUM(amount) | Rounded to 2 decimal places | [monthly_transaction_trend.json:22] |
-| avg_transaction_amount | AVG(amount) | Rounded to 2 decimal places | [monthly_transaction_trend.json:22] |
+
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| as_of | datalake.transactions.as_of (via DataSourcing injection) | GROUP BY key |
+| daily_transactions | Derived: COUNT(*) of datalake.transactions | Count of all transactions for the date |
+| daily_amount | Derived: SUM(amount) of datalake.transactions | ROUND to 2 decimal places |
+| avg_transaction_amount | Derived: AVG(amount) of datalake.transactions | ROUND to 2 decimal places |
 
 ## Edge Cases
-- **NULL handling**: No explicit NULL handling. If amount is NULL, SUM/AVG would ignore it per SQL semantics. COUNT(*) counts all rows regardless.
-- **Weekend/date fallback**: Transactions have data on weekends (31 days), so no empty-day issue. The job produces output for every calendar day.
-- **Zero-row behavior**: If no transactions exist for an effective date, the GROUP BY would produce zero rows, and no data would be appended.
-- **Duplicate prevention**: Append mode means re-running the same effective date would produce duplicate rows. The framework's gap-fill logic prevents this under normal operation.
-- **ROUND behavior**: SQLite's ROUND function is used (since Transformation runs in SQLite). SQLite ROUND uses banker's rounding (round half to even) which may differ from PostgreSQL's ROUND behavior in edge cases.
+
+- **Zero transactions for a date**: Would produce no output row for that date (GROUP BY with no rows yields no results). In practice, all dates in the range have transactions.
+- **Append mode**: Rows accumulate across runs. Re-running a date would produce duplicate rows.
+- **Hardcoded date filter**: The `WHERE as_of >= '2024-10-01'` filter is redundant since DataSourcing loads only the current effective date's data. It would have no effect even if DataSourcing loaded a range.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** -- The `branches` DataSourcing module fetches `branch_id` and `branch_name` from `datalake.branches`, but the Transformation SQL only queries the `transactions` table. The branches data is completely unused. V2 approach: Remove the branches DataSourcing module.
+
+- **AP-2: Duplicated Transformation Logic** -- This job has a declared SameDay dependency on `DailyTransactionVolume`, which already computes the exact same daily transaction statistics (count, total amount, average amount) from `datalake.transactions` and writes them to `curated.daily_transaction_volume`. MonthlyTransactionTrend re-derives these same metrics from raw datalake.transactions instead of reading from the upstream curated table. The columns are equivalent: `daily_transactions` = `total_transactions`, `daily_amount` = `total_amount`, `avg_transaction_amount` = `avg_amount`. V2 approach: Read from `curated.daily_transaction_volume` instead of re-deriving from datalake.transactions. Rename columns in a simple SELECT to match expected output.
+
+- **AP-4: Unused Columns Sourced** -- The transactions DataSourcing includes `account_id` and `txn_type`, neither of which is referenced in the Transformation SQL. The SQL only uses implicit `COUNT(*)`, `amount`, and `as_of`. V2 approach: If keeping the datalake source (rather than fixing AP-2), remove `account_id` and `txn_type` from the columns list. If fixing AP-2, the column list is moot.
+
+- **AP-8: Overly Complex SQL** -- The SQL uses a CTE (`WITH base AS (...)`) that wraps a simple GROUP BY query, then does `SELECT ... FROM base ORDER BY as_of`. The CTE adds no value; the ORDER BY could be appended directly to the GROUP BY query. V2 approach: Simplify to a single query without CTE.
+
+- **AP-7: Hardcoded Magic Values** -- The date `'2024-10-01'` in the WHERE clause is hardcoded. Since DataSourcing already handles effective date filtering, this literal date filter is redundant. V2 approach: Remove the hardcoded date filter entirely.
+
+- **AP-9: Misleading Job/Table Names** -- The name "MonthlyTransactionTrend" suggests a monthly-level aggregation or trend analysis. In reality, the job produces daily-level statistics (one row per day). It is not a monthly aggregation nor does it compute trends (e.g., deltas, moving averages). V2 approach: Flag in documentation; do not rename.
+
+- **AP-10: Missing Dependency Declarations** -- Note: a dependency on DailyTransactionVolume IS declared in `control.job_dependencies`. However, the job does not actually use the upstream output. If the V2 fixes AP-2 by reading from curated.daily_transaction_volume, the existing dependency declaration becomes correct and meaningful.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [monthly_transaction_trend.json:22], [curated data verification] |
-| BR-2 | [monthly_transaction_trend.json:22], [JobExecutorService.cs:100-101], [DataSourcing.cs:74-78] |
-| BR-3 | [monthly_transaction_trend.json:22] |
-| BR-4 | [monthly_transaction_trend.json:22] |
-| BR-5 | [monthly_transaction_trend.json:28], [curated data observation] |
-| BR-6 | [JobExecutorService.cs:100-101], [curated data observation] |
-| BR-7 | [monthly_transaction_trend.json:22], [curated data verification] |
-| BR-8 | [monthly_transaction_trend.json:13-18], [SQL analysis] |
-| BR-9 | [control.job_dependencies query] |
-| BR-10 | [datalake.transactions date analysis], [curated data observation] |
+| BR-1 | [JobExecutor/Jobs/monthly_transaction_trend.json:22] SQL with COUNT, SUM, AVG |
+| BR-2 | [JobExecutor/Jobs/monthly_transaction_trend.json:22] `GROUP BY as_of` |
+| BR-3 | [JobExecutor/Jobs/monthly_transaction_trend.json:22] `ROUND(..., 2)` |
+| BR-4 | [JobExecutor/Jobs/monthly_transaction_trend.json:22] no txn_type filter |
+| BR-5 | [JobExecutor/Jobs/monthly_transaction_trend.json:28] `"writeMode": "Append"` |
+| BR-6 | [JobExecutor/Jobs/monthly_transaction_trend.json:22] `ORDER BY as_of` |
 
 ## Open Questions
-- The branches table is sourced but unused. Confidence: MEDIUM that this is an oversight.
-- The name "MonthlyTransactionTrend" suggests monthly aggregation but the job actually produces daily aggregates that accumulate over the month. The "monthly" aspect is that the Append-mode table accumulates a month's worth of daily data. Confidence: HIGH that this is the intended behavior based on code and output evidence.
-- SQLite ROUND vs PostgreSQL ROUND: If the V2 implementation uses different SQL engine, rounding edge cases on .5 values could produce discrepancies. Confidence: MEDIUM that this could be an issue.
+
+- None. All business rules are directly observable with HIGH confidence.

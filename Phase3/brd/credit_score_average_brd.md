@@ -1,100 +1,101 @@
-# BRD: CreditScoreAverage
+# CreditScoreAverage — Business Requirements Document
 
 ## Overview
-This job computes the average credit score across all bureaus for each customer, along with individual bureau scores (Equifax, TransUnion, Experian), and joins with customer name information. It produces a per-customer credit score summary for the current effective date.
+
+Produces a per-customer summary of credit scores with the average across all bureaus and individual bureau-level scores (Equifax, TransUnion, Experian), enriched with customer name. Output uses Overwrite mode, replacing all data each run.
 
 ## Source Tables
 
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| credit_scores | datalake | credit_score_id, customer_id, bureau, score | Sourced via DataSourcing for effective date range (single date in practice) | [credit_score_average.json:7-11] |
-| customers | datalake | id, first_name, last_name | Sourced via DataSourcing for effective date range | [credit_score_average.json:13-18] |
-| segments | datalake | segment_id, segment_name | Sourced via DataSourcing but NOT USED in the External module | [credit_score_average.json:20-24] |
+| Table | Schema | Columns Used | Purpose |
+|-------|--------|-------------|---------|
+| `datalake.credit_scores` | datalake | credit_score_id, customer_id, bureau, score | Credit scores per customer per bureau |
+| `datalake.customers` | datalake | id, first_name, last_name | Customer name lookup |
+| `datalake.segments` | datalake | segment_id, segment_name | **SOURCED BUT NEVER USED** — not referenced by the External module |
 
 ## Business Rules
 
-BR-1: For each customer with credit scores, the average score across all bureaus is computed.
+BR-1: One output row is produced per customer who has credit scores AND exists in the customers table.
+- Confidence: HIGH
+- Evidence: [ExternalModules/CreditScoreAverager.cs:56-57] `if (!customerNames.ContainsKey(customerId)) continue;` — customers without a name lookup are skipped
+- Evidence: [ExternalModules/CreditScoreAverager.cs:51] Iteration is over `scoresByCustomer` — only customers with scores
+
+BR-2: The average score (`avg_score`) is the arithmetic mean of all bureau scores for that customer.
 - Confidence: HIGH
 - Evidence: [ExternalModules/CreditScoreAverager.cs:61] `var avgScore = scores.Average(s => s.score);`
+- Evidence: [curated.credit_score_average] Sample: customer 1001 has scores 850, 836, 850 -> avg_score = 845.33
 
-BR-2: Individual bureau scores are pivoted into separate columns: equifax_score, transunion_score, experian_score.
+BR-3: Individual bureau scores are pivoted into separate columns: equifax_score, transunion_score, experian_score.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CreditScoreAverager.cs:68-82] Switch on `bureau.ToLower()` assigns to equifaxScore, transunionScore, experianScore
+- Evidence: [ExternalModules/CreditScoreAverager.cs:68-82] Switch on `bureau.ToLower()` mapping to equifax/transunion/experian columns
 
-BR-3: Bureau matching is case-insensitive.
+BR-4: When a customer has no score for a particular bureau, that column is DBNull.Value (NULL).
 - Confidence: HIGH
-- Evidence: [ExternalModules/CreditScoreAverager.cs:70] `switch (bureau.ToLower())`
+- Evidence: [ExternalModules/CreditScoreAverager.cs:64-66] Default values are `DBNull.Value`; only overwritten if bureau match found
 
-BR-4: Only customers who exist in BOTH the credit_scores and customers DataFrames are included in output.
+BR-5: The as_of value comes from the customers table (last entry for each customer in the DataFrame).
 - Confidence: HIGH
-- Evidence: [ExternalModules/CreditScoreAverager.cs:56-57] `if (!customerNames.ContainsKey(customerId)) continue;`
-- Evidence: The loop iterates scoresByCustomer (customers with scores), and skips those not in customerNames
+- Evidence: [ExternalModules/CreditScoreAverager.cs:46] `customerNames[custId] = (firstName, lastName, custRow["as_of"]);` — last row per custId wins in iteration
+- Evidence: [ExternalModules/CreditScoreAverager.cs:93] `["as_of"] = asOf` from customerNames lookup
 
-BR-5: If a customer has no score for a particular bureau, that bureau column is set to DBNull.Value.
+BR-6: When either credit_scores or customers DataFrames are empty, an empty output is produced.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CreditScoreAverager.cs:64-66] Initial values are `DBNull.Value`; only overwritten if bureau match found
+- Evidence: [ExternalModules/CreditScoreAverager.cs:19-23] Null/empty check returns empty DataFrame
 
-BR-6: The as_of value comes from the customers DataFrame row.
+BR-7: Bureau name matching is case-insensitive.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CreditScoreAverager.cs:46] `customerNames[custId] = (firstName, lastName, custRow["as_of"]);`
-- Evidence: [ExternalModules/CreditScoreAverager.cs:93] `["as_of"] = asOf`
+- Evidence: [ExternalModules/CreditScoreAverager.cs:70] `bureau.ToLower()` — converts to lowercase before switch
 
-BR-7: Data is written in Overwrite mode -- only the most recent effective date's data persists.
+BR-8: Output uses Overwrite mode — all data is replaced on each run.
 - Confidence: HIGH
-- Evidence: [credit_score_average.json:35] `"writeMode": "Overwrite"`
-- Evidence: [curated.credit_score_average] Only 1 as_of value (2024-10-31) with 223 rows
-
-BR-8: If credit_scores or customers DataFrame is empty (no data for the effective date), an empty DataFrame is returned.
-- Confidence: HIGH
-- Evidence: [ExternalModules/CreditScoreAverager.cs:19-23] `if (creditScores == null || creditScores.Count == 0 || customers == null || customers.Count == 0)` returns empty DataFrame
-
-BR-9: The segments DataSourcing module is declared in the job config but is NOT used by the CreditScoreAverager External module.
-- Confidence: HIGH
-- Evidence: [credit_score_average.json:20-24] segments is sourced but [CreditScoreAverager.cs] never references `sharedState["segments"]`
-
-BR-10: If a customer has multiple scores for the same bureau in the same snapshot, the last one encountered in iteration order overwrites the previous one for individual bureau columns, but all scores contribute to the average.
-- Confidence: MEDIUM
-- Evidence: [ExternalModules/CreditScoreAverager.cs:68-82] The switch block overwrites without checking for duplicates; [CreditScoreAverager.cs:36] all scores are added to the list, so Average uses all.
+- Evidence: [JobExecutor/Jobs/credit_score_average.json:35] `"writeMode": "Overwrite"`
 
 ## Output Schema
 
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| customer_id | credit_scores.customer_id (loop key) | Cast to int | [CreditScoreAverager.cs:53,85] |
-| first_name | customers.first_name | ToString with null coalesce to "" | [CreditScoreAverager.cs:44,87] |
-| last_name | customers.last_name | ToString with null coalesce to "" | [CreditScoreAverager.cs:45,88] |
-| avg_score | Computed | Average of all bureau scores for customer (decimal) | [CreditScoreAverager.cs:61,89] |
-| equifax_score | credit_scores.score where bureau=Equifax | Direct or DBNull | [CreditScoreAverager.cs:72-73,90] |
-| transunion_score | credit_scores.score where bureau=TransUnion | Direct or DBNull | [CreditScoreAverager.cs:75-76,91] |
-| experian_score | credit_scores.score where bureau=Experian | Direct or DBNull | [CreditScoreAverager.cs:78-79,92] |
-| as_of | customers.as_of | Pass-through | [CreditScoreAverager.cs:93] |
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| customer_id | credit_scores.customer_id | Direct (integer) |
+| first_name | customers.first_name | Direct (string, default empty) |
+| last_name | customers.last_name | Direct (string, default empty) |
+| avg_score | Computed | Average of all bureau scores for the customer |
+| equifax_score | credit_scores.score | Where bureau = 'Equifax'; NULL if absent |
+| transunion_score | credit_scores.score | Where bureau = 'TransUnion'; NULL if absent |
+| experian_score | credit_scores.score | Where bureau = 'Experian'; NULL if absent |
+| as_of | customers.as_of | From the customer record |
 
 ## Edge Cases
 
-- **NULL handling**: customer first/last name default to empty string if null. Bureau scores default to DBNull.Value if no matching bureau found. avg_score is computed from all available scores (never null if customer has any scores).
-  - Evidence: [CreditScoreAverager.cs:44-45] `?? ""` for names; [CreditScoreAverager.cs:64-66] `DBNull.Value` defaults for bureau scores
-- **Weekend/date fallback**: Since DataSourcing sources credit_scores and customers with the framework's effective date mechanism, and credit_scores/customers only have weekday data (23 dates), weekend runs will produce empty DataFrames (no matching as_of), resulting in an empty output.
-  - Evidence: [datalake.credit_scores] 23 distinct as_of dates (weekdays); Overwrite mode means the table becomes empty on weekends
-- **Zero-row behavior**: Empty input (no credit scores or no customers) produces an empty DataFrame, which means the table is truncated (Overwrite mode) and no rows are inserted.
-  - Evidence: [CreditScoreAverager.cs:19-23]
+- **No credit scores for effective date**: Empty output (BR-6).
+- **No customers for effective date**: Empty output (BR-6). This happens on weekends when datalake.customers has no data but credit_scores may.
+- **Customer with fewer than 3 bureaus**: Missing bureau columns are NULL (BR-4). In current data all customers have exactly 3 bureaus.
+- **Multiple scores per customer per bureau**: The last score encountered in iteration overwrites earlier ones. In current data each customer has exactly one score per bureau.
+- **Customer in credit_scores but not in customers table**: Row is skipped (BR-1).
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `segments` table is sourced via DataSourcing but never referenced by the External module `CreditScoreAverager`. The module only uses `credit_scores` and `customers` from shared state. Evidence: [JobExecutor/Jobs/credit_score_average.json:20-25] segments sourced; [ExternalModules/CreditScoreAverager.cs] grep for "segments" — not found. V2 approach: Remove the segments DataSourcing module entirely.
+
+- **AP-3: Unnecessary External Module** — The logic is: group credit scores by customer, compute average, pivot bureau scores into columns, join with customer names. This can be expressed entirely in SQL using GROUP BY, AVG, and conditional aggregation (CASE WHEN bureau = 'Equifax' THEN score END). V2 approach: Replace with a SQL Transformation.
+
+- **AP-4: Unused Columns Sourced** — The `credit_score_id` column is sourced from credit_scores but never appears in the output. Evidence: [JobExecutor/Jobs/credit_score_average.json:11] includes `credit_score_id`; [ExternalModules/CreditScoreAverager.cs] output columns do not include credit_score_id. V2 approach: Remove credit_score_id from DataSourcing columns.
+
+- **AP-5: Asymmetric NULL/Default Handling** — String fields (first_name, last_name) are coalesced to empty string when null, but missing bureau scores are left as DBNull.Value (NULL). This is inconsistent handling of absent data across column types. Evidence: [ExternalModules/CreditScoreAverager.cs:44-45] `?? ""` for name fields vs [ExternalModules/CreditScoreAverager.cs:64-66] `DBNull.Value` for bureau scores. V2 approach: Reproduce the same asymmetric behavior for output equivalence, but document it as a known inconsistency.
+
+- **AP-6: Row-by-Row Iteration in External Module** — The External module iterates over credit score rows one by one to build a dictionary, then iterates over customers one by one. This is a set-based operation (GROUP BY + JOIN) that SQL handles natively. Evidence: [ExternalModules/CreditScoreAverager.cs:27-37,50-95] foreach loops over rows. V2 approach: Replace with SQL.
 
 ## Traceability Matrix
 
-| Requirement | Evidence Citations |
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [CreditScoreAverager.cs:61] |
-| BR-2 | [CreditScoreAverager.cs:68-82] |
-| BR-3 | [CreditScoreAverager.cs:70] |
-| BR-4 | [CreditScoreAverager.cs:56-57] |
-| BR-5 | [CreditScoreAverager.cs:64-66] |
-| BR-6 | [CreditScoreAverager.cs:46,93] |
-| BR-7 | [credit_score_average.json:35], [curated.credit_score_average row counts] |
-| BR-8 | [CreditScoreAverager.cs:19-23] |
-| BR-9 | [credit_score_average.json:20-24], [CreditScoreAverager.cs full source] |
-| BR-10 | [CreditScoreAverager.cs:68-82,36] |
+| BR-1 | [ExternalModules/CreditScoreAverager.cs:51,56-57] |
+| BR-2 | [ExternalModules/CreditScoreAverager.cs:61] |
+| BR-3 | [ExternalModules/CreditScoreAverager.cs:68-82] |
+| BR-4 | [ExternalModules/CreditScoreAverager.cs:64-66] |
+| BR-5 | [ExternalModules/CreditScoreAverager.cs:46,93] |
+| BR-6 | [ExternalModules/CreditScoreAverager.cs:19-23] |
+| BR-7 | [ExternalModules/CreditScoreAverager.cs:70] |
+| BR-8 | [JobExecutor/Jobs/credit_score_average.json:35] |
 
 ## Open Questions
 
-- **Segments sourced but unused**: The job config sources the segments table, but the CreditScoreAverager never uses it. This may be dead configuration left from a prior version or intended for future use. Confidence: HIGH that it is unused; business intent is MEDIUM.
-- **Weekend Overwrite behavior**: On weekends, the credit_scores DataSourcing returns no rows (weekday-only source). With Overwrite mode, this means the table is truncated and left empty until the next weekday. This may be intentional or an oversight. Confidence: MEDIUM.
-- **Duplicate bureau scores**: If a customer has two Equifax scores in the same snapshot, the last one in iteration order is used for the column but both contribute to the average. This edge case is unlikely but the behavior is clear from code. Confidence: HIGH on behavior, LOW on whether this scenario occurs.
+- **Ordering of output rows**: The External module does not sort the output. Row order depends on dictionary iteration order of `scoresByCustomer`. In practice, this means ordering is not guaranteed. Confidence: MEDIUM — V2 should replicate the same non-deterministic order or explicitly ORDER BY customer_id for consistency.
+- **Multiple scores per bureau per customer**: If a customer had duplicate bureau entries, the last one encountered would win. Current data shows exactly one score per bureau per customer. Confidence: LOW that duplicates can occur based on data constraints.

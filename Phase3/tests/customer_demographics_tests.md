@@ -1,31 +1,63 @@
-# Test Plan: CustomerDemographicsV2
+# CustomerDemographics — Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Verify one output row per customer | Row count matches customer count for effective date |
-| TC-2 | BR-2 | Verify age computation | Age = asOfDate.Year - birthdate.Year, decremented if birthday not yet passed |
-| TC-3 | BR-3 | Verify age bracket classification | Age <26 => "18-25", <=35 => "26-35", <=45 => "36-45", <=55 => "46-55", <=65 => "56-65", >65 => "65+" |
-| TC-4 | BR-4 | Verify primary phone is first found | First phone_number row per customer_id used |
-| TC-5 | BR-5 | Verify primary email is first found | First email_address row per customer_id used |
-| TC-6 | BR-6 | Verify empty string for missing phone | Customers with no phone numbers get primary_phone = "" |
-| TC-7 | BR-7 | Verify empty string for missing email | Customers with no emails get primary_email = "" |
-| TC-8 | BR-8 | Verify birthdate passed through | birthdate in output matches customers.birthdate |
-| TC-9 | BR-9 | Verify empty input guard | When customers is null/empty, output is empty DataFrame |
-| TC-10 | BR-10 | Verify unused data sourcing | Output has no segment, prefix, sort_name, suffix columns |
-| TC-11 | BR-11 | Verify Overwrite mode | Only latest effective date's data exists |
-| TC-12 | BR-12 | Verify NULL name coalescing | NULL first_name/last_name become empty string |
-| TC-13 | BR-1,11 | Compare V2 output to original | EXCEPT query yields zero rows |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | Zero customer rows | Empty output DataFrame |
-| EC-2 | Customer with no phone numbers | primary_phone = "" (not NULL) |
-| EC-3 | Customer with no email addresses | primary_email = "" (not NULL) |
-| EC-4 | Customer with multiple phones | Only first phone used |
-| EC-5 | Customer with birthday on as_of date | Age correctly computed (birthday counts) |
-| EC-6 | Customer aged exactly 26 | age_bracket = "26-35" |
-| EC-7 | Customer aged exactly 65 | age_bracket = "56-65" |
-| EC-8 | Customer aged 66 | age_bracket = "65+" |
-| EC-9 | Weekend effective date | Empty output (customers weekday-only) |
+### TC-1: Row count matches customer count
+- **Traces to:** BR-1
+- **Method:** Compare `SELECT COUNT(*) FROM double_secret_curated.customer_demographics WHERE as_of = {date}` with `SELECT COUNT(*) FROM datalake.customers WHERE as_of = {date}`
+- **Expected:** Counts are equal (223 on weekdays)
+
+### TC-2: Age calculation correctness
+- **Traces to:** BR-2
+- **Method:** For a sample customer with known birthdate, verify age = floor((as_of - birthdate) in years). Check customer 1001 (birthdate 1985-03-12, as_of 2024-10-31): age should be 39.
+- **Expected:** age = 39
+
+### TC-3: Age bracket assignment
+- **Traces to:** BR-3
+- **Method:** Verify age brackets for boundary cases:
+  - Age 25 -> '18-25'
+  - Age 26 -> '26-35'
+  - Age 35 -> '26-35'
+  - Age 36 -> '36-45'
+  - Age 45 -> '36-45'
+  - Age 46 -> '46-55'
+  - Age 55 -> '46-55'
+  - Age 56 -> '56-65'
+  - Age 65 -> '56-65'
+  - Age 66 -> '65+'
+- **Expected:** Each bracket matches the defined ranges
+
+### TC-4: Primary phone selection
+- **Traces to:** BR-4
+- **Method:** For customer 1001 who has two phones (phone_id 1 and 2), verify primary_phone matches phone_id=1's number.
+- **Expected:** primary_phone = '(865) 555-3216'
+
+### TC-5: Primary email selection
+- **Traces to:** BR-5
+- **Method:** For customer 1001 who has two emails (email_id 1 and 2), verify primary_email matches email_id=1's address.
+- **Expected:** primary_email = 'ethan.carter46@hotmail.com'
+
+### TC-6: Missing phone/email defaults to empty string
+- **Traces to:** BR-4, BR-5
+- **Method:** Verify customers with no phone/email records get '' (empty string) not NULL.
+- **Expected:** `WHERE primary_phone IS NULL` returns 0 rows; `WHERE primary_phone = ''` may return rows
+
+### TC-7: Overwrite mode — only latest date persists
+- **Traces to:** BR-6
+- **Method:** After running for multiple dates, verify only one as_of value exists in the output table.
+- **Expected:** `SELECT DISTINCT as_of` returns exactly 1 row
+
+### TC-8: Weekend date produces empty output
+- **Traces to:** BR-7
+- **Method:** Run for a weekend date (e.g., 2024-10-05). Verify 0 rows produced.
+- **Expected:** 0 rows for weekend as_of dates (customers table has no weekend data)
+
+### TC-9: Birthdate passthrough
+- **Traces to:** BR-8
+- **Method:** Compare birthdate values between source and output for sample customers.
+- **Expected:** Birthdates match exactly
+
+### TC-10: Full EXCEPT comparison with original
+- **Traces to:** All BRs
+- **Method:** For each date, run: `SELECT * FROM curated.customer_demographics WHERE as_of = {date} EXCEPT SELECT * FROM double_secret_curated.customer_demographics WHERE as_of = {date}` and vice versa.
+- **Expected:** Both EXCEPT queries return 0 rows

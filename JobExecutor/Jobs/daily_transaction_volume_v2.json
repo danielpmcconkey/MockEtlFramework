@@ -4,20 +4,22 @@
   "modules": [
     {
       "type": "DataSourcing",
-      "resultName": "transactions",
-      "schema": "datalake",
-      "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "resultName": "daily_transaction_summary",
+      "schema": "curated",
+      "table": "daily_transaction_summary",
+      "columns": ["transaction_count", "total_amount"]
     },
     {
       "type": "Transformation",
       "resultName": "daily_vol",
-      "sql": "WITH daily_agg AS (SELECT as_of, COUNT(*) AS total_transactions, ROUND(SUM(amount), 2) AS total_amount, ROUND(AVG(amount), 2) AS avg_amount, MIN(amount) AS min_amount, MAX(amount) AS max_amount FROM transactions GROUP BY as_of) SELECT as_of, total_transactions, total_amount, avg_amount FROM daily_agg ORDER BY as_of"
+      "sql": "SELECT dts.as_of, CAST(SUM(dts.transaction_count) AS INTEGER) AS total_transactions, ROUND(SUM(dts.total_amount), 2) AS total_amount, ROUND(SUM(dts.total_amount) * 1.0 / SUM(dts.transaction_count), 2) AS avg_amount FROM daily_transaction_summary dts GROUP BY dts.as_of ORDER BY dts.as_of"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.DailyTransactionVolumeV2Writer"
+      "type": "DataFrameWriter",
+      "source": "daily_vol",
+      "targetTable": "daily_transaction_volume",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

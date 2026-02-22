@@ -1,40 +1,76 @@
-# FSD: LoanRiskAssessmentV2
+# LoanRiskAssessment -- Functional Specification Document
 
-## Overview
-Replaces the original LoanRiskAssessment job with a V2 implementation that writes to the `double_secret_curated` schema instead of `curated`. The V2 External module replicates the exact same business logic as the original LoanRiskCalculator (computing average credit scores per customer and assigning risk tiers to each loan) and then writes directly to `double_secret_curated.loan_risk_assessment` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module replacement)**: The original job uses DataSourcing (x4) -> External (LoanRiskCalculator) -> DataFrameWriter. The V2 replaces both the External and DataFrameWriter steps with a single V2 External module.
-- The V2 module replicates the original's credit score averaging logic (group by customer_id, compute average of all bureau scores) and risk tier assignment thresholds.
-- Write mode is Overwrite (matching original), so DscWriterUtil.Write is called with overwrite=true.
-- The customers and segments DataSourcing steps are retained in the config (matching the original) even though they are unused.
+SQL-first. The original External module (LoanRiskCalculator) groups credit scores by customer, averages them, joins to loan accounts, and assigns risk tiers via a switch expression. All of this is expressible as SQL using AVG + GROUP BY + LEFT JOIN + CASE WHEN. The V2 replaces the External module with a Transformation step and removes unused DataSourcing modules.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=loan_accounts, columns=[loan_id, customer_id, loan_type, current_balance, interest_rate, loan_status], resultName=loan_accounts |
-| 2 | DataSourcing | schema=datalake, table=credit_scores, columns=[credit_score_id, customer_id, bureau, score], resultName=credit_scores |
-| 3 | DataSourcing | schema=datalake, table=customers, columns=[id, first_name, last_name], resultName=customers (unused) |
-| 4 | DataSourcing | schema=datalake, table=segments, columns=[segment_id, segment_name], resultName=segments (unused) |
-| 5 | External | LoanRiskAssessmentV2Processor -- computes avg credit score, assigns risk tier, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: LoanRiskAssessmentV2Processor
-- File: ExternalModules/LoanRiskAssessmentV2Processor.cs
-- Processing logic: Groups credit_scores by customer_id, computes average score via List.Average(). For each loan, looks up customer's avg credit score and assigns risk tier (>=750: Low Risk, >=650: Medium Risk, >=550: High Risk, <550: Very High Risk). If no scores found, avg_credit_score=DBNull.Value, risk_tier="Unknown". Writes to double_secret_curated via DscWriterUtil with overwrite=true.
-- Output columns: loan_id, customer_id, loan_type, current_balance, interest_rate, loan_status, avg_credit_score, risk_tier, as_of
-- Target table: double_secret_curated.loan_risk_assessment
-- Write mode: Overwrite (overwrite=true)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed `customers` and `segments` DataSourcing modules (never referenced by External module) |
+| AP-2    | N                   | N/A                | No duplicated upstream logic |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation (AVG + JOIN + CASE) |
+| AP-4    | Y                   | Y                  | Removed `credit_score_id` and `bureau` from credit_scores DataSourcing (only customer_id and score needed) |
+| AP-5    | N                   | N/A                | NULL handling is consistent (NULL avg_credit_score -> "Unknown" risk_tier) |
+| AP-6    | Y                   | Y                  | Three foreach loops replaced by set-based SQL |
+| AP-7    | Y                   | Y (documented)     | Risk tier thresholds (750, 650, 550) documented in SQL comments |
+| AP-8    | N                   | N/A                | No overly complex SQL in original |
+| AP-9    | N                   | N/A                | Job name accurately describes what it does |
+| AP-10   | N                   | N/A                | No undeclared dependencies |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** `loan_accounts`: Read `loan_id`, `customer_id`, `loan_type`, `current_balance`, `interest_rate`, `loan_status` from `datalake.loan_accounts`
+2. **DataSourcing** `credit_scores`: Read `customer_id`, `score` from `datalake.credit_scores`
+3. **Transformation** `loan_risk_result`: SQL query that computes average credit score per customer, joins to loans, and assigns risk tier
+4. **DataFrameWriter**: Write `loan_risk_result` to `double_secret_curated.loan_risk_assessment` in Overwrite mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    la.loan_id,
+    la.customer_id,
+    la.loan_type,
+    la.current_balance,
+    la.interest_rate,
+    la.loan_status,
+    -- Average credit score across all bureaus for the customer (BR-1)
+    ROUND(avg_scores.avg_score, 2) AS avg_credit_score,
+    -- Risk tier based on average credit score thresholds (BR-2)
+    CASE
+        WHEN avg_scores.avg_score IS NULL THEN 'Unknown'       -- No credit scores on file (BR-3)
+        WHEN avg_scores.avg_score >= 750 THEN 'Low Risk'       -- Excellent credit
+        WHEN avg_scores.avg_score >= 650 THEN 'Medium Risk'    -- Good credit
+        WHEN avg_scores.avg_score >= 550 THEN 'High Risk'      -- Fair credit
+        ELSE 'Very High Risk'                                   -- Poor credit
+    END AS risk_tier,
+    la.as_of
+FROM loan_accounts la
+LEFT JOIN (
+    SELECT customer_id, as_of, AVG(score) AS avg_score
+    FROM credit_scores
+    GROUP BY customer_id, as_of
+) avg_scores
+    ON la.customer_id = avg_scores.customer_id
+    AND la.as_of = avg_scores.as_of
+```
+
+**Key design notes:**
+- The subquery computes AVG(score) per customer_id per as_of, matching the original's grouping logic
+- LEFT JOIN ensures loans with no credit scores still appear (avg_score would be NULL)
+- CASE evaluates NULL first (BR-3: Unknown), then checks thresholds in descending order (BR-2)
+- ROUND(avg_score, 2) matches the C# decimal precision observed in curated output
+- No filtering: all loan accounts included regardless of status (BR-4)
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | V2 processor groups credit_scores by customer_id and computes average |
-| BR-2 | Risk tier switch expression with thresholds: >=750 Low, >=650 Medium, >=550 High, <550 Very High |
-| BR-3 | Missing credit scores: avg_credit_score=DBNull.Value, risk_tier="Unknown" |
-| BR-4 | V2 processor iterates all loan_accounts rows without filtering |
-| BR-5 | DscWriterUtil.Write with overwrite=true |
-| BR-6 | Empty DataFrame guard if loan_accounts or credit_scores are null/empty |
-| BR-7 | avg_credit_score uses raw List.Average() result, no explicit rounding |
-| BR-8 | as_of from each loanRow["as_of"] |
-| BR-9 | customers and segments sourced in config but not referenced in V2 processor |
-| BR-10 | All bureau scores included in average, no bureau filter |
+|-----------------|-------------------|
+| BR-1 | Subquery: AVG(score) GROUP BY customer_id, as_of |
+| BR-2 | CASE WHEN with thresholds: >= 750 Low Risk, >= 650 Medium Risk, >= 550 High Risk, else Very High Risk |
+| BR-3 | CASE WHEN avg_scores.avg_score IS NULL THEN 'Unknown'; ROUND produces NULL from NULL input |
+| BR-4 | No WHERE clause on loan_accounts; all loans included |
+| BR-5 | DataFrameWriter writeMode: "Overwrite" |
+| BR-6 | Framework handles empty DataFrames natively; SQL produces empty result if no rows |

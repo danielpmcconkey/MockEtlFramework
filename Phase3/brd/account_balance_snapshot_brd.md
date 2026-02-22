@@ -1,74 +1,93 @@
-# BRD: AccountBalanceSnapshot
+# AccountBalanceSnapshot — Business Requirements Document
 
 ## Overview
-Produces a daily snapshot of all account balances by extracting key account attributes from the datalake and appending them to a curated table, one row per account per business day. This provides a historical record of account balance positions over time.
+
+This job produces a daily snapshot of all account balances by extracting core account attributes (account_id, customer_id, account_type, account_status, current_balance) from the datalake accounts table and writing them to `curated.account_balance_snapshot` using Append mode, building up a historical record of balances over time.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| accounts | datalake | account_id, customer_id, account_type, account_status, open_date, current_balance, interest_rate, credit_limit | Filtered by effective date range (as_of between min and max effective date). No additional filters. | [JobExecutor/Jobs/account_balance_snapshot.json:6-11] DataSourcing module config |
-| branches | datalake | branch_id, branch_name | Filtered by effective date range. Sourced but NOT used in output. | [JobExecutor/Jobs/account_balance_snapshot.json:13-18] DataSourcing module config; [ExternalModules/AccountSnapshotBuilder.cs:10-14] output columns do not reference branch data |
+
+### datalake.accounts
+- **Columns sourced:** account_id, customer_id, account_type, account_status, open_date, current_balance, interest_rate, credit_limit
+- **Columns actually used by External module:** account_id, customer_id, account_type, account_status, current_balance, as_of
+- **Join/filter logic:** No filtering applied. All rows for the effective date are included.
+- **Evidence:** [ExternalModules/AccountSnapshotBuilder.cs:27-35] Only these 6 columns are mapped to output rows.
+
+### datalake.branches
+- **Columns sourced:** branch_id, branch_name
+- **Usage:** NONE — this DataSourcing module is loaded into shared state as "branches" but the External module (AccountSnapshotBuilder) never reads from it.
+- **Evidence:** [ExternalModules/AccountSnapshotBuilder.cs:16] Only `sharedState["accounts"]` is accessed; "branches" is never referenced.
 
 ## Business Rules
-BR-1: The job sources all accounts from the datalake for the effective date and outputs a subset of columns: account_id, customer_id, account_type, account_status, current_balance, and as_of.
-- Confidence: HIGH
-- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:10-14] Output columns defined as `"account_id", "customer_id", "account_type", "account_status", "current_balance", "as_of"`
-- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:26-35] Each account row maps directly to output without transformation
 
-BR-2: The branches table is sourced but never used in the output. The AccountSnapshotBuilder only reads the "accounts" DataFrame from shared state.
+BR-1: All accounts from the datalake are included in the snapshot regardless of account type or status.
 - Confidence: HIGH
-- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:16] `var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;` -- no reference to "branches"
-- Evidence: [JobExecutor/Jobs/account_balance_snapshot.json:13-18] branches DataSourcing module exists in config
+- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:25-35] The foreach loop iterates all rows with no conditional filtering.
+- Evidence: [curated.account_balance_snapshot] Row count (277) matches datalake.accounts row count (277) for each as_of date.
 
-BR-3: The job drops columns open_date, interest_rate, and credit_limit that were sourced from the accounts table. Only 5 account columns plus as_of are retained.
+BR-2: The output contains exactly 6 columns: account_id, customer_id, account_type, account_status, current_balance, and as_of.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/account_balance_snapshot.json:10] Sources 8 columns: account_id, customer_id, account_type, account_status, open_date, current_balance, interest_rate, credit_limit
-- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:10-14] Output only includes 6 columns (5 account columns + as_of)
+- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:10-14] `outputColumns` is explicitly defined as these 6 columns.
+- Evidence: [curated.account_balance_snapshot] Schema confirms these 6 columns.
 
-BR-4: Write mode is Append -- each effective date run adds rows to the existing table without truncating previous data. This builds a historical time series.
+BR-3: Data is written in Append mode, accumulating snapshots across effective dates.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/account_balance_snapshot.json:28] `"writeMode": "Append"`
+- Evidence: [JobExecutor/Jobs/account_balance_snapshot.json:28] `"writeMode": "Append"`.
+- Evidence: [curated.account_balance_snapshot] Contains 23 distinct as_of dates (weekdays only in Oct 2024), each with 277 rows.
 
-BR-5: No filtering is applied -- all accounts regardless of type or status are included in the output.
+BR-4: The job processes only weekday effective dates (no weekends).
 - Confidence: HIGH
-- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:25-35] Iterates all account rows with `foreach (var acctRow in accounts.Rows)` -- no conditional filtering
-- Evidence: [curated.account_balance_snapshot] Row count of 277 per date matches datalake.accounts row count of 277 per date
+- Evidence: [curated.account_balance_snapshot] as_of values skip Oct 5-6, 12-13, 19-20, 26-27.
+- Evidence: [datalake.accounts] Source data only exists for weekdays (Oct 5-6 are missing).
 
-BR-6: No transformations or calculations are applied to any column values. Values are passed through as-is from the source.
+BR-5: When the accounts DataFrame is null or empty, an empty DataFrame with the correct output schema is returned.
 - Confidence: HIGH
-- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:27-35] Direct assignment: `["account_id"] = acctRow["account_id"]`, etc.
-
-BR-7: The job runs only on business days (weekdays) since the accounts source table only has weekday as_of dates.
-- Confidence: HIGH
-- Evidence: [datalake.accounts] `SELECT as_of FROM datalake.accounts GROUP BY as_of ORDER BY as_of` shows dates skip weekends (Oct 4 -> Oct 7, Oct 11 -> Oct 14)
-- Evidence: [curated.account_balance_snapshot] Output has exactly 23 dates matching the 23 weekday dates in October 2024
+- Evidence: [ExternalModules/AccountSnapshotBuilder.cs:18-22] Explicit null/empty guard returns empty DataFrame with correct columns.
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| account_id | datalake.accounts.account_id | None (pass-through) | [AccountSnapshotBuilder.cs:29] |
-| customer_id | datalake.accounts.customer_id | None (pass-through) | [AccountSnapshotBuilder.cs:30] |
-| account_type | datalake.accounts.account_type | None (pass-through) | [AccountSnapshotBuilder.cs:31] |
-| account_status | datalake.accounts.account_status | None (pass-through) | [AccountSnapshotBuilder.cs:32] |
-| current_balance | datalake.accounts.current_balance | None (pass-through) | [AccountSnapshotBuilder.cs:33] |
-| as_of | datalake.accounts.as_of | None (pass-through) | [AccountSnapshotBuilder.cs:34] |
+
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| account_id | datalake.accounts.account_id | Direct pass-through |
+| customer_id | datalake.accounts.customer_id | Direct pass-through |
+| account_type | datalake.accounts.account_type | Direct pass-through |
+| account_status | datalake.accounts.account_status | Direct pass-through |
+| current_balance | datalake.accounts.current_balance | Direct pass-through |
+| as_of | datalake.accounts.as_of (injected by framework) | Direct pass-through |
 
 ## Edge Cases
-- **NULL handling**: No explicit NULL handling in AccountSnapshotBuilder. Values are passed through as-is. If a source column is NULL, it will be NULL in the output.
-- **Empty accounts DataFrame**: If accounts is null or has 0 rows, an empty DataFrame with the correct columns is returned. [AccountSnapshotBuilder.cs:18-22]
-- **Weekend/date fallback**: Accounts table has no weekend data (weekdays only). The framework's DataSourcing module returns empty results for dates with no data, which would trigger the empty DataFrame guard.
-- **Zero-row behavior**: Handled gracefully -- produces empty output DataFrame with correct column schema. [AccountSnapshotBuilder.cs:20]
+
+- **Empty accounts DataFrame:** Returns empty output with correct schema (BR-5).
+- **Weekend dates:** No source data exists for weekends; the framework's gap-fill mechanism processes each day but DataSourcing returns zero rows for weekend dates in accounts, so no rows are written.
+- **NULL handling:** All source columns in datalake.accounts are NOT NULL (per schema constraints), so no NULL handling is needed in this job. The External module does not apply any COALESCE or default values.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `branches` DataSourcing module fetches `branch_id` and `branch_name` from `datalake.branches`, but the External module (`AccountSnapshotBuilder`) never accesses `sharedState["branches"]`. This is completely unused data sourcing.
+  - Evidence: [JobExecutor/Jobs/account_balance_snapshot.json:13-18] branches DataSourcing defined; [ExternalModules/AccountSnapshotBuilder.cs] no reference to "branches".
+  - V2 approach: Remove the branches DataSourcing module entirely.
+
+- **AP-3: Unnecessary External Module** — The `AccountSnapshotBuilder` External module performs a trivial row-by-row copy of 6 columns from accounts. This is a simple `SELECT` query that can be expressed as a SQL Transformation.
+  - Evidence: [ExternalModules/AccountSnapshotBuilder.cs:25-35] The entire logic is: for each account row, copy 6 columns.
+  - V2 approach: Replace with a SQL Transformation: `SELECT account_id, customer_id, account_type, account_status, current_balance, as_of FROM accounts`.
+
+- **AP-4: Unused Columns Sourced** — The accounts DataSourcing module fetches `open_date`, `interest_rate`, and `credit_limit`, but the External module only uses account_id, customer_id, account_type, account_status, current_balance, and as_of.
+  - Evidence: [JobExecutor/Jobs/account_balance_snapshot.json:10] columns include open_date, interest_rate, credit_limit; [ExternalModules/AccountSnapshotBuilder.cs:27-35] only 5 account columns + as_of are used.
+  - V2 approach: Remove open_date, interest_rate, and credit_limit from the DataSourcing columns list.
+
+- **AP-6: Row-by-Row Iteration in External Module** — The External module iterates over every account row individually to build the output, when a simple SELECT would suffice.
+  - Evidence: [ExternalModules/AccountSnapshotBuilder.cs:25] `foreach (var acctRow in accounts.Rows)`
+  - V2 approach: Replace with a SQL Transformation (eliminates row-by-row processing entirely).
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [AccountSnapshotBuilder.cs:10-14], [AccountSnapshotBuilder.cs:26-35] |
-| BR-2 | [AccountSnapshotBuilder.cs:16], [account_balance_snapshot.json:13-18] |
-| BR-3 | [account_balance_snapshot.json:10], [AccountSnapshotBuilder.cs:10-14] |
-| BR-4 | [account_balance_snapshot.json:28] |
-| BR-5 | [AccountSnapshotBuilder.cs:25-35], [curated.account_balance_snapshot row counts] |
-| BR-6 | [AccountSnapshotBuilder.cs:27-35] |
-| BR-7 | [datalake.accounts as_of dates], [curated.account_balance_snapshot dates] |
+| BR-1 | [ExternalModules/AccountSnapshotBuilder.cs:25-35], [curated.account_balance_snapshot] row count = 277 = datalake.accounts count |
+| BR-2 | [ExternalModules/AccountSnapshotBuilder.cs:10-14], [curated.account_balance_snapshot] schema |
+| BR-3 | [JobExecutor/Jobs/account_balance_snapshot.json:28], [curated.account_balance_snapshot] 23 distinct as_of dates |
+| BR-4 | [curated.account_balance_snapshot] missing weekend dates, [datalake.accounts] missing weekend dates |
+| BR-5 | [ExternalModules/AccountSnapshotBuilder.cs:18-22] |
 
 ## Open Questions
-- **Why is branches sourced but unused?** The branches DataSourcing module is configured in the job but the AccountSnapshotBuilder never references "branches" from shared state. This appears to be dead code in the job config. Confidence: MEDIUM that it is intentionally unused (it may have been removed from the processor logic but left in the config).
+
+None. This job is straightforward — all business logic is directly observable with HIGH confidence.

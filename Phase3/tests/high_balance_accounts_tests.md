@@ -1,23 +1,43 @@
-# Test Plan: HighBalanceAccountsV2
+# HighBalanceAccounts -- Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Verify only accounts with balance > 10000 are included | No rows with current_balance <= 10000 |
-| TC-2 | BR-2 | Verify customer name enrichment is correct | first_name and last_name match customer lookup |
-| TC-3 | BR-3 | Verify missing customer defaults to empty strings | Accounts with unknown customer_id have first_name="" and last_name="" |
-| TC-4 | BR-4 | Verify customer lookup uses customers.id column | Join logic matches on id, not customer_id |
-| TC-5 | BR-5 | Verify all account types are included | Multiple account_type values present in output |
-| TC-6 | BR-6 | Verify all account statuses are included | No status-based filtering |
-| TC-7 | BR-7 | Verify Overwrite mode: only latest effective date data present | Only one as_of in output table after run |
-| TC-8 | BR-8 | Verify empty output when accounts or customers are empty | 0 rows on weekend effective dates |
-| TC-9 | BR-9 | Verify as_of comes from account row | as_of matches the effective date of the account |
-| TC-10 | BR-10 | Verify last customer row wins on duplicate ids | Consistent with original behavior |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | Weekend effective date (no accounts/customers data) | Empty output (0 rows), no error |
-| EC-2 | No accounts exceed $10,000 threshold | Empty output (0 rows) |
-| EC-3 | All accounts exceed $10,000 threshold | All accounts in output |
-| EC-4 | Comparison with curated.high_balance_accounts for same date | Row-for-row match on all columns |
+### TC-1: High-balance filter threshold (BR-1)
+- **Objective**: Verify only accounts with current_balance > 10000 appear in output
+- **Method**: Compare `SELECT COUNT(*) FROM double_secret_curated.high_balance_accounts WHERE current_balance <= 10000` -- must be 0
+- **Method**: Compare row count with `SELECT COUNT(*) FROM datalake.accounts WHERE current_balance > 10000 AND as_of = '{date}'`
+
+### TC-2: Customer name enrichment (BR-2)
+- **Objective**: Verify each row has correct first_name and last_name from customers table
+- **Method**: For a sample account, verify `first_name` and `last_name` match `datalake.customers` for the same customer_id and as_of
+
+### TC-3: Missing customer defaults (BR-3)
+- **Objective**: Verify accounts with no matching customer get empty strings for names
+- **Method**: Check `SELECT COUNT(*) FROM double_secret_curated.high_balance_accounts WHERE first_name IS NULL OR last_name IS NULL` -- must be 0
+- **Note**: In current data all accounts have customers, so this tests the COALESCE safety net
+
+### TC-4: Overwrite mode (BR-4)
+- **Objective**: Verify only the latest effective date's data exists after a run
+- **Method**: After running for date X, verify `SELECT DISTINCT as_of FROM double_secret_curated.high_balance_accounts` returns only date X
+
+### TC-5: No account type filter (BR-5)
+- **Objective**: Verify all account types with high balance are included
+- **Method**: Compare `SELECT DISTINCT account_type FROM double_secret_curated.high_balance_accounts` with direct datalake query for high-balance accounts
+
+### TC-6: Exact match with original (all dates)
+- **Objective**: Verify V2 output is identical to original for every date Oct 1-31
+- **Method**: EXCEPT-based comparison:
+  ```sql
+  SELECT * FROM curated.high_balance_accounts WHERE as_of = '{date}'
+  EXCEPT
+  SELECT * FROM double_secret_curated.high_balance_accounts WHERE as_of = '{date}'
+  ```
+  Must return 0 rows in both directions.
+
+### TC-7: Column schema match
+- **Objective**: Verify output columns match original schema exactly
+- **Method**: Compare column names and types between curated and double_secret_curated tables
+
+### TC-8: Row count match per date
+- **Objective**: Verify row count matches original for each effective date
+- **Method**: Compare COUNT(*) between curated and double_secret_curated for each as_of date

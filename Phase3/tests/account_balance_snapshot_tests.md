@@ -1,20 +1,38 @@
-# Test Plan: AccountBalanceSnapshotV2
+# AccountBalanceSnapshot -- Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Output contains exactly 6 columns: account_id, customer_id, account_type, account_status, current_balance, as_of | Output schema matches expected columns |
-| TC-2 | BR-2 | branches DataFrame is available in shared state but not referenced by processor | Output contains no branch-related columns |
-| TC-3 | BR-3 | Sourced columns open_date, interest_rate, credit_limit are not in output | Output has only 6 columns, excluding the 3 dropped columns |
-| TC-4 | BR-4 | Write mode is Append -- DscWriterUtil called with overwrite=false | Running for multiple dates accumulates rows (no truncation) |
-| TC-5 | BR-5 | All accounts are included regardless of type or status | Row count in output matches row count in source accounts table for the date |
-| TC-6 | BR-6 | All column values are pass-through with no transformation | Values in double_secret_curated match values in datalake.accounts for each column |
-| TC-7 | BR-7 | Job produces output only on weekdays (business days) | No output rows for weekend dates |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | Zero rows in accounts for effective date | Empty DataFrame with correct 6-column schema returned; no rows written to dsc |
-| EC-2 | NULL value in a source column (e.g., current_balance is NULL) | NULL passes through to output as-is |
-| EC-3 | Weekend date with no account data | Empty DataFrame returned; no rows written |
-| EC-4 | Comparison: curated vs double_secret_curated for same date | Row counts and all column values match exactly |
+TC-1: All accounts included in output -- Traces to BR-1
+- Input conditions: datalake.accounts has 277 rows for effective date 2024-10-01
+- Expected output: 277 rows in double_secret_curated.account_balance_snapshot for as_of = 2024-10-01
+- Verification: Compare row count between curated and double_secret_curated for same as_of date
+
+TC-2: Output schema matches 6 columns -- Traces to BR-2
+- Input conditions: Any effective date with account data
+- Expected output: Columns are exactly account_id, customer_id, account_type, account_status, current_balance, as_of
+- Verification: EXCEPT-based comparison between curated and double_secret_curated tables
+
+TC-3: Append mode accumulates snapshots -- Traces to BR-3
+- Input conditions: Run job for multiple effective dates (2024-10-01 through 2024-10-04)
+- Expected output: All 4 dates present in output with correct row counts per date
+- Verification: SELECT DISTINCT as_of, COUNT(*) GROUP BY as_of should show all processed dates
+
+TC-4: Weekend dates produce no output -- Traces to BR-4
+- Input conditions: Effective date 2024-10-05 (Saturday)
+- Expected output: Zero rows for as_of = 2024-10-05
+- Verification: COUNT(*) WHERE as_of = '2024-10-05' returns 0
+
+TC-5: Empty accounts produces zero rows -- Traces to BR-5
+- Input conditions: Effective date with no accounts data (e.g., weekend)
+- Expected output: Zero rows written
+- Verification: No rows in output for that date
+
+TC-6: Data values match original exactly -- Traces to BR-1, BR-2
+- Input conditions: Run for as_of = 2024-10-01
+- Expected output: Every row matches curated.account_balance_snapshot for same date
+- Verification: EXCEPT query between curated and double_secret_curated returns zero rows in both directions
+
+TC-7: Full month comparison -- Traces to all BRs
+- Input conditions: Run for all 31 days of October 2024
+- Expected output: Identical data to curated.account_balance_snapshot across all dates
+- Verification: Full EXCEPT comparison across all as_of dates

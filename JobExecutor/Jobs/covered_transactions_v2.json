@@ -4,8 +4,15 @@
   "modules": [
     {
       "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.CoveredTransactionsV2Processor"
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CoveredTransactionProcessorV2"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "output",
+      "targetTable": "covered_transactions",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

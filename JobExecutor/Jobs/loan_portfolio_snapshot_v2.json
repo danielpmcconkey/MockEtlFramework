@@ -7,19 +7,19 @@
       "resultName": "loan_accounts",
       "schema": "datalake",
       "table": "loan_accounts",
-      "columns": ["loan_id", "customer_id", "loan_type", "original_amount", "current_balance", "interest_rate", "origination_date", "maturity_date", "loan_status"]
-    },
-    {
-      "type": "DataSourcing",
-      "resultName": "branches",
-      "schema": "datalake",
-      "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": ["loan_id", "customer_id", "loan_type", "original_amount", "current_balance", "interest_rate", "loan_status"]
     },
     {
       "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.LoanPortfolioSnapshotV2Processor"
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.LoanPortfolioSnapshotV2"
+    },
+    {
+      "type": "DataFrameWriter",
+      "source": "loan_snapshot_result",
+      "targetTable": "loan_portfolio_snapshot",
+      "writeMode": "Overwrite",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

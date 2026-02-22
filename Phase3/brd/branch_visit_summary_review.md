@@ -1,33 +1,52 @@
-# Review: BranchVisitSummary BRD
+# BranchVisitSummary — BRD Review
 
-## Status: PASS
+## Review Status: PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Verification
+- [x] All citations checked (7 business rules, all line references verified)
+- [x] All citations accurate (1 minor off-by-one noted below, not blocking)
 
-## Verification Details
+Detailed verification:
+- BR-1 [line 22]: Confirmed GROUP BY + COUNT(*) — exact match. Database confirms branch 7 on Oct 1 has visit_count=4.
+- BR-2 [line 22]: Confirmed JOIN branches with branch_id + as_of — exact match.
+- BR-3 [line 22]: Confirmed 4-column SELECT — exact match. Schema verified.
+- BR-4 [line 22]: Confirmed `ORDER BY vc.as_of, vc.branch_id` — exact match.
+- BR-5 [line 27]: **Minor** — `"writeMode": "Append"` is on line 28, not 27. Line 27 is `"targetTable": "branch_visit_summary",`.
+- BR-6 [line 22]: Confirmed INNER JOIN — exact match.
+- BR-7 [line 22]: Confirmed ON clause with branch_id + as_of — exact match.
 
-### Evidence Citation Checks
-| Claim | Citation | Verified |
-|-------|----------|----------|
-| BR-1: GROUP BY (branch_id, as_of) with COUNT | JSON:22 | YES - SQL confirmed |
-| BR-2: INNER JOIN on branch_id AND as_of | JSON:22 | YES - SQL confirmed |
-| BR-3: INNER JOIN drops unmatched visits | JSON:22 | YES - JOIN semantics |
-| BR-4: Append mode | JSON:28, DB | YES - `"Append"`; 31 dates confirmed |
-| BR-5: ORDER BY (as_of, branch_id) | JSON:22 | YES - SQL confirmed |
-| BR-6: All calendar days including weekends | DB | YES - 31 dates |
-| BR-7: SameDay dependency on BranchDirectory | control.job_dependencies | YES - verified earlier |
-| BR-8: Only branches with visits appear | SQL logic, DB varying counts | YES - row counts vary (not all 40 branches every day) |
-| BR-9: Simpler version of BranchVisitPurposeBreakdown | SQL comparison | YES - groups by (branch_id, as_of) vs (branch_id, visit_purpose, as_of) |
+Database spot-checks:
+- 4-column schema matches BRD
+- Weekend dates present in output (Oct 5, 6, 12, 13, 19)
+- Branch 7 on Oct 1: visit_count=4, cross-validated with BranchVisitPurposeBreakdown
+- Dependency confirmed: job_id=24 depends on job_id=22 (BranchDirectory), type SameDay
 
-### Database Verification
-- curated.branch_visit_summary: 31 dates, 524 total rows
-- Schema: branch_id (int), branch_name (varchar), as_of (date), visit_count (int) — matches BRD
+## Anti-Pattern Assessment
+- [x] AP identification is plausible and complete
 
-## Notes
-- Clean, simple Transformation job. Well-documented relationship to BranchVisitPurposeBreakdown.
-- SameDay dependency insight consistent with the sister job's BRD.
+Identified patterns correctly assessed:
+- **AP-4**: Correctly identified — visit_id, customer_id, and visit_purpose are sourced but never referenced in SQL. Only branch_id and as_of are used.
+- **AP-8**: Correctly identified — the CTE wraps a simple GROUP BY that could be combined into a single query with JOIN. The suggested V2 SQL is well-designed.
+- **AP-10**: Interesting and well-analyzed. The dependency on BranchDirectory exists in control.job_dependencies but is unnecessary since BranchVisitSummary reads from datalake.branches (not curated.branch_directory). This is technically the inverse of AP-10 (a declared dependency that shouldn't exist, vs a missing dependency that should), but the analysis is sound and relevant for V2 design. The open question about whether to restructure V2 to read from curated.branch_directory is thoughtful.
+
+Remaining APs correctly omitted:
+- AP-1: N/A — both DataSourcing modules are referenced in SQL
+- AP-2: N/A — no curated dependencies in SQL
+- AP-3: N/A — no External module
+- AP-5: N/A — no NULL handling
+- AP-6: N/A — no External module
+- AP-7: N/A — no magic values
+- AP-9: N/A — name accurately describes the output
+
+## Completeness Check
+- [x] All required sections present (Overview, Source Tables, Business Rules, Output Schema, Edge Cases, Anti-Patterns Identified, Traceability Matrix, Open Questions)
+- [x] Traceability matrix complete — all 7 BRs mapped to evidence
+- [x] Output schema documents all 4 columns with source and transformation
+
+## Issues Found
+None blocking.
+
+## Verdict
+PASS: BRD approved for Phase B.
+
+Solid BRD with thoughtful AP-10 analysis. The dependency on BranchDirectory is an interesting finding that the V2 architect should consider. The visit_count cross-validates with BranchVisitPurposeBreakdown data, adding confidence to both BRDs.

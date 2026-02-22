@@ -7,7 +7,7 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id", "visit_purpose"]
+      "columns": ["branch_id", "visit_purpose"]
     },
     {
       "type": "DataSourcing",
@@ -17,21 +17,16 @@
       "columns": ["branch_id", "branch_name"]
     },
     {
-      "type": "DataSourcing",
-      "resultName": "segments",
-      "schema": "datalake",
-      "table": "segments",
-      "columns": ["segment_id", "segment_name"]
-    },
-    {
       "type": "Transformation",
       "resultName": "purpose_breakdown",
-      "sql": "WITH purpose_counts AS (SELECT bv.branch_id, bv.visit_purpose, bv.as_of, COUNT(*) AS visit_count, SUM(COUNT(*)) OVER (PARTITION BY bv.branch_id, bv.as_of) AS total_branch_visits FROM branch_visits bv GROUP BY bv.branch_id, bv.visit_purpose, bv.as_of) SELECT pc.branch_id, b.branch_name, pc.visit_purpose, pc.as_of, pc.visit_count FROM purpose_counts pc JOIN branches b ON pc.branch_id = b.branch_id AND pc.as_of = b.as_of ORDER BY pc.as_of, pc.branch_id, pc.visit_purpose"
+      "sql": "SELECT bv.branch_id, b.branch_name, bv.visit_purpose, bv.as_of, COUNT(*) AS visit_count FROM branch_visits bv JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of GROUP BY bv.branch_id, b.branch_name, bv.visit_purpose, bv.as_of ORDER BY bv.as_of, bv.branch_id, bv.visit_purpose"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.BranchVisitPurposeBreakdownV2Writer"
+      "type": "DataFrameWriter",
+      "source": "purpose_breakdown",
+      "targetTable": "branch_visit_purpose_breakdown",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

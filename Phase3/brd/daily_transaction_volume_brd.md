@@ -1,98 +1,92 @@
-# BRD: DailyTransactionVolume
+# DailyTransactionVolume — Business Requirements Document
 
 ## Overview
-This job produces a daily aggregate summary of all transactions across all accounts, computing total transaction count, total amount, and average amount per day. It writes to `curated.daily_transaction_volume` using Append mode. This job has a SameDay dependency on DailyTransactionSummary.
+
+The DailyTransactionVolume job produces a single aggregate row per effective date summarizing total transaction count, total amount, and average amount across all transactions. Output uses Append mode, accumulating daily snapshots.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| transactions | datalake | transaction_id, account_id, txn_type, amount | Aggregated by as_of date to produce daily volume metrics | [JobExecutor/Jobs/daily_transaction_volume.json:7-10] |
+
+| Table | Alias in Config | Columns Sourced | Purpose |
+|-------|----------------|-----------------|---------|
+| `datalake.transactions` | transactions | transaction_id, account_id, txn_type, amount | Transaction records to aggregate per date |
+
+- Join logic: No joins — the SQL operates solely on the `transactions` table.
+- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:15] SQL references only `transactions`.
 
 ## Business Rules
-BR-1: The output produces one row per as_of date, aggregating all transactions for that date.
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] SQL: `GROUP BY as_of`
 
-BR-2: total_transactions = COUNT(*) — counts all transaction rows per date.
+BR-1: One output row is produced per effective date, summarizing all transactions for that date.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] `COUNT(*) AS total_transactions`
+- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:15] `GROUP BY as_of`
+- Evidence: [curated.daily_transaction_volume] Exactly 1 row per as_of for all 31 dates.
 
-BR-3: total_amount = SUM(amount), rounded to 2 decimal places.
+BR-2: total_transactions is the count of all transactions for the date.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] `ROUND(SUM(amount), 2) AS total_amount`
+- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:15] `COUNT(*) AS total_transactions`
 
-BR-4: avg_amount = AVG(amount), rounded to 2 decimal places.
+BR-3: total_amount is the sum of all transaction amounts for the date, rounded to 2 decimal places.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] `ROUND(AVG(amount), 2) AS avg_amount`
+- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:15] `ROUND(SUM(amount), 2) AS total_amount`
 
-BR-5: The SQL computes MIN(amount) and MAX(amount) in the CTE but these are NOT included in the final SELECT output.
+BR-4: avg_amount is the average transaction amount for the date (total_amount / total_transactions), rounded to 2 decimal places.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] CTE includes `MIN(amount) AS min_amount, MAX(amount) AS max_amount` but the outer SELECT only includes `as_of, total_transactions, total_amount, avg_amount`
+- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:15] `ROUND(AVG(amount), 2) AS avg_amount`
+- Evidence: [curated.daily_transaction_volume] For 2024-10-01: total_amount=362968.14, total_transactions=405, avg_amount=896.22. 362968.14/405 = 896.22 (confirmed).
 
-BR-6: Results are ordered by as_of.
+BR-5: Output uses Append write mode.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] `ORDER BY as_of`
+- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:22] `"writeMode": "Append"`
+- Evidence: [curated.daily_transaction_volume] Has data for all 31 dates.
 
-BR-7: The output is written using Append mode.
+BR-6: Weekend dates are included because transactions have data for all 7 days.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:21] `"writeMode": "Append"`
-- Evidence: [curated.daily_transaction_volume] 31 rows, one per day
+- Evidence: [curated.daily_transaction_volume] Has rows for all 31 days including weekends.
 
-BR-8: This is a pure SQL Transformation job using a CTE (WITH clause).
+BR-7: The output values match the aggregation of DailyTransactionSummary's per-account data exactly.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] `WITH daily_agg AS (SELECT ...) SELECT ...`
+- Evidence: [curated.daily_transaction_summary] SUM(total_amount)=362968.14 and SUM(transaction_count)=405 for 2024-10-01, matching daily_transaction_volume output exactly.
 
-BR-9: This job has a SameDay dependency on DailyTransactionSummary.
+BR-8: DailyTransactionVolume has a declared SameDay dependency on DailyTransactionSummary.
 - Confidence: HIGH
-- Evidence: [control.job_dependencies] `dependency_id=1, job_id=5 (DailyTransactionVolume), depends_on_job_id=2 (DailyTransactionSummary), dependency_type='SameDay'`
-- Note: Despite the dependency, this job reads directly from datalake.transactions, not from the output of DailyTransactionSummary. The dependency may be for scheduling/ordering purposes only.
-
-BR-10: Transactions exist for all 31 days of October, so the output has 31 rows.
-- Confidence: HIGH
-- Evidence: [curated.daily_transaction_volume] 31 rows
-- Evidence: [datalake.transactions] 31 distinct as_of dates
-
-BR-11: Only transaction_id, account_id, txn_type, and amount are sourced. txn_timestamp and description are NOT sourced (unlike DailyTransactionSummary).
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:9] columns: `["transaction_id", "account_id", "txn_type", "amount"]`
-
-BR-12: The SUM and AVG are computed on the raw `amount` field — all transaction types are included (no CASE filtering by txn_type).
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/daily_transaction_volume.json:14] `SUM(amount)`, `AVG(amount)` — no CASE or WHERE filtering by txn_type
-- Note: This contrasts with DailyTransactionSummary which uses CASE-based type filtering
+- Evidence: [control.job_dependencies] Query shows `DailyTransactionVolume` depends on `DailyTransactionSummary` with type `SameDay`.
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| as_of | transactions.as_of | Group key | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| total_transactions | transactions | COUNT(*) per date | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| total_amount | transactions.amount | SUM(amount), ROUND 2 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| avg_amount | transactions.amount | AVG(amount), ROUND 2 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
+
+| Column | Type | Source | Transformation |
+|--------|------|--------|---------------|
+| as_of | date | `transactions.as_of` | GROUP BY key |
+| total_transactions | integer | Calculated | COUNT(*) |
+| total_amount | numeric(14,2) | Calculated | ROUND(SUM(amount), 2) |
+| avg_amount | numeric(14,2) | Calculated | ROUND(AVG(amount), 2) |
 
 ## Edge Cases
-- **CTE computes unused columns**: MIN and MAX amounts are computed in the CTE but excluded from the final output. This is wasted computation but has no effect on results. [JobExecutor/Jobs/daily_transaction_volume.json:14]
-- **Weekend data**: Transactions exist 7 days/week, so the job produces output every day.
-- **Zero transactions on a date**: If no transactions exist for a date, no output row is produced. Current data has transactions every day.
-- **All txn_types included**: Unlike DailyTransactionSummary, this job does not filter by txn_type — all amounts are summed and averaged equally.
-- **Append accumulation**: Running the job for the same date twice would produce duplicate rows.
-- **SameDay dependency**: This job depends on DailyTransactionSummary being completed first for the same run_date. However, the job reads from datalake.transactions directly, not from DailyTransactionSummary output. The dependency appears to be for operational ordering, not data flow.
+
+- **Weekend dates:** Transactions exist on all days, so this job produces output for weekends.
+- **Zero transactions:** If no transactions exist for a date, no output row is produced (GROUP BY returns no rows). In practice, this doesn't occur — all dates in the data range have transactions.
+- **CTE min/max discarded:** The CTE computes `MIN(amount)` and `MAX(amount)` but the outer SELECT discards them (see AP-8).
+
+## Anti-Patterns Identified
+
+- **AP-2: Duplicated Transformation Logic** — Despite having a declared SameDay dependency on DailyTransactionSummary, this job re-derives the aggregates from raw `datalake.transactions` instead of reading from `curated.daily_transaction_summary`. The dependency exists but is not leveraged for data reuse. The output could be computed as `SELECT as_of, SUM(transaction_count), SUM(total_amount), ROUND(SUM(total_amount)/SUM(transaction_count), 2) FROM curated.daily_transaction_summary GROUP BY as_of`. V2 approach: Read from the curated daily_transaction_summary table and aggregate, or compute directly from datalake.transactions with simplified SQL (eliminating the dependency entirely if not needed for data purposes).
+
+- **AP-4: Unused Columns Sourced** — Columns `transaction_id`, `account_id`, and `txn_type` are sourced from transactions [JobExecutor/Jobs/daily_transaction_volume.json:10] but never used in the SQL. The SQL only references `as_of` and `amount`. V2 approach: Source only `amount` (plus `as_of` which is auto-added by DataSourcing).
+
+- **AP-8: Overly Complex SQL** — The SQL uses an unnecessary CTE (`daily_agg`) that computes `MIN(amount)` and `MAX(amount)` columns, but the outer SELECT only takes `as_of, total_transactions, total_amount, avg_amount` — discarding min and max. The CTE wrapper is unnecessary since the outer query just selects a subset of CTE columns. The entire query could be a single `SELECT as_of, COUNT(*), ROUND(SUM(amount), 2), ROUND(AVG(amount), 2) FROM transactions GROUP BY as_of ORDER BY as_of`. V2 approach: Remove the CTE and unused min/max calculations; use a direct single-level query.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| BR-2 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| BR-3 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| BR-4 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| BR-5 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| BR-6 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| BR-7 | [JobExecutor/Jobs/daily_transaction_volume.json:21] |
-| BR-8 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
-| BR-9 | [control.job_dependencies] |
-| BR-10 | [curated.daily_transaction_volume count], [datalake.transactions dates] |
-| BR-11 | [JobExecutor/Jobs/daily_transaction_volume.json:9] |
-| BR-12 | [JobExecutor/Jobs/daily_transaction_volume.json:14] |
+| BR-1 | [JobExecutor/Jobs/daily_transaction_volume.json:15], curated 1 row/date |
+| BR-2 | [JobExecutor/Jobs/daily_transaction_volume.json:15] COUNT(*) |
+| BR-3 | [JobExecutor/Jobs/daily_transaction_volume.json:15] SUM(amount) |
+| BR-4 | [JobExecutor/Jobs/daily_transaction_volume.json:15] AVG(amount), curated verification |
+| BR-5 | [JobExecutor/Jobs/daily_transaction_volume.json:22], curated 31 dates |
+| BR-6 | curated weekend data present |
+| BR-7 | Cross-table comparison of curated.daily_transaction_summary vs curated.daily_transaction_volume |
+| BR-8 | [control.job_dependencies] SameDay dependency on DailyTransactionSummary |
 
 ## Open Questions
-- **SameDay dependency rationale**: DailyTransactionVolume has a SameDay dependency on DailyTransactionSummary, but does not read DailyTransactionSummary's output. The dependency may be intentional for operational ordering or may be a configuration artifact. Confidence: MEDIUM that the dependency is for scheduling order rather than data flow.
-- **Unused CTE columns**: MIN(amount) and MAX(amount) are computed but not output. This could indicate that these columns were previously included or are planned for future use. Confidence: HIGH that they are currently unused.
+
+- **Dependency design decision:** The job has a declared dependency on DailyTransactionSummary but doesn't read from its output. For V2, the architect should decide whether to (a) leverage the dependency and read from the upstream curated table (fixing AP-2), or (b) remove the dependency and compute independently (simpler, but maintains duplication). The values are provably equivalent, so either approach is correct.
+  - Confidence: HIGH — both approaches produce identical output. The decision is architectural.

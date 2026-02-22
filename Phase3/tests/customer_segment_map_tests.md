@@ -1,23 +1,38 @@
-# Test Plan: CustomerSegmentMapV2
+# CustomerSegmentMap — Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Verify INNER JOIN on segment_id AND as_of | Only matching rows from both tables appear in output |
-| TC-2 | BR-2 | Verify inner join semantics | No NULL segment_name or segment_code in output (unmatched rows excluded) |
-| TC-3 | BR-3 | Verify output columns | customer_id, segment_id, segment_name, segment_code, as_of |
-| TC-4 | BR-4 | Verify ORDER BY customer_id, segment_id | Output rows ordered correctly |
-| TC-5 | BR-5 | Verify Append mode | Multiple effective dates accumulate rows |
-| TC-6 | BR-6 | Verify branches table unused | Output has no branch-related columns |
-| TC-7 | BR-7 | Verify pure SQL Transformation | No External module processing needed |
-| TC-8 | BR-8 | Verify consistent row counts per date | 291 rows per effective date (matching original) |
-| TC-9 | BR-9 | Verify date alignment in join | as_of from customers_segments matches as_of from segments in each output row |
-| TC-10 | BR-1,5 | Compare V2 output to original | EXCEPT query yields zero rows for all accumulated dates |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | Segment_id in customers_segments not in segments | Row excluded by INNER JOIN |
-| EC-2 | Weekend effective date | Both tables have data every day, so output produced on weekends |
-| EC-3 | Duplicate customer-segment mapping for same as_of | Duplicate rows appear in output |
-| EC-4 | Multiple effective dates | Rows accumulate (Append mode) |
+### TC-1: Row count matches customer-segment pairs
+- **Traces to:** BR-1
+- **Method:** Compare `SELECT COUNT(*) FROM double_secret_curated.customer_segment_map WHERE as_of = {date}` with `SELECT COUNT(*) FROM datalake.customers_segments WHERE as_of = {date}` (assuming all segment_ids are valid).
+- **Expected:** 291 rows per date
+
+### TC-2: Join uses both segment_id and as_of
+- **Traces to:** BR-2
+- **Method:** Verify that segment_name and segment_code come from the segments table for the same as_of date.
+- **Expected:** All rows have valid segment_name and segment_code
+
+### TC-3: Ordering is by customer_id then segment_id
+- **Traces to:** BR-3
+- **Method:** Verify output is sorted by customer_id ASC, then segment_id ASC within each customer.
+- **Expected:** Ordered correctly
+
+### TC-4: Append mode — all dates present
+- **Traces to:** BR-4
+- **Method:** After running Oct 1-31, verify 31 distinct as_of values with 291 rows each.
+- **Expected:** 31 dates, 291 rows each
+
+### TC-5: Weekend dates have data
+- **Traces to:** BR-5
+- **Method:** Verify rows exist for 2024-10-05 and 2024-10-06.
+- **Expected:** Rows present for weekend dates
+
+### TC-6: Inner join excludes orphan segments
+- **Traces to:** BR-6
+- **Method:** Verify no rows with segment_id values that don't exist in datalake.segments for that date.
+- **Expected:** All segment_ids in output exist in segments reference table
+
+### TC-7: Full EXCEPT comparison with original
+- **Traces to:** All BRs
+- **Method:** For each date: `SELECT * FROM curated.customer_segment_map WHERE as_of = {date} EXCEPT SELECT * FROM double_secret_curated.customer_segment_map WHERE as_of = {date}` and vice versa.
+- **Expected:** Both EXCEPT queries return 0 rows

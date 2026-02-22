@@ -1,41 +1,71 @@
-# FSD: LargeTransactionLogV2
+# LargeTransactionLog -- Functional Specification Document
 
-## Overview
-Replaces the original LargeTransactionLog job with a V2 implementation that writes to the `double_secret_curated` schema instead of `curated`. The V2 External module replicates the exact same business logic as the original LargeTransactionProcessor (filtering transactions > $500 and enriching with customer identity via account-to-customer lookup) and then writes directly to `double_secret_curated.large_transaction_log` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module replacement)**: The original job uses DataSourcing (x4) -> External (LargeTransactionProcessor) -> DataFrameWriter. The V2 replaces both the External and DataFrameWriter steps with a single V2 External module.
-- The V2 module replicates the original's two-step lookup: account_id -> customer_id, then customer_id -> (first_name, last_name).
-- Write mode is Append (matching original), so DscWriterUtil.Write is called with overwrite=false.
-- The addresses DataSourcing step is retained in the config (matching the original) even though it is unused.
+SQL-first. The original External module (LargeTransactionProcessor) performs a filter (amount > 500) and two-step LEFT JOIN (transactions -> accounts -> customers). This is a standard multi-table SQL JOIN. The V2 replaces the External module with a Transformation step and removes unused DataSourcing modules.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=transactions, columns=[transaction_id, account_id, txn_timestamp, txn_type, amount, description], resultName=transactions |
-| 2 | DataSourcing | schema=datalake, table=accounts, columns=[account_id, customer_id, account_type, account_status, open_date, current_balance, interest_rate, credit_limit, apr], resultName=accounts |
-| 3 | DataSourcing | schema=datalake, table=customers, columns=[id, first_name, last_name], resultName=customers |
-| 4 | DataSourcing | schema=datalake, table=addresses, columns=[address_id, customer_id, address_line1, city], resultName=addresses (unused) |
-| 5 | External | LargeTransactionV2Processor -- filters amount > 500, enriches with customer identity, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: LargeTransactionV2Processor
-- File: ExternalModules/LargeTransactionV2Processor.cs
-- Processing logic: Builds account_id -> customer_id lookup from accounts. Builds customer_id -> (first_name, last_name) lookup from customers. Iterates transactions, filters amount > 500, enriches with customer identity. Writes to double_secret_curated via DscWriterUtil with overwrite=false (Append).
-- Output columns: transaction_id, account_id, customer_id, first_name, last_name, txn_type, amount, description, txn_timestamp, as_of
-- Target table: double_secret_curated.large_transaction_log
-- Write mode: Append (overwrite=false)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed `addresses` DataSourcing module (never referenced by External module) |
+| AP-2    | N                   | N/A                | No duplicated upstream logic |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation |
+| AP-4    | Y                   | Y                  | Reduced accounts columns from 9 to 2 (only `account_id`, `customer_id` needed) |
+| AP-5    | N                   | N/A                | NULL/default handling is consistent (COALESCE to '' for names, 0 for missing customer_id) |
+| AP-6    | Y                   | Y                  | Three foreach loops replaced by set-based SQL JOINs |
+| AP-7    | Y                   | Y (documented)     | Threshold 500 documented in SQL comment; value retained for output match |
+| AP-8    | N                   | N/A                | No overly complex SQL in original (it was C# code) |
+| AP-9    | N                   | N/A                | Job name accurately describes what it does |
+| AP-10   | N                   | N/A                | No undeclared dependencies |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** `transactions`: Read `transaction_id`, `account_id`, `txn_type`, `amount`, `description`, `txn_timestamp` from `datalake.transactions`
+2. **DataSourcing** `accounts`: Read `account_id`, `customer_id` from `datalake.accounts`
+3. **DataSourcing** `customers`: Read `id`, `first_name`, `last_name` from `datalake.customers`
+4. **Transformation** `large_txn_result`: SQL query that filters amount > 500, LEFT JOINs transactions -> accounts -> customers
+5. **DataFrameWriter**: Write `large_txn_result` to `double_secret_curated.large_transaction_log` in Append mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    t.transaction_id,
+    t.account_id,
+    -- Default customer_id to 0 if no matching account found (BR-3)
+    COALESCE(a.customer_id, 0) AS customer_id,
+    -- Default names to empty string if no matching customer found (BR-4)
+    COALESCE(c.first_name, '') AS first_name,
+    COALESCE(c.last_name, '') AS last_name,
+    t.txn_type,
+    t.amount,
+    t.description,
+    t.txn_timestamp,
+    t.as_of
+FROM transactions t
+LEFT JOIN accounts a
+    ON t.account_id = a.account_id
+    AND t.as_of = a.as_of
+LEFT JOIN customers c
+    ON a.customer_id = c.id
+    AND a.as_of = c.as_of
+WHERE t.amount > 500  -- Large transaction threshold: transactions exceeding $500 (BR-1)
+```
+
+**Key design notes:**
+- Two-step LEFT JOIN chain: transactions -> accounts (by account_id) -> customers (by customer_id)
+- COALESCE(a.customer_id, 0) reproduces the original GetValueOrDefault(accountId, 0) behavior (BR-3)
+- COALESCE for names reproduces GetValueOrDefault(customerId, ("", "")) (BR-4)
+- Append mode means rows accumulate across dates
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | V2 processor filters transactions with amount > 500 |
-| BR-2 | Two-step lookup: account_id -> customer_id -> (first_name, last_name) |
-| BR-3 | accountToCustomer.GetValueOrDefault(accountId, 0) for missing accounts |
-| BR-4 | customerNames.GetValueOrDefault(customerId, ("", "")) for missing customers |
-| BR-5 | No txn_type filter applied |
-| BR-6 | DscWriterUtil.Write with overwrite=false (Append) |
-| BR-7 | Empty DataFrame guard if accounts or customers are null/empty |
-| BR-8 | Empty DataFrame guard if transactions are null/empty |
-| BR-9 | addresses sourced in config but not referenced in V2 processor |
-| BR-10 | as_of from txnRow["as_of"] |
-| BR-11 | Only customer_id used from accounts table; other columns loaded but unused |
+|-----------------|-------------------|
+| BR-1 | WHERE clause: `t.amount > 500` |
+| BR-2 | Two-step LEFT JOIN chain: transactions -> accounts -> customers |
+| BR-3 | COALESCE(a.customer_id, 0) for missing account lookup |
+| BR-4 | COALESCE(c.first_name, '') and COALESCE(c.last_name, '') for missing customer |
+| BR-5 | DataFrameWriter writeMode: "Append" |
+| BR-6 | Framework handles empty DataFrames natively; SQL produces empty result if no rows match |

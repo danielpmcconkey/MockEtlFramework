@@ -1,33 +1,52 @@
-# FSD: CreditScoreSnapshotV2
+# CreditScoreSnapshot -- Functional Specification Document
 
-## Overview
-CreditScoreSnapshotV2 replicates the exact pass-through behavior of CreditScoreSnapshot, copying all credit score records for the effective date to the curated layer. The V2 uses DscWriterUtil to write to `double_secret_curated.credit_score_snapshot`.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module)**: Original uses DataSourcing + External + DataFrameWriter. V2 keeps DataSourcing steps identical and replaces External+DataFrameWriter with a single V2 External.
-- **Write mode**: Overwrite (overwrite=true) to match original.
-- **Branches DataSourcing retained**: The original sources branches but never uses them. V2 retains this for behavioral equivalence.
+**SQL-first with External module guard for empty DataFrames.** The original External module is a pure pass-through (copies every row with no transformation). However, the framework's Transformation module does not register empty DataFrames as SQLite tables, meaning a pure SQL approach would crash on weekends when `credit_scores` has no data. The original gracefully returns empty output on empty input.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | credit_scores: credit_score_id, customer_id, bureau, score |
-| 2 | DataSourcing | branches: branch_id, branch_name, city, state_province |
-| 3 | External | CreditScoreSnapshotV2Processor |
+To handle this, the V2 uses a minimal External module that:
+1. Checks if the credit_scores DataFrame is empty (returning empty output if so)
+2. Otherwise passes the DataFrame through directly (no row-by-row copy needed)
 
-## V2 External Module: CreditScoreSnapshotV2Processor
-- File: ExternalModules/CreditScoreSnapshotV2Processor.cs
-- Processing logic: Simple pass-through of all credit score rows
-- Output columns: credit_score_id, customer_id, bureau, score, as_of
-- Target table: double_secret_curated.credit_score_snapshot
-- Write mode: Overwrite (overwrite=true)
+This is a framework limitation justification, not a business logic justification. The V2 External module is dramatically simpler than the original.
 
-## Traceability
+## Anti-Patterns Eliminated
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `branches` DataSourcing module entirely |
+| AP-2    | N                   | N/A                | No duplicated transformation logic |
+| AP-3    | Y                   | Partial            | External module retained for empty-DataFrame guard only; row-by-row copy eliminated (direct DataFrame pass-through) |
+| AP-4    | Y                   | Y                  | Removed unused branches columns (covered by AP-1 removal) |
+| AP-5    | N                   | N/A                | No NULL/default handling asymmetry |
+| AP-6    | Y                   | Y                  | Eliminated row-by-row copy loop; direct DataFrame assignment instead |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No complex SQL |
+| AP-9    | Y                   | N (documented)     | Name "Snapshot" slightly misleading for a pass-through; kept for compatibility |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
+
+## V2 Pipeline Design
+
+1. **DataSourcing** - `credit_scores` from `datalake.credit_scores` with columns: `credit_score_id`, `customer_id`, `bureau`, `score`
+2. **External** - `CreditScoreSnapshotV2`: empty-check guard + pass-through
+3. **DataFrameWriter** - Write to `credit_score_snapshot` in `double_secret_curated` schema, Overwrite mode
+
+## External Module Design
+
+```
+IF credit_scores is empty:
+    Return empty DataFrame with columns [credit_score_id, customer_id, bureau, score, as_of]
+ELSE:
+    Return credit_scores DataFrame directly (it already has all needed columns including as_of)
+```
+
+No row-by-row iteration. No transformation. Just a null/empty guard with direct DataFrame pass-through.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 (All records pass through) | Loop copies all credit score rows |
-| BR-2 (5 output columns) | OutputColumns list matches exactly |
-| BR-3 (Overwrite mode) | DscWriterUtil.Write with overwrite=true |
-| BR-4 (Empty input guard) | Early return with empty DataFrame |
-| BR-5 (Branches unused) | Branches DataSourcing retained but not referenced |
-| BR-6 (No transformation) | Direct field copy without modification |
+|-----------------|-------------------|
+| BR-1 | Direct pass-through: all rows from credit_scores are passed to output unchanged |
+| BR-2 | Output columns match source: credit_score_id, customer_id, bureau, score, as_of |
+| BR-3 | Empty-check guard returns empty DataFrame when input is empty |
+| BR-4 | DataFrameWriter configured with writeMode: Overwrite |

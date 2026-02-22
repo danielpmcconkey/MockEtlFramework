@@ -1,85 +1,83 @@
-# BRD: CustomerSegmentMap
+# CustomerSegmentMap — Business Requirements Document
 
 ## Overview
-This job produces a mapping of customers to their segments by joining the `customers_segments` association table with the `segments` reference table. It enriches each mapping with segment_name and segment_code, and writes the result to `curated.customer_segment_map` using Append mode, accumulating data across all effective dates.
+
+The CustomerSegmentMap job joins customer-segment membership data with the segment reference table to produce a mapping of customers to their segments, including segment name and code. The output uses Append mode, accumulating data across all effective dates.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| customers_segments | datalake | customer_id, segment_id | Left side of JOIN; provides the customer-to-segment mapping | [JobExecutor/Jobs/customer_segment_map.json:7-10] |
-| segments | datalake | segment_id, segment_name, segment_code | Right side of JOIN; provides segment details | [JobExecutor/Jobs/customer_segment_map.json:12-16] |
-| branches | datalake | branch_id, branch_name, city, state_province | Sourced into shared state but NOT used in the transformation SQL | [JobExecutor/Jobs/customer_segment_map.json:18-22] |
+
+| Table | Alias in Config | Columns Sourced | Purpose |
+|-------|----------------|-----------------|---------|
+| `datalake.customers_segments` | customers_segments | customer_id, segment_id | Customer-to-segment membership mapping |
+| `datalake.segments` | segments | segment_id, segment_name, segment_code | Segment reference data for name and code lookup |
+| `datalake.branches` | branches | branch_id, branch_name, city, state_province | **NOT USED** — sourced but never referenced in the Transformation SQL |
+
+- Join logic: `customers_segments` is inner-joined to `segments` on `segment_id` AND `as_of` (same-date join).
+- Evidence: [JobExecutor/Jobs/customer_segment_map.json:29] `JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of`
 
 ## Business Rules
-BR-1: The output is produced by joining customers_segments with segments on segment_id AND as_of date.
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:28] SQL: `JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of`
 
-BR-2: The join is an INNER JOIN, meaning only customer-segment mappings with a matching segment record (same segment_id AND same as_of) produce output rows.
+BR-1: Each customer-segment pair produces one output row per effective date, enriched with segment_name and segment_code from the segments reference table.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:28] `JOIN` (not LEFT JOIN) — inner join semantics
+- Evidence: [JobExecutor/Jobs/customer_segment_map.json:29] SQL joins customers_segments to segments on segment_id and as_of.
+- Evidence: [curated.customer_segment_map] 291 rows per as_of, matching datalake.customers_segments count of 291.
 
-BR-3: The output includes customer_id, segment_id, segment_name, segment_code, and as_of.
+BR-2: The join between customers_segments and segments uses an inner join with both segment_id and as_of equality, ensuring only matching-date segment definitions are used.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:27] `SELECT cs.customer_id, cs.segment_id, s.segment_name, s.segment_code, cs.as_of`
+- Evidence: [JobExecutor/Jobs/customer_segment_map.json:29] `JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of`
 
-BR-4: Results are ordered by customer_id, then segment_id.
+BR-3: Output is ordered by customer_id, then segment_id.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:28] `ORDER BY cs.customer_id, cs.segment_id`
+- Evidence: [JobExecutor/Jobs/customer_segment_map.json:29] `ORDER BY cs.customer_id, cs.segment_id`
 
-BR-5: The output is written using Append mode, accumulating rows across all effective dates.
+BR-4: Output uses Append write mode, accumulating rows across all effective dates.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:34] `"writeMode": "Append"`
-- Evidence: [curated.customer_segment_map] Contains 9021 rows across all 31 dates (291 mappings/day * 31 days = 9021)
+- Evidence: [JobExecutor/Jobs/customer_segment_map.json:35] `"writeMode": "Append"`
+- Evidence: [curated.customer_segment_map] Has 291 rows for each of 31 dates (Oct 1-31), including weekends.
 
-BR-6: The branches table is sourced but not used (dead data sourcing).
+BR-5: Weekend dates are included because both source tables (customers_segments and segments) have data for all 7 days of the week.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:18-22] branches is sourced as a DataSourcing module
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:27-28] SQL only references `customers_segments` and `segments` tables, not `branches`
+- Evidence: [datalake.customers_segments] and [datalake.segments] both have as_of dates for Oct 5 (Sat) and Oct 6 (Sun).
+- Evidence: [curated.customer_segment_map] Has rows for 2024-10-05 and 2024-10-06.
 
-BR-7: This is a pure SQL Transformation job — no External module is used.
+BR-6: Customers whose segment_id does not exist in the segments reference table for that date are excluded (inner join behavior).
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json] Module pipeline: DataSourcing x3 -> Transformation -> DataFrameWriter (no External module)
-
-BR-8: Each effective date produces the same number of rows (291) since both customers_segments and segments have consistent row counts across dates.
-- Confidence: HIGH
-- Evidence: [curated.customer_segment_map] `SELECT as_of, COUNT(*) GROUP BY as_of` shows 291 rows per date
-- Evidence: [datalake.customers_segments] 291 rows per as_of; [datalake.segments] 8 rows per as_of
-
-BR-9: The join condition includes date alignment (as_of matching), ensuring segment data is temporally consistent.
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/customer_segment_map.json:28] `cs.as_of = s.as_of` in the JOIN condition
+- Evidence: [JobExecutor/Jobs/customer_segment_map.json:29] INNER JOIN filters out non-matching rows.
+- Evidence: [datalake.segments] Segment_id 5 ("Student banking") exists in segments table. [datalake.customers_segments] segment_id 5 has 0 customer mappings for 2024-10-01. All mapped segment_ids do exist in segments.
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| customer_id | customers_segments.customer_id | Direct mapping | [JobExecutor/Jobs/customer_segment_map.json:27] `cs.customer_id` |
-| segment_id | customers_segments.segment_id | Direct mapping | [JobExecutor/Jobs/customer_segment_map.json:27] `cs.segment_id` |
-| segment_name | segments.segment_name | Joined from segments table | [JobExecutor/Jobs/customer_segment_map.json:27] `s.segment_name` |
-| segment_code | segments.segment_code | Joined from segments table | [JobExecutor/Jobs/customer_segment_map.json:27] `s.segment_code` |
-| as_of | customers_segments.as_of | Passed through | [JobExecutor/Jobs/customer_segment_map.json:27] `cs.as_of` |
+
+| Column | Type | Source | Transformation |
+|--------|------|--------|---------------|
+| customer_id | integer | `customers_segments.customer_id` | Passthrough |
+| segment_id | integer | `customers_segments.segment_id` | Passthrough |
+| segment_name | varchar(100) | `segments.segment_name` | Joined via segment_id + as_of |
+| segment_code | varchar(10) | `segments.segment_code` | Joined via segment_id + as_of |
+| as_of | date | `customers_segments.as_of` | Passthrough |
 
 ## Edge Cases
-- **Unmatched segment_ids**: If a customer_segment row references a segment_id not present in the segments table (for the same as_of), the INNER JOIN excludes it. No data loss evidence in current data.
-- **Date alignment**: The JOIN requires `cs.as_of = s.as_of`. Both tables have data for all 31 days (including weekends), so no date gaps affect the join.
-- **Weekend behavior**: Both customers_segments and segments have data every day (31 dates), so the job produces output for every date including weekends.
-- **Duplicate mappings**: If a customer has the same segment_id multiple times in customers_segments for the same as_of, duplicate rows would appear in the output. Current data does not show this pattern.
-- **Append accumulation**: Since writeMode is Append, running the job multiple times for the same effective date would produce duplicate rows. The framework's gap-fill mechanism prevents this by only running for dates not yet succeeded.
-- **Unused branches**: The branches table is loaded into shared state via DataSourcing but never referenced in the Transformation SQL.
+
+- **Weekend dates:** Both source tables have data for all 7 days, so this job produces output for weekends. This contrasts with jobs that source from `customers` or `accounts` tables, which have weekday-only data.
+- **Missing segment reference:** If a segment_id in customers_segments has no matching row in the segments table for the same as_of, that row is excluded (inner join). Based on database inspection, all currently-mapped segment_ids exist in segments, so this is a theoretical edge case.
+- **Stable row counts:** The customers_segments table has exactly 291 rows for every as_of date inspected, and the output consistently has 291 rows per date. The data appears stable (no membership changes across the month).
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `branches` table is sourced [JobExecutor/Jobs/customer_segment_map.json:22-26] with columns `branch_id, branch_name, city, state_province`, but the Transformation SQL only references `customers_segments` (aliased `cs`) and `segments` (aliased `s`). The branches DataFrame is loaded into shared state and registered as a SQLite table but never queried. V2 approach: Remove the branches DataSourcing module entirely.
+
+- **AP-4: Unused Columns Sourced** — Even for the tables that are used, no columns are unused — all sourced columns from customers_segments and segments appear in the output or join condition. This anti-pattern applies only to the branches table (covered by AP-1).
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [JobExecutor/Jobs/customer_segment_map.json:28] |
-| BR-2 | [JobExecutor/Jobs/customer_segment_map.json:28] |
-| BR-3 | [JobExecutor/Jobs/customer_segment_map.json:27] |
-| BR-4 | [JobExecutor/Jobs/customer_segment_map.json:28] |
-| BR-5 | [JobExecutor/Jobs/customer_segment_map.json:34], [curated.customer_segment_map row counts] |
-| BR-6 | [JobExecutor/Jobs/customer_segment_map.json:18-22, 27-28] |
-| BR-7 | [JobExecutor/Jobs/customer_segment_map.json] |
-| BR-8 | [curated.customer_segment_map row counts], [datalake.customers_segments counts] |
-| BR-9 | [JobExecutor/Jobs/customer_segment_map.json:28] |
+| BR-1 | [JobExecutor/Jobs/customer_segment_map.json:29], [curated.customer_segment_map] 291 rows/date |
+| BR-2 | [JobExecutor/Jobs/customer_segment_map.json:29] |
+| BR-3 | [JobExecutor/Jobs/customer_segment_map.json:29] |
+| BR-4 | [JobExecutor/Jobs/customer_segment_map.json:35], curated output 31 dates |
+| BR-5 | [datalake.customers_segments] and [datalake.segments] weekend data, curated weekend data |
+| BR-6 | [JobExecutor/Jobs/customer_segment_map.json:29] INNER JOIN |
 
 ## Open Questions
-- **Unused branches sourcing**: The branches table is loaded but never referenced. This appears to be dead configuration. Confidence: HIGH that it is unused.
-- **Append idempotency**: If the job were re-run for an already-processed date, it would insert duplicate rows since Append mode does not check for existing data. The executor's gap-fill mechanism prevents this in normal operation. Confidence: HIGH.
+
+None — this job's logic is straightforward and fully observable in the SQL Transformation. All business rules are HIGH confidence.

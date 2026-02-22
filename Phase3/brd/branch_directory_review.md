@@ -1,39 +1,50 @@
-# Review: BranchDirectory BRD
+# BranchDirectory — BRD Review
 
-## Status: PASS
+## Review Status: PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Verification
+- [x] All citations checked (5 business rules, all line references verified)
+- [x] All citations accurate (1 minor off-by-one noted below, not blocking)
 
-## Verification Details
+Detailed verification:
+- BR-1 [lines 14-15]: Confirmed SQL has no content filtering — only ROW_NUMBER dedup. Database confirms 40 curated rows = 40 distinct datalake branch_ids.
+- BR-2 [line 15]: Confirmed `ROW_NUMBER() OVER (PARTITION BY b.branch_id ORDER BY b.branch_id) AS rn` with `WHERE rn = 1` — exact match.
+- BR-3 [line 15]: Confirmed 8-column SELECT — exact match. Schema verified.
+- BR-4 [line 15]: Confirmed `ORDER BY branch_id` — exact match.
+- BR-5 [line 22]: **Minor** — `"writeMode": "Overwrite"` is on line 21, not 22. Line 22 is `}`. Not blocking.
 
-### Evidence Citation Checks
-| Claim | Citation | Verified |
-|-------|----------|----------|
-| BR-1: ROW_NUMBER deduplication by branch_id | branch_directory.json:15 | YES - CTE with ROW_NUMBER OVER (PARTITION BY branch_id ORDER BY branch_id), WHERE rn = 1 |
-| BR-2: Non-deterministic ordering within partition | branch_directory.json:15 | YES - ORDER BY same as PARTITION BY; DB: 40 total = 40 distinct, so no duplicates exist |
-| BR-3: 7 branch columns + as_of in output | branch_directory.json:15, DB schema | YES - SELECT lists all 8 columns; DB schema matches |
-| BR-4: Overwrite mode | branch_directory.json:22 | YES (writeMode is actually on line 21, off by 1, but claim is correct) |
-| BR-5: Ordered by branch_id | branch_directory.json:15, DB | YES - SQL ends with ORDER BY branch_id; sample data confirms |
-| BR-6: All calendar days including weekends | datalake.branches | YES - 31 dates Oct 1-31 including weekends |
-| BR-7: No upstream deps; downstream deps exist | control.job_dependencies | YES - BranchVisitSummary and BranchVisitPurposeBreakdown depend on BranchDirectory (SameDay) |
-| BR-8: No filtering, all branches included | branch_directory.json:15, DB | YES - No WHERE except rn=1; 40 rows matches source |
+Database spot-checks:
+- 40 rows in curated, 40 distinct branch_ids
+- Zero duplicate branch_ids per as_of in datalake (confirms AP-8)
+- 1 distinct as_of date (Overwrite mode confirmed)
+- 8-column schema matches BRD
 
-### Database Verification
-- datalake.branches: 31 as_of dates (Oct 1-31, all calendar days), 40 rows/date, 40 distinct branch_ids/date (no duplicates)
-- curated.branch_directory: 40 rows, as_of=2024-10-31 (Overwrite mode)
-- Schema: branch_id (int), branch_name (varchar), address_line1 (varchar), city (varchar), state_province (varchar), postal_code (varchar), country (char), as_of (date) — matches BRD
-- Dependencies confirmed: BranchVisitSummary and BranchVisitPurposeBreakdown are SameDay dependents
+## Anti-Pattern Assessment
+- [x] AP identification is plausible and complete
 
-### Line Number Accuracy
-Minor issue: BR-4 cites line 22 for writeMode, actual line is 21. All other citations accurate. Not a substantive error.
+Identified pattern:
+- **AP-8**: Correctly identified. The CTE with ROW_NUMBER partitioned by branch_id is unnecessary — database query confirms zero duplicate branch_ids per as_of. A simple SELECT would produce identical results.
 
-## Notes
-- First Transformation-based job reviewed (SQL in JSON config, no External module).
-- Good observation that branches has all calendar days unlike accounts/customers which are weekday-only. This is an important distinction for V2 implementation.
-- Dependency analysis (BR-7) adds valuable context for understanding job execution order.
-- Deduplication as a safety measure is correctly identified given no actual duplicates in source data.
+Remaining APs correctly omitted:
+- AP-1: N/A — single DataSourcing, all used
+- AP-2: N/A — no curated dependencies
+- AP-3: N/A — no External module (already SQL pipeline)
+- AP-4: N/A — all 7 sourced columns appear in the SQL SELECT
+- AP-5: N/A — no NULL handling
+- AP-6: N/A — no External module
+- AP-7: N/A — no magic values
+- AP-9: N/A — name accurately describes the output
+- AP-10: N/A — no curated dependencies
+
+## Completeness Check
+- [x] All required sections present (Overview, Source Tables, Business Rules, Output Schema, Edge Cases, Anti-Patterns Identified, Traceability Matrix, Open Questions)
+- [x] Traceability matrix complete — all 5 BRs mapped to evidence
+- [x] Output schema documents all 8 columns with source and transformation
+
+## Issues Found
+None blocking.
+
+## Verdict
+PASS: BRD approved for Phase B.
+
+Clean BRD for a straightforward SQL-based job. The AP-8 identification is well-supported with database evidence showing no duplicates exist. The V2 simplification will be minimal — just remove the unnecessary CTE/ROW_NUMBER wrapper.

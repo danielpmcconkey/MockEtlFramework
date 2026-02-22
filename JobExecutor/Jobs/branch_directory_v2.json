@@ -12,12 +12,14 @@
     {
       "type": "Transformation",
       "resultName": "branch_dir",
-      "sql": "WITH branch_data AS (SELECT b.branch_id, b.branch_name, b.address_line1, b.city, b.state_province, b.postal_code, b.country, b.as_of, ROW_NUMBER() OVER (PARTITION BY b.branch_id ORDER BY b.branch_id) AS rn FROM branches b) SELECT branch_id, branch_name, address_line1, city, state_province, postal_code, country, as_of FROM branch_data WHERE rn = 1 ORDER BY branch_id"
+      "sql": "SELECT branch_id, branch_name, address_line1, city, state_province, postal_code, country, as_of FROM branches ORDER BY branch_id"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.BranchDirectoryV2Writer"
+      "type": "DataFrameWriter",
+      "source": "branch_dir",
+      "targetTable": "branch_directory",
+      "writeMode": "Overwrite",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

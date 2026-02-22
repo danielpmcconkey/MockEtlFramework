@@ -1,6 +1,6 @@
 -- Phase 3: Create double_secret_curated schema
 -- Mirror of curated schema for parallel comparison testing
--- Run this in pgAdmin before starting Phase 3
+-- Generated with exact column types matching curated schema
 
 CREATE SCHEMA IF NOT EXISTS double_secret_curated;
 
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.account_balance_snapshot (
     customer_id INTEGER NOT NULL,
     account_type VARCHAR(20) NOT NULL,
     account_status VARCHAR(20) NOT NULL,
-    current_balance NUMERIC NOT NULL,
+    current_balance NUMERIC(12,2) NOT NULL,
     as_of DATE NOT NULL
 );
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.account_customer_join (
     last_name VARCHAR(100) NOT NULL,
     account_type VARCHAR(20) NOT NULL,
     account_status VARCHAR(20) NOT NULL,
-    current_balance NUMERIC NOT NULL,
+    current_balance NUMERIC(12,2) NOT NULL,
     as_of DATE NOT NULL
 );
 
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.account_type_distribution (
     account_type VARCHAR(20) NOT NULL,
     account_count INTEGER NOT NULL,
     total_accounts INTEGER NOT NULL,
-    percentage NUMERIC NOT NULL,
+    percentage NUMERIC(5,2) NOT NULL,
     as_of DATE NOT NULL
 );
 
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.credit_score_average (
     customer_id INTEGER NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    avg_score NUMERIC NOT NULL,
+    avg_score NUMERIC(6,2) NOT NULL,
     equifax_score INTEGER,
     transunion_score INTEGER,
     experian_score INTEGER,
@@ -120,27 +120,6 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.credit_score_snapshot (
     customer_id INTEGER NOT NULL,
     bureau VARCHAR(20) NOT NULL,
     score INTEGER NOT NULL,
-    as_of DATE NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS double_secret_curated.customer_account_summary (
-    customer_id BIGINT,
-    first_name TEXT,
-    last_name TEXT,
-    account_id BIGINT,
-    account_type TEXT,
-    account_status TEXT,
-    current_balance DOUBLE PRECISION,
-    as_of TEXT
-);
-
-CREATE TABLE IF NOT EXISTS double_secret_curated.customer_account_summary_v2 (
-    customer_id INTEGER NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    account_count INTEGER NOT NULL,
-    total_balance NUMERIC NOT NULL,
-    active_balance NUMERIC NOT NULL,
     as_of DATE NOT NULL
 );
 
@@ -190,9 +169,9 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.customer_credit_summary (
     customer_id INTEGER NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    avg_credit_score NUMERIC,
-    total_loan_balance NUMERIC NOT NULL,
-    total_account_balance NUMERIC NOT NULL,
+    avg_credit_score NUMERIC(6,2),
+    total_loan_balance NUMERIC(14,2) NOT NULL,
+    total_account_balance NUMERIC(14,2) NOT NULL,
     loan_count INTEGER NOT NULL,
     account_count INTEGER NOT NULL,
     as_of DATE NOT NULL
@@ -234,7 +213,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.customer_transaction_activity (
     customer_id INTEGER NOT NULL,
     as_of DATE NOT NULL,
     transaction_count INTEGER NOT NULL,
-    total_amount NUMERIC NOT NULL,
+    total_amount NUMERIC(14,2) NOT NULL,
     debit_count INTEGER NOT NULL,
     credit_count INTEGER NOT NULL
 );
@@ -243,32 +222,32 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.customer_value_score (
     customer_id INTEGER NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    transaction_score NUMERIC NOT NULL,
-    balance_score NUMERIC NOT NULL,
-    visit_score NUMERIC NOT NULL,
-    composite_score NUMERIC NOT NULL,
+    transaction_score NUMERIC(8,2) NOT NULL,
+    balance_score NUMERIC(8,2) NOT NULL,
+    visit_score NUMERIC(8,2) NOT NULL,
+    composite_score NUMERIC(8,2) NOT NULL,
     as_of DATE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS double_secret_curated.daily_transaction_summary (
     account_id INTEGER NOT NULL,
     as_of DATE NOT NULL,
-    total_amount NUMERIC NOT NULL,
+    total_amount NUMERIC(14,2) NOT NULL,
     transaction_count INTEGER NOT NULL,
-    debit_total NUMERIC NOT NULL,
-    credit_total NUMERIC NOT NULL
+    debit_total NUMERIC(14,2) NOT NULL,
+    credit_total NUMERIC(14,2) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS double_secret_curated.daily_transaction_volume (
     as_of DATE NOT NULL,
     total_transactions INTEGER NOT NULL,
-    total_amount NUMERIC NOT NULL,
-    avg_amount NUMERIC NOT NULL
+    total_amount NUMERIC(14,2) NOT NULL,
+    avg_amount NUMERIC(14,2) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS double_secret_curated.executive_dashboard (
     metric_name VARCHAR(100) NOT NULL,
-    metric_value NUMERIC NOT NULL,
+    metric_value NUMERIC(14,2) NOT NULL,
     as_of DATE NOT NULL
 );
 
@@ -276,7 +255,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.high_balance_accounts (
     account_id INTEGER NOT NULL,
     customer_id INTEGER NOT NULL,
     account_type VARCHAR(20) NOT NULL,
-    current_balance NUMERIC NOT NULL,
+    current_balance NUMERIC(12,2) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     as_of DATE NOT NULL
@@ -289,7 +268,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.large_transaction_log (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     txn_type VARCHAR(6) NOT NULL,
-    amount NUMERIC NOT NULL,
+    amount NUMERIC(12,2) NOT NULL,
     description VARCHAR(255),
     txn_timestamp TIMESTAMP NOT NULL,
     as_of DATE NOT NULL
@@ -299,9 +278,9 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.loan_portfolio_snapshot (
     loan_id INTEGER NOT NULL,
     customer_id INTEGER NOT NULL,
     loan_type VARCHAR(20) NOT NULL,
-    original_amount NUMERIC NOT NULL,
-    current_balance NUMERIC NOT NULL,
-    interest_rate NUMERIC NOT NULL,
+    original_amount NUMERIC(12,2) NOT NULL,
+    current_balance NUMERIC(12,2) NOT NULL,
+    interest_rate NUMERIC(5,2) NOT NULL,
     loan_status VARCHAR(15) NOT NULL,
     as_of DATE NOT NULL
 );
@@ -310,10 +289,10 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.loan_risk_assessment (
     loan_id INTEGER NOT NULL,
     customer_id INTEGER NOT NULL,
     loan_type VARCHAR(20) NOT NULL,
-    current_balance NUMERIC NOT NULL,
-    interest_rate NUMERIC NOT NULL,
+    current_balance NUMERIC(12,2) NOT NULL,
+    interest_rate NUMERIC(5,2) NOT NULL,
     loan_status VARCHAR(15) NOT NULL,
-    avg_credit_score NUMERIC,
+    avg_credit_score NUMERIC(6,2),
     risk_tier VARCHAR(15) NOT NULL,
     as_of DATE NOT NULL
 );
@@ -321,8 +300,8 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.loan_risk_assessment (
 CREATE TABLE IF NOT EXISTS double_secret_curated.monthly_transaction_trend (
     as_of DATE NOT NULL,
     daily_transactions INTEGER NOT NULL,
-    daily_amount NUMERIC NOT NULL,
-    avg_transaction_amount NUMERIC NOT NULL
+    daily_amount NUMERIC(14,2) NOT NULL,
+    avg_transaction_amount NUMERIC(14,2) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS double_secret_curated.top_branches (
@@ -336,7 +315,7 @@ CREATE TABLE IF NOT EXISTS double_secret_curated.top_branches (
 CREATE TABLE IF NOT EXISTS double_secret_curated.transaction_category_summary (
     txn_type VARCHAR(6) NOT NULL,
     as_of DATE NOT NULL,
-    total_amount NUMERIC NOT NULL,
+    total_amount NUMERIC(14,2) NOT NULL,
     transaction_count INTEGER NOT NULL,
-    avg_amount NUMERIC NOT NULL
+    avg_amount NUMERIC(14,2) NOT NULL
 );

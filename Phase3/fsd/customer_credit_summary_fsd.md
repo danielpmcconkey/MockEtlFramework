@@ -1,44 +1,67 @@
-# FSD: CustomerCreditSummaryV2
+# CustomerCreditSummary -- Functional Specification Document
 
-## Overview
-Replaces the original CustomerCreditSummary job with a V2 implementation that writes to the `double_secret_curated` schema instead of `curated`. The V2 External module replicates the exact same business logic as the original CustomerCreditSummaryBuilder and then writes directly to `double_secret_curated.customer_credit_summary` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module replacement)**: The original job uses DataSourcing x5 -> External (CustomerCreditSummaryBuilder) -> DataFrameWriter. The V2 replaces both the External and DataFrameWriter steps with a single V2 External module that combines the processing logic and writing.
-- The V2 module replicates the original's aggregation logic: grouping credit scores by customer for averaging, grouping loan balances and account balances by customer for summing, then producing one output row per customer.
-- Write mode is Overwrite (matching original), so DscWriterUtil.Write is called with overwrite=true.
-- The segments DataSourcing step is retained in the config (matching the original) even though it is unused by the External module, to ensure identical shared state.
+**SQL-equivalent logic in External module with empty-DataFrame guard.** The original External module computes per-customer financial aggregates: average credit score, total loan balance, total account balance, and counts. This is expressible in SQL (LEFT JOINs + aggregate subqueries), but the framework's Transformation module does not register empty DataFrames as SQLite tables. On weekends, customers, accounts, credit_scores, and loan_accounts all have no data. The original returns empty output when ANY of the four is empty.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=customers, columns=[id, first_name, last_name], resultName=customers |
-| 2 | DataSourcing | schema=datalake, table=accounts, columns=[account_id, customer_id, account_type, account_status, current_balance], resultName=accounts |
-| 3 | DataSourcing | schema=datalake, table=credit_scores, columns=[credit_score_id, customer_id, bureau, score], resultName=credit_scores |
-| 4 | DataSourcing | schema=datalake, table=loan_accounts, columns=[loan_id, customer_id, loan_type, current_balance], resultName=loan_accounts |
-| 5 | DataSourcing | schema=datalake, table=segments, columns=[segment_id, segment_name], resultName=segments (unused but retained) |
-| 6 | External | CustomerCreditSummaryV2Processor -- replicates original logic + writes to dsc |
+The V2 uses a clean External module that:
+1. Checks all four input DataFrames for emptiness
+2. Uses LINQ-based aggregation for clean, set-oriented computation
+3. Preserves the asymmetric NULL/default handling: avg_credit_score is NULL when no scores, but loan/account totals default to 0
 
-## V2 External Module: CustomerCreditSummaryV2Processor
-- File: ExternalModules/CustomerCreditSummaryV2Processor.cs
-- Processing logic: Reads customers, accounts, credit_scores, loan_accounts from shared state. Groups credit scores by customer_id and computes average. Groups loans by customer_id and sums balances/counts. Groups accounts by customer_id and sums balances/counts. Iterates all customers and produces one row per customer with aggregated values. Writes to double_secret_curated via DscWriterUtil with overwrite=true (Overwrite mode).
-- Output columns: customer_id, first_name, last_name, avg_credit_score, total_loan_balance, total_account_balance, loan_count, account_count, as_of
-- Target table: double_secret_curated.customer_credit_summary
-- Write mode: Overwrite (overwrite=true)
+## Anti-Patterns Eliminated
 
-## Traceability
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `segments` DataSourcing module |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | Y                   | Partial            | External module retained for empty-DataFrame guard; internal logic uses LINQ instead of manual dictionary loops |
+| AP-4    | Y                   | Y                  | Removed unused columns: account_id/account_type/account_status from accounts, credit_score_id/bureau from credit_scores, loan_id/loan_type from loan_accounts |
+| AP-5    | Y                   | N (documented)     | Asymmetric handling reproduced: avg_credit_score = NULL when no scores vs loan/account totals = 0 when none. Documented as semantically appropriate. |
+| AP-6    | Y                   | Y                  | Four manual foreach loops replaced with LINQ GroupBy + ToDictionary |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No overly complex SQL |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
+
+## V2 Pipeline Design
+
+1. **DataSourcing** - `customers` from `datalake.customers` with columns: `id`, `first_name`, `last_name`
+2. **DataSourcing** - `accounts` from `datalake.accounts` with columns: `customer_id`, `current_balance`
+3. **DataSourcing** - `credit_scores` from `datalake.credit_scores` with columns: `customer_id`, `score`
+4. **DataSourcing** - `loan_accounts` from `datalake.loan_accounts` with columns: `customer_id`, `current_balance`
+5. **External** - `CustomerCreditSummaryBuilderV2`: empty-check guard + LINQ aggregation
+6. **DataFrameWriter** - Write to `customer_credit_summary` in `double_secret_curated` schema, Overwrite mode
+
+## External Module Design
+
+```
+IF any of customers/accounts/credit_scores/loan_accounts is empty:
+    Return empty DataFrame
+ELSE:
+    1. Group credit_scores by customer_id -> average score per customer (LINQ)
+    2. Group loan_accounts by customer_id -> sum balance, count per customer (LINQ)
+    3. Group accounts by customer_id -> sum balance, count per customer (LINQ)
+    4. For each customer row:
+       - avg_credit_score: from score lookup, or NULL if not found
+       - total_loan_balance/loan_count: from loan lookup, or 0 if not found
+       - total_account_balance/account_count: from account lookup, or 0 if not found
+       - first_name/last_name: coalesce to empty string
+       - as_of: from customer row
+```
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | V2 processor iterates all customer rows, producing one output row per customer |
-| BR-2 | V2 processor groups credit_scores by customer_id and calls Average() |
-| BR-3 | V2 processor sets avg_credit_score to DBNull.Value when no scores exist |
-| BR-4 | V2 processor groups loan_accounts by customer_id and sums current_balance |
-| BR-5 | V2 processor defaults totalLoanBalance=0, loanCount=0 when customer has no loans |
-| BR-6 | V2 processor groups accounts by customer_id and sums current_balance |
-| BR-7 | V2 processor defaults totalAccountBalance=0, accountCount=0 when customer has no accounts |
-| BR-8 | segments DataSourcing retained in config but not read by V2 processor |
-| BR-9 | V2 processor has guard clause returning empty DataFrame when any required input is null/empty |
-| BR-10 | DscWriterUtil.Write called with overwrite=true (Overwrite) |
-| BR-11 | V2 processor carries as_of from customers row |
-| BR-12 | V2 processor does not filter account balances by sign |
-| BR-13 | V2 processor iterates all account rows without filtering by type or status |
+|-----------------|-------------------|
+| BR-1 | Iterate over all customers rows (one output per customer) |
+| BR-2 | LINQ Average on grouped credit scores; NULL if customer has no scores |
+| BR-3 | LINQ Sum on grouped loan balances; default 0 |
+| BR-4 | LINQ Count on grouped loans; default 0 |
+| BR-5 | LINQ Sum on grouped account balances; default 0 |
+| BR-6 | LINQ Count on grouped accounts; default 0 |
+| BR-7 | Empty-check guard on all four DataFrames |
+| BR-8 | as_of from customer row |
+| BR-9 | DataFrameWriter configured with writeMode: Overwrite |
+| BR-10 | No filtering on accounts (all included) |
+| BR-11 | No filtering on loans (all included) |

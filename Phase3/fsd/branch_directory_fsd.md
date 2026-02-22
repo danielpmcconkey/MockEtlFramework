@@ -1,36 +1,56 @@
-# FSD: BranchDirectoryV2
+# BranchDirectory -- Functional Specification Document
 
-## Overview
-Replaces the original BranchDirectory job with a V2 implementation that writes to `double_secret_curated` instead of `curated`. The original uses a Transformation (SQL) step for deduplication via ROW_NUMBER, so the V2 retains the exact same SQL and replaces only the DataFrameWriter with a V2 External writer module.
+## Design Approach
 
-## Design Decisions
-- **Pattern B (Transformation writer)**: The original uses DataSourcing -> Transformation (SQL) -> DataFrameWriter. The V2 retains the same DataSourcing and Transformation steps, replacing DataFrameWriter with a V2 External writer that reads the transformation result and writes to double_secret_curated.
-- The SQL is preserved exactly as-is, including the ROW_NUMBER deduplication and ORDER BY branch_id.
-- Write mode is Overwrite (matching original), so DscWriterUtil.Write is called with overwrite=true.
-- The V2 writer reads the "branch_dir" result from shared state (matching the Transformation step's resultName).
+SQL-first. The original already uses a SQL Transformation, but with an unnecessarily complex CTE and ROW_NUMBER deduplication. Since the source data has no duplicate branch_ids per as_of date, the V2 simplifies to a plain SELECT with ORDER BY.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=branches, columns=[branch_id, branch_name, address_line1, city, state_province, postal_code, country], resultName=branches |
-| 2 | Transformation | resultName=branch_dir, SQL with ROW_NUMBER deduplication by branch_id |
-| 3 | External | BranchDirectoryV2Writer -- reads "branch_dir" from shared state, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: BranchDirectoryV2Writer
-- File: ExternalModules/BranchDirectoryV2Writer.cs
-- Processing logic: Reads "branch_dir" DataFrame from shared state (produced by Transformation step); writes to double_secret_curated via DscWriterUtil
-- Output columns: branch_id, branch_name, address_line1, city, state_province, postal_code, country, as_of
-- Target table: double_secret_curated.branch_directory
-- Write mode: Overwrite (overwrite=true)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | N                   | N/A                | N/A |
+| AP-2    | N                   | N/A                | N/A |
+| AP-3    | N                   | N/A                | Already uses SQL Transformation |
+| AP-4    | N                   | N/A                | All sourced columns are used in output |
+| AP-5    | N                   | N/A                | N/A |
+| AP-6    | N                   | N/A                | N/A |
+| AP-7    | N                   | N/A                | N/A |
+| AP-8    | Y                   | Y                  | Removed unnecessary CTE with ROW_NUMBER deduplication; replaced with simple SELECT since no duplicate branch_ids exist |
+| AP-9    | N                   | N/A                | N/A |
+| AP-10   | N                   | N/A                | N/A |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** (`branches`): Read from `datalake.branches` with all 7 columns: branch_id, branch_name, address_line1, city, state_province, postal_code, country. The framework automatically appends as_of.
+
+2. **Transformation** (`branch_dir`): Simple SELECT of all 8 columns (7 sourced + as_of) ordered by branch_id.
+
+3. **DataFrameWriter**: Write `branch_dir` to `branch_directory` in `double_secret_curated` schema with Overwrite mode.
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    branch_id,
+    branch_name,
+    address_line1,
+    city,
+    state_province,
+    postal_code,
+    country,
+    as_of
+FROM branches
+ORDER BY branch_id
+```
+
+The original SQL wrapped this in a CTE with `ROW_NUMBER() OVER (PARTITION BY branch_id ORDER BY branch_id) AS rn` and filtered `WHERE rn = 1`. Since datalake.branches has no duplicate branch_ids per as_of date (verified: `SELECT branch_id, COUNT(*) ... HAVING COUNT(*) > 1` returns 0 rows), the ROW_NUMBER dedup is unnecessary and produces identical output to a simple SELECT.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | Same SQL with ROW_NUMBER PARTITION BY branch_id ORDER BY branch_id, WHERE rn = 1 |
-| BR-2 | SQL preserved identically; deduplication logic unchanged |
-| BR-3 | Same SELECT clause: branch_id, branch_name, address_line1, city, state_province, postal_code, country, as_of |
-| BR-4 | DscWriterUtil.Write called with overwrite=true (Overwrite) |
-| BR-5 | Same SQL ORDER BY branch_id |
-| BR-6 | Framework sources all calendar days; no weekend filtering |
-| BR-7 | Dependency tracked in control.job_dependencies (handled in Phase C) |
-| BR-8 | No additional WHERE filters in SQL |
+|-----------------|-------------------|
+| BR-1            | No WHERE clause; all branches included |
+| BR-2            | Original ROW_NUMBER dedup removed since no duplicates exist; output is identical |
+| BR-3            | SELECT lists exactly 8 columns matching output schema |
+| BR-4            | ORDER BY branch_id produces ascending order |
+| BR-5            | DataFrameWriter writeMode is "Overwrite" |

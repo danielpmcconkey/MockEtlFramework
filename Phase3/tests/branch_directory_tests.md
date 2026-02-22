@@ -1,21 +1,38 @@
-# Test Plan: BranchDirectoryV2
+# BranchDirectory -- Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Deduplication via ROW_NUMBER produces one row per branch_id | Exactly 40 rows (one per branch) per effective date |
-| TC-2 | BR-2 | ROW_NUMBER ordering preserves consistent row selection | Same branch data as original for each branch_id |
-| TC-3 | BR-3 | Output has 8 columns: branch_id, branch_name, address_line1, city, state_province, postal_code, country, as_of | Schema matches expected columns |
-| TC-4 | BR-4 | Overwrite mode -- only latest date retained | Table truncated before each write |
-| TC-5 | BR-5 | Output ordered by branch_id | Rows sorted ascending by branch_id |
-| TC-6 | BR-6 | Job processes all calendar days including weekends | Output for weekend dates when branches have data |
-| TC-7 | BR-7 | Job has downstream dependents (BranchVisitPurposeBreakdown, BranchVisitSummary) | Dependency registered in Phase C |
-| TC-8 | BR-8 | All branches included -- no filtering | 40 rows matches source branch count |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | No branch data for a date | Zero rows output, no error |
-| EC-2 | Duplicate branch_ids in source (unlikely but handled) | ROW_NUMBER ensures exactly one row per branch_id |
-| EC-3 | NULL values in address columns | Pass through as-is |
-| EC-4 | Comparison: curated vs double_secret_curated | Row counts and all column values match exactly |
+TC-1: All branches included in output -- Traces to BR-1
+- Input conditions: 40 branches in datalake.branches for effective date 2024-10-31
+- Expected output: 40 rows in double_secret_curated.branch_directory
+- Verification: Row count matches curated.branch_directory
+
+TC-2: No duplicate branch_ids in output -- Traces to BR-2
+- Input conditions: 40 unique branch_ids
+- Expected output: 40 unique branch_ids (no duplicates)
+- Verification: SELECT COUNT(DISTINCT branch_id) = COUNT(*)
+
+TC-3: Output schema has 8 columns -- Traces to BR-3
+- Input conditions: Any effective date
+- Expected output: Columns: branch_id, branch_name, address_line1, city, state_province, postal_code, country, as_of
+- Verification: Column comparison against curated schema
+
+TC-4: Results ordered by branch_id ascending -- Traces to BR-4
+- Input conditions: Any effective date
+- Expected output: branch_id values are in ascending order
+- Verification: Verify ordering in output matches curated
+
+TC-5: Overwrite mode retains only latest date -- Traces to BR-5
+- Input conditions: Run for multiple dates
+- Expected output: Only last date remains
+- Verification: SELECT DISTINCT as_of returns single date
+
+TC-6: Weekend dates produce output -- Edge case
+- Input conditions: Effective date 2024-10-05 (Saturday) -- branches data exists on weekends
+- Expected output: 40 rows (branches has weekend data)
+- Verification: COUNT(*) WHERE as_of = '2024-10-05' returns 40
+
+TC-7: Data values match original exactly -- Traces to all BRs
+- Input conditions: Run for as_of = 2024-10-31
+- Expected output: Identical to curated.branch_directory
+- Verification: EXCEPT query returns zero rows both directions

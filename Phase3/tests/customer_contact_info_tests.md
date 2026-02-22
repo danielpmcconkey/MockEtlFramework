@@ -1,21 +1,43 @@
-# Test Plan: CustomerContactInfoV2
+# CustomerContactInfo -- Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Phone numbers mapped correctly | contact_type='Phone', contact_subtype=phone_type, contact_value=phone_number |
-| TC-2 | BR-2 | Email addresses mapped correctly | contact_type='Email', contact_subtype=email_type, contact_value=email_address |
-| TC-3 | BR-3 | UNION ALL preserves duplicates | All records from both tables included |
-| TC-4 | BR-4 | Ordered by customer_id, contact_type, contact_subtype | Correct sort order |
-| TC-5 | BR-5 | Append mode | Data accumulates across dates |
-| TC-6 | BR-8 | phone_id and email_id not in output | Only 5 output columns |
-| TC-7 | BR-9 | No filtering applied | All records pass through |
-| TC-8 | BR-10 | Output for all 31 days | 750 rows per date |
-| TC-9 | BR-1-10 | V2 output matches original for each date Oct 1-31 | EXCEPT query returns zero rows |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | No phone or email records for a date | Empty result, no rows written |
-| EC-2 | Null customer_id in source | Null passes through unchanged |
-| EC-3 | Null phone_number or email_address | Null in contact_value |
+TC-1: Phone and email records are combined via UNION ALL -- Traces to BR-1
+- Input: 429 phone records + 321 email records for 2024-10-01
+- Expected: 750 rows in output for as_of = 2024-10-01
+- Verification: Row count comparison; EXCEPT query returns zero rows
+
+TC-2: Phone records have contact_type = 'Phone' -- Traces to BR-2
+- Input: Phone number records
+- Expected: contact_type is 'Phone', contact_subtype is phone_type, contact_value is phone_number
+- Verification: SELECT WHERE contact_type = 'Phone' and verify values match source
+
+TC-3: Email records have contact_type = 'Email' -- Traces to BR-3
+- Input: Email address records
+- Expected: contact_type is 'Email', contact_subtype is email_type, contact_value is email_address
+- Verification: SELECT WHERE contact_type = 'Email' and verify values match source
+
+TC-4: Output is ordered by customer_id, contact_type, contact_subtype -- Traces to BR-4
+- Input: Combined phone and email records
+- Expected: Email records appear before Phone for each customer (alphabetical order of contact_type)
+- Verification: Verify ordering in output
+
+TC-5: Append mode accumulates rows across dates -- Traces to BR-5
+- Input: Run for Oct 1 and Oct 2
+- Expected: Both dates have rows in the table
+- Verification: SELECT DISTINCT as_of shows both dates
+
+TC-6: All records included without filtering -- Traces to BR-6
+- Input: All phone and email records for a date
+- Expected: No records are filtered out
+- Verification: Total output rows = phone count + email count
+
+TC-7: UNION ALL preserves duplicates -- Traces to BR-7
+- Input: Records including any potential duplicates
+- Expected: Duplicate rows are preserved (not deduplicated)
+- Verification: UNION ALL used, not UNION
+
+TC-8: Data values match curated output exactly -- Traces to BR-1 through BR-7
+- Input: All dates Oct 1-31
+- Expected: Exact match between curated and double_secret_curated per date
+- Verification: EXCEPT-based comparison per as_of date

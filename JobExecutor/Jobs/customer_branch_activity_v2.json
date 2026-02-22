@@ -7,7 +7,7 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id", "visit_purpose"]
+      "columns": ["customer_id"]
     },
     {
       "type": "DataSourcing",
@@ -17,16 +17,16 @@
       "columns": ["id", "first_name", "last_name"]
     },
     {
-      "type": "DataSourcing",
-      "resultName": "branches",
-      "schema": "datalake",
-      "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CustomerBranchActivityBuilderV2"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.CustomerBranchActivityV2Processor"
+      "type": "DataFrameWriter",
+      "source": "output",
+      "targetTable": "customer_branch_activity",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

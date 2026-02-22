@@ -1,39 +1,56 @@
-# FSD: CustomerSegmentMapV2
+# CustomerSegmentMap — Functional Specification Document
 
-## Overview
-Replaces the original CustomerSegmentMap job with a V2 implementation that writes to the `double_secret_curated` schema instead of `curated`. Since the original uses a Transformation (SQL) step, the V2 retains the same SQL and adds a V2 External writer module that reads the transformation result and writes it to `double_secret_curated.customer_segment_map` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern B (Transformation + V2 Writer)**: The original job uses DataSourcing x3 -> Transformation -> DataFrameWriter. The V2 retains the same DataSourcing and Transformation steps, then replaces DataFrameWriter with a V2 External writer module.
-- The V2 writer reads the transformation result DataFrame from shared state (key "seg_map") and writes it to double_secret_curated.
-- Write mode is Append (matching original), so DscWriterUtil.Write is called with overwrite=false.
-- The branches DataSourcing step is retained (matching original) even though it is unused by the SQL.
+**SQL-first.** The original already uses a SQL Transformation with a clean JOIN. The V2 retains the same SQL logic but removes the unused `branches` DataSourcing module (AP-1 fix).
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=customers_segments, columns=[customer_id, segment_id], resultName=customers_segments |
-| 2 | DataSourcing | schema=datalake, table=segments, columns=[segment_id, segment_name, segment_code], resultName=segments |
-| 3 | DataSourcing | schema=datalake, table=branches, columns=[branch_id, branch_name, city, state_province], resultName=branches (unused but retained) |
-| 4 | Transformation | Same SQL as original: INNER JOIN on segment_id + as_of, ORDER BY customer_id, segment_id; resultName=seg_map |
-| 5 | External | CustomerSegmentMapV2Writer -- reads seg_map, writes to dsc |
+No External module needed (original did not use one either).
 
-## V2 External Module: CustomerSegmentMapV2Writer
-- File: ExternalModules/CustomerSegmentMapV2Writer.cs
-- Processing logic: Reads the "seg_map" DataFrame from shared state (result of the Transformation step), writes it to double_secret_curated via DscWriterUtil with overwrite=false (Append mode), then puts it in sharedState["output"].
-- Output columns: customer_id, segment_id, segment_name, segment_code, as_of (as produced by the Transformation SQL)
-- Target table: double_secret_curated.customer_segment_map
-- Write mode: Append (overwrite=false)
+## Anti-Patterns Eliminated
 
-## Traceability
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y | Y | Removed unused `branches` DataSourcing module entirely |
+| AP-2    | N | N/A | Not applicable |
+| AP-3    | N | N/A | Original already uses SQL Transformation |
+| AP-4    | N | N/A | All sourced columns from customers_segments and segments are used in the output or join condition (AP-4 only applies to branches, covered by AP-1) |
+| AP-5    | N | N/A | Not applicable |
+| AP-6    | N | N/A | No External module |
+| AP-7    | N | N/A | No magic values |
+| AP-8    | N | N/A | SQL is already clean and minimal |
+| AP-9    | N | N/A | Name accurately reflects output |
+| AP-10   | N | N/A | No undeclared dependencies |
+
+## V2 Pipeline Design
+
+1. **DataSourcing** `customers_segments` — `datalake.customers_segments` (customer_id, segment_id)
+2. **DataSourcing** `segments` — `datalake.segments` (segment_id, segment_name, segment_code)
+3. **Transformation** `seg_map` — SQL joining customers_segments to segments
+4. **DataFrameWriter** — writes to `double_secret_curated.customer_segment_map`, Append mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    cs.customer_id,
+    cs.segment_id,
+    s.segment_name,
+    s.segment_code,
+    cs.as_of
+FROM customers_segments cs
+JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of
+ORDER BY cs.customer_id, cs.segment_id
+```
+
+This SQL is identical to the original Transformation SQL. The only change is removing the unused `branches` DataSourcing module from the pipeline.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | Same Transformation SQL with INNER JOIN on segment_id AND as_of |
-| BR-2 | Same JOIN keyword (inner join semantics) |
-| BR-3 | Same SELECT columns: customer_id, segment_id, segment_name, segment_code, as_of |
-| BR-4 | Same ORDER BY customer_id, segment_id |
-| BR-5 | DscWriterUtil.Write called with overwrite=false (Append) |
-| BR-6 | branches DataSourcing retained in config but unused |
-| BR-7 | Same Transformation module type (pure SQL, no External processing) |
-| BR-8 | Consistent row counts ensured by identical SQL |
-| BR-9 | Same date-alignment JOIN condition (cs.as_of = s.as_of) |
+|-----------------|-------------------|
+| BR-1: One row per customer-segment pair per date | INNER JOIN produces one output row per matching pair |
+| BR-2: Join on segment_id AND as_of | `JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of` |
+| BR-3: Ordered by customer_id, segment_id | `ORDER BY cs.customer_id, cs.segment_id` |
+| BR-4: Append mode | DataFrameWriter `writeMode: "Append"` |
+| BR-5: Weekend dates included | Both source tables have 7-day data |
+| BR-6: Inner join excludes unmatched segments | INNER JOIN semantics exclude rows where segment_id is not in segments for that date |

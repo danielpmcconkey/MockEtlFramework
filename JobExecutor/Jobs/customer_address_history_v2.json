@@ -7,24 +7,19 @@
       "resultName": "addresses",
       "schema": "datalake",
       "table": "addresses",
-      "columns": ["address_id", "customer_id", "address_line1", "city", "state_province", "postal_code", "country"]
-    },
-    {
-      "type": "DataSourcing",
-      "resultName": "branches",
-      "schema": "datalake",
-      "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": ["customer_id", "address_line1", "city", "state_province", "postal_code", "country"]
     },
     {
       "type": "Transformation",
       "resultName": "addr_history",
-      "sql": "SELECT sub.customer_id, sub.address_line1, sub.city, sub.state_province, sub.postal_code, sub.country, sub.as_of FROM (SELECT a.customer_id, a.address_line1, a.city, a.state_province, a.postal_code, a.country, a.as_of FROM addresses a WHERE a.customer_id IS NOT NULL) sub ORDER BY sub.customer_id"
+      "sql": "SELECT a.customer_id, a.address_line1, a.city, a.state_province, a.postal_code, a.country, a.as_of FROM addresses a WHERE a.customer_id IS NOT NULL ORDER BY a.customer_id"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.CustomerAddressHistoryV2Writer"
+      "type": "DataFrameWriter",
+      "source": "addr_history",
+      "targetTable": "customer_address_history",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

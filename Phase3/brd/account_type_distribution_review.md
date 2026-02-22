@@ -1,41 +1,54 @@
-# Review: AccountTypeDistribution BRD
+# AccountTypeDistribution — BRD Review
 
-## Status: PASS
+## Review Status: PASS
 
-## Checklist
-- [x] All evidence citations verified
-- [x] No unsupported claims
-- [x] No impossible knowledge
-- [x] Full traceability
-- [x] Format complete
+## Evidence Verification
+- [x] All citations checked (9 business rules, all line references verified)
+- [x] All citations accurate
 
-## Verification Details
+Detailed verification:
+- BR-1 [lines 29-35]: Confirmed dictionary counting by account_type — exact match. Database confirms Checking=96, Savings=94, Credit=87.
+- BR-2 [line 25]: Confirmed `var totalAccounts = accounts.Count;` — exact match.
+- BR-3 [line 41]: Confirmed `(double)typeCount / totalAccounts * 100.0` — exact match. Verified: 96/277*100 = 34.657... -> 34.66 in NUMERIC(5,2).
+- BR-4 [line 24]: Confirmed `accounts.Rows[0]["as_of"]` — exact match.
+- BR-5 [lines 10-13]: Confirmed 5-column outputColumns — exact match. Schema verified.
+- BR-6 [job config line 28]: Confirmed `"writeMode": "Overwrite"` — exact match.
+- BR-7 [lines 17-21]: Confirmed null/empty guard — exact match.
+- BR-8 [line 31]: Confirmed `?.ToString() ?? ""` — exact match.
+- BR-9 [line 41]: Confirmed double arithmetic. Database confirms NUMERIC(5,2) with correct rounding.
 
-### Evidence Citation Checks
-| Claim | Citation | Verified |
-|-------|----------|----------|
-| BR-1: Group by account_type and count | AccountDistributionCalculator.cs:28-35, DB | YES - Dictionary keyed by accountType; DB: Checking=96, Savings=94, Credit=87 |
-| BR-2: total_accounts = accounts.Count | AccountDistributionCalculator.cs:25, DB | YES - `accounts.Count`; DB shows 277 for all rows |
-| BR-3: percentage = (count/total)*100.0 | AccountDistributionCalculator.cs:41, DB | YES - `(double)typeCount / totalAccounts * 100.0`; DB: 34.66, 33.94, 31.41 |
-| BR-4: double -> NUMERIC storage | AccountDistributionCalculator.cs:41, DB schema | YES - C# double; DB column is numeric |
-| BR-5: as_of from first row | AccountDistributionCalculator.cs:24 | YES - `accounts.Rows[0]["as_of"]` |
-| BR-6: Branches sourced but unused | AccountDistributionCalculator.cs:15, JSON:13-18 | YES - Only "accounts" read; branches in config |
-| BR-7: Overwrite mode | JSON:28, DB | YES - "Overwrite"; only 2024-10-31 (3 rows) |
-| BR-8: NULL coalescing to empty string | AccountDistributionCalculator.cs:31 | YES - `?.ToString() ?? ""` |
-| BR-9: Weekday-only dates | DB | YES - Source tables weekday-only |
+Database spot-checks:
+- 3 rows summing to 277 total accounts
+- Percentage values verified: 34.66 + 33.94 + 31.41 = 100.01 (rounding artifact, expected)
+- NUMERIC(5,2) precision confirmed via information_schema
+- Grep confirms zero references to "branch" in External module
 
-### Database Verification
-- curated.account_type_distribution: 3 rows, as_of=2024-10-31
-  - Checking: count=96, total=277, pct=34.66
-  - Credit: count=87, total=277, pct=31.41
-  - Savings: count=94, total=277, pct=33.94
-- Percentages cross-verified: 96/277*100=34.657 (rounds to 34.66), 94/277*100=33.935 (rounds to 33.94), 87/277*100=31.407 (rounds to 31.41)
-- Schema: account_type (varchar), account_count (int), total_accounts (int), percentage (numeric), as_of (date) — matches BRD
+## Anti-Pattern Assessment
+- [x] AP identification is plausible and complete
 
-### Line Number Accuracy
-All cited line numbers verified against actual source code. All citations accurate.
+Identified patterns correctly assessed:
+- **AP-1**: Correctly identified — branches DataSourcing entirely unused. Grep confirms zero references.
+- **AP-3**: Correctly identified — GROUP BY + COUNT + percentage calculation is standard SQL.
+- **AP-4**: Correctly identified — account_id, customer_id, account_status, current_balance all sourced but never referenced.
+- **AP-6**: Correctly identified — foreach loop for a GROUP BY operation.
 
-## Notes
-- Good edge case analysis: division-by-zero prevention via the empty guard is a valuable insight.
-- Floating-point precision note is important for V2 implementation — must match the double->NUMERIC conversion behavior.
-- Percentage math independently verified against raw counts.
+Remaining APs correctly omitted:
+- AP-2: N/A — no curated dependencies
+- AP-5: N/A — single grouping field with consistent NULL handling
+- AP-7: N/A — 100.0 is a standard percentage multiplier, not a magic value
+- AP-8: N/A — no SQL in original
+- AP-9: N/A — name accurately describes output
+- AP-10: N/A — no curated dependencies
+
+## Completeness Check
+- [x] All required sections present (Overview, Source Tables, Business Rules, Output Schema, Edge Cases, Anti-Patterns Identified, Traceability Matrix, Open Questions)
+- [x] Traceability matrix complete — all 9 BRs mapped to evidence
+- [x] Output schema documents all 5 columns with source and transformation
+
+## Issues Found
+None.
+
+## Verdict
+PASS: BRD approved for Phase B.
+
+Thorough BRD with excellent attention to the floating-point precision edge case (Q1). The V2 architect should pay careful attention to reproducing the same rounding behavior when moving to SQL. All anti-patterns correctly identified.

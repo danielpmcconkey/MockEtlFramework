@@ -1,29 +1,53 @@
-# Test Plan: DailyTransactionSummaryV2
+# DailyTransactionSummary — Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Verify grouping by account_id and as_of | One row per account per date |
-| TC-2 | BR-2 | Verify total_amount computation | SUM(debit amounts) + SUM(credit amounts), rounded to 2 dp |
-| TC-3 | BR-3 | Verify transaction_count | COUNT(*) of all transaction rows per group |
-| TC-4 | BR-4 | Verify debit_total | SUM of amounts where txn_type='Debit', ROUND(2) |
-| TC-5 | BR-5 | Verify credit_total | SUM of amounts where txn_type='Credit', ROUND(2) |
-| TC-6 | BR-6 | Verify total_amount rounding | Rounded to 2 decimal places |
-| TC-7 | BR-7 | Verify ordering | Results ordered by as_of, then account_id |
-| TC-8 | BR-8 | Verify subquery pattern | SQL uses subquery (inner computes, outer selects) |
-| TC-9 | BR-9 | Verify Append mode | Rows accumulate across effective dates |
-| TC-10 | BR-10 | Verify branches unused | No branch-related columns in output |
-| TC-11 | BR-11 | Verify unused columns sourced | txn_timestamp and description sourced but not in output |
-| TC-12 | BR-12 | Verify pure SQL Transformation | No External module processing |
-| TC-13 | BR-13 | Verify 31 days of output | Transactions exist every day, 31 distinct dates in output |
-| TC-14 | BR-14 | Verify non-Debit/Credit handling | Other types contribute 0 to debit/credit totals but counted in transaction_count |
-| TC-15 | BR-1,9 | Compare V2 output to original | EXCEPT query yields zero rows |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | Account with no transactions on a date | No output row for that account/date |
-| EC-2 | Weekend data | Transactions exist on weekends, so output produced |
-| EC-3 | All transactions for an account are Debit | credit_total = 0 |
-| EC-4 | All transactions for an account are Credit | debit_total = 0 |
-| EC-5 | Non-standard txn_type (if any) | 0 in both debit_total and credit_total, counted in transaction_count |
+### TC-1: Row count matches account-date combinations
+- **Traces to:** BR-1
+- **Method:** Compare `SELECT COUNT(*) FROM double_secret_curated.daily_transaction_summary WHERE as_of = {date}` with `SELECT COUNT(DISTINCT account_id) FROM datalake.transactions WHERE as_of = {date}`
+- **Expected:** Counts are equal
+
+### TC-2: total_amount equals sum of all amounts per account
+- **Traces to:** BR-2, BR-9
+- **Method:** For account 3001 on 2024-10-01, verify total_amount = 642.50 (142.50 debit + 500.00 credit).
+- **Expected:** total_amount = 642.50
+
+### TC-3: transaction_count is correct
+- **Traces to:** BR-3
+- **Method:** For account 3001 on 2024-10-01, verify transaction_count = 2.
+- **Expected:** transaction_count = 2
+
+### TC-4: debit_total is correct
+- **Traces to:** BR-4, BR-9
+- **Method:** For account 3001 on 2024-10-01, verify debit_total = 142.50.
+- **Expected:** debit_total = 142.50
+
+### TC-5: credit_total is correct
+- **Traces to:** BR-5, BR-9
+- **Method:** For account 3001 on 2024-10-01, verify credit_total = 500.00.
+- **Expected:** credit_total = 500.00
+
+### TC-6: total_amount = debit_total + credit_total
+- **Traces to:** BR-2, BR-4, BR-5
+- **Method:** For all rows, verify `total_amount = debit_total + credit_total`.
+- **Expected:** No exceptions (may have minor rounding differences of 0.01 due to ROUND)
+
+### TC-7: Ordering correct
+- **Traces to:** BR-6
+- **Method:** Verify output is ordered by as_of ASC, account_id ASC.
+- **Expected:** Ordered correctly
+
+### TC-8: Append mode — all dates present
+- **Traces to:** BR-7
+- **Method:** After running for Oct 1-31, verify 31 distinct as_of values exist.
+- **Expected:** 31 dates
+
+### TC-9: Weekend dates have data
+- **Traces to:** BR-8
+- **Method:** Verify rows exist for as_of = 2024-10-05 and 2024-10-06.
+- **Expected:** Rows present for weekend dates
+
+### TC-10: Full EXCEPT comparison with original
+- **Traces to:** All BRs
+- **Method:** For each date: `SELECT * FROM curated.daily_transaction_summary WHERE as_of = {date} EXCEPT SELECT * FROM double_secret_curated.daily_transaction_summary WHERE as_of = {date}` and vice versa.
+- **Expected:** Both EXCEPT queries return 0 rows

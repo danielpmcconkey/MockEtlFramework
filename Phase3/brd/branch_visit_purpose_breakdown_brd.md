@@ -1,92 +1,108 @@
-# BRD: BranchVisitPurposeBreakdown
+# BranchVisitPurposeBreakdown — Business Requirements Document
 
 ## Overview
-Produces a breakdown of branch visits by purpose for each branch and effective date, showing the count of visits per (branch_id, visit_purpose, as_of) combination. Joins with branches to include branch_name. Uses Append mode to accumulate results across all effective dates.
+
+This job breaks down branch visits by purpose (Deposit, Withdrawal, Inquiry, Loan Application, Account Opening), counting visits per branch per purpose per effective date. The result is written to `curated.branch_visit_purpose_breakdown` using Append mode.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| branch_visits | datalake | visit_id, customer_id, branch_id, visit_purpose | Filtered by effective date range. Grouped by (branch_id, visit_purpose, as_of). | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:6-10] |
-| branches | datalake | branch_id, branch_name | Filtered by effective date range. Joined to visit counts via branch_id AND as_of. | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:12-16] |
-| segments | datalake | segment_id, segment_name | Filtered by effective date range. Sourced but NOT used in the SQL. | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:18-22] |
+
+### datalake.branch_visits
+- **Columns sourced:** visit_id, customer_id, branch_id, visit_purpose
+- **Columns actually used:** branch_id (group key + join key), visit_purpose (group key), as_of (group key), visit_id (counted via COUNT(*))
+- **Evidence:** [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL references bv.branch_id, bv.visit_purpose, bv.as_of in GROUP BY.
+
+### datalake.branches
+- **Columns sourced:** branch_id, branch_name
+- **Columns actually used:** Both (branch_id as join key, branch_name in output)
+- **Evidence:** [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL joins on `pc.branch_id = b.branch_id AND pc.as_of = b.as_of` and selects `b.branch_name`.
+
+### datalake.segments
+- **Columns sourced:** segment_id, segment_name
+- **Usage:** NONE — loaded into shared state as "segments" but never referenced in the Transformation SQL.
+- **Evidence:** [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL only references `branch_visits` and `branches` tables. The "segments" table is not used in any FROM, JOIN, or subquery.
 
 ## Business Rules
-BR-1: Branch visits are counted by grouping on (branch_id, visit_purpose, as_of).
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL: `GROUP BY bv.branch_id, bv.visit_purpose, bv.as_of` with `COUNT(*) AS visit_count`
 
-BR-2: The SQL computes a `total_branch_visits` window function (`SUM(COUNT(*)) OVER (PARTITION BY bv.branch_id, bv.as_of)`) in the CTE, but this column is NOT included in the final output SELECT.
+BR-1: Branch visits are grouped by branch_id, visit_purpose, and as_of, and the count of visits per group is computed.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] CTE includes `SUM(COUNT(*)) OVER (PARTITION BY bv.branch_id, bv.as_of) AS total_branch_visits`
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] Final SELECT is `pc.branch_id, b.branch_name, pc.visit_purpose, pc.as_of, pc.visit_count` -- no total_branch_visits
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] `GROUP BY bv.branch_id, bv.visit_purpose, bv.as_of` and `COUNT(*) AS visit_count`.
+- Evidence: [curated.branch_visit_purpose_breakdown] For as_of 2024-10-01, branch 7 (Denver CO Branch) has 4 separate purpose entries summing to 4 visits.
 
-BR-3: The purpose counts are joined to branches using INNER JOIN on both branch_id AND as_of to get the branch_name.
+BR-2: Each output row includes the branch_name, looked up by joining with branches on branch_id and as_of.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL: `JOIN branches b ON pc.branch_id = b.branch_id AND pc.as_of = b.as_of`
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] `JOIN branches b ON pc.branch_id = b.branch_id AND pc.as_of = b.as_of`.
 
-BR-4: The INNER JOIN means only visits to branches that exist in the branches table for the same as_of date are included. Visits to non-existent branch_ids would be dropped.
+BR-3: The SQL computes `total_branch_visits` using a window function (`SUM(COUNT(*)) OVER (PARTITION BY bv.branch_id, bv.as_of)`) but this value is NOT included in the final output.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] INNER JOIN semantics
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] The CTE includes `total_branch_visits` but the outer SELECT only picks `pc.branch_id, b.branch_name, pc.visit_purpose, pc.as_of, pc.visit_count` — `total_branch_visits` is computed but discarded.
+- Evidence: [curated.branch_visit_purpose_breakdown] Output schema has no `total_branch_visits` column.
 
-BR-5: Write mode is Append -- each effective date's breakdown is added to the curated table.
+BR-4: The output contains 5 columns: branch_id, branch_name, visit_purpose, as_of, visit_count.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:35] `"writeMode": "Append"`
-- Evidence: [curated.branch_visit_purpose_breakdown] 31 as_of dates present (all calendar days in October 2024)
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] Outer SELECT lists these 5 columns.
+- Evidence: [curated.branch_visit_purpose_breakdown] Schema confirms these 5 columns.
 
-BR-6: The output is ordered by (as_of, branch_id, visit_purpose).
+BR-5: Results are ordered by as_of, then branch_id, then visit_purpose.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL: `ORDER BY pc.as_of, pc.branch_id, pc.visit_purpose`
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] `ORDER BY pc.as_of, pc.branch_id, pc.visit_purpose`.
 
-BR-7: The segments table is sourced but never used in the SQL transformation.
+BR-6: Data is written in Append mode, accumulating purpose breakdowns across effective dates.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL does not reference the `segments` table at all
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:36] `"writeMode": "Append"`.
+- Evidence: [curated.branch_visit_purpose_breakdown] Contains multiple as_of dates.
 
-BR-8: The job processes ALL calendar days including weekends, since both branch_visits and branches have weekend data.
+BR-7: Only branches with at least one visit appear in the output (INNER JOIN behavior).
 - Confidence: HIGH
-- Evidence: [curated.branch_visit_purpose_breakdown] 31 dates including weekends (Oct 5, Oct 6, Oct 12, Oct 13, etc.)
-- Evidence: [datalake.branch_visits] Has weekend as_of dates
-- Evidence: [datalake.branches] Has weekend as_of dates
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] Uses `JOIN` (inner join) between purpose_counts CTE and branches. Branches with zero visits don't appear in the CTE, so they're excluded.
 
-BR-9: This job has a SameDay dependency on BranchDirectory.
+BR-8: The join between purpose_counts and branches matches on both branch_id AND as_of.
 - Confidence: HIGH
-- Evidence: [control.job_dependencies] BranchVisitPurposeBreakdown depends on BranchDirectory with dependency_type = SameDay
-- Note: However, this job reads directly from datalake.branches, not from curated.branch_directory. The dependency may be for scheduling correctness rather than data flow.
-
-BR-10: Only branches with at least one visit for a given as_of appear in the output (due to the GROUP BY on branch_visits and INNER JOIN to branches).
-- Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] GROUP BY on branch_visits drives the rows, then INNER JOIN limits to existing branches
+- Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] `ON pc.branch_id = b.branch_id AND pc.as_of = b.as_of`.
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| branch_id | datalake.branch_visits.branch_id | Grouping key | [branch_visit_purpose_breakdown.json:29] |
-| branch_name | datalake.branches.branch_name | Joined via branch_id AND as_of | [branch_visit_purpose_breakdown.json:29] |
-| visit_purpose | datalake.branch_visits.visit_purpose | Grouping key | [branch_visit_purpose_breakdown.json:29] |
-| as_of | datalake.branch_visits.as_of | Grouping key | [branch_visit_purpose_breakdown.json:29] |
-| visit_count | Computed | COUNT(*) of visits per (branch_id, visit_purpose, as_of) | [branch_visit_purpose_breakdown.json:29] |
+
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| branch_id | datalake.branch_visits.branch_id | Group key |
+| branch_name | datalake.branches.branch_name | Joined via branch_id + as_of |
+| visit_purpose | datalake.branch_visits.visit_purpose | Group key |
+| as_of | datalake.branch_visits.as_of | Group key |
+| visit_count | Computed | COUNT(*) of visits per (branch_id, visit_purpose, as_of) |
 
 ## Edge Cases
-- **NULL handling**: No explicit NULL handling. If visit_purpose is NULL, it would be grouped as its own category.
-- **Empty branch_visits**: If no visits for a date, the GROUP BY produces zero rows. The INNER JOIN would also produce nothing.
-- **Branch not found**: If a branch_id in branch_visits has no matching row in branches for the same as_of, the INNER JOIN drops those visits from the output.
-- **Weekend data**: Both branch_visits and branches have weekend data, so the job produces output for all 31 calendar days in October 2024.
-- **Computed but unused column**: The total_branch_visits window function is computed but excluded from the output. This may be remnant code from when a percentage column was planned or previously existed.
+
+- **Weekend dates:** branch_visits AND branches both have weekend data. This job uses SQL Transformation (no External module empty guards), so weekend data IS processed and output. This is confirmed by the curated output containing weekend as_of dates (e.g., 2024-10-05, 2024-10-06).
+- **Branch with no visits:** Not included in output (INNER JOIN behavior, BR-7).
+- **Visit with no branch record:** Would be excluded by INNER JOIN if the branch_id doesn't exist in branches for that as_of. In practice, all branch_ids in visits have corresponding branch records.
+- **Empty source data:** If branch_visits is empty for an as_of date, the GROUP BY produces no rows, so no output is written for that date.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `segments` DataSourcing module fetches segment_id and segment_name from `datalake.segments`, but the Transformation SQL never references the "segments" table.
+  - Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:20-24] segments DataSourcing defined; [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL only uses branch_visits and branches.
+  - V2 approach: Remove the segments DataSourcing module entirely.
+
+- **AP-4: Unused Columns Sourced** — The branch_visits DataSourcing fetches customer_id but it's never used in the Transformation SQL (the GROUP BY and COUNT only use branch_id, visit_purpose, as_of).
+  - Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:10] columns include customer_id; [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] SQL only uses branch_id, visit_purpose, as_of from branch_visits.
+  - V2 approach: Remove customer_id from the branch_visits DataSourcing columns.
+
+- **AP-8: Overly Complex SQL** — The SQL uses a CTE (`purpose_counts`) with an unnecessary window function (`SUM(COUNT(*)) OVER (...)`) that computes `total_branch_visits` which is never used in the output. The entire CTE could be replaced with a simpler direct query joining branch_visits with branches and grouping.
+  - Evidence: [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] `total_branch_visits` is computed in CTE but not selected in outer query.
+  - V2 approach: Simplify to a direct GROUP BY with JOIN: `SELECT bv.branch_id, b.branch_name, bv.visit_purpose, bv.as_of, COUNT(*) AS visit_count FROM branch_visits bv JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of GROUP BY bv.branch_id, b.branch_name, bv.visit_purpose, bv.as_of ORDER BY bv.as_of, bv.branch_id, bv.visit_purpose`.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [branch_visit_purpose_breakdown.json:29] SQL GROUP BY |
-| BR-2 | [branch_visit_purpose_breakdown.json:29] SQL CTE and final SELECT |
-| BR-3 | [branch_visit_purpose_breakdown.json:29] SQL JOIN ON |
-| BR-4 | [branch_visit_purpose_breakdown.json:29] INNER JOIN |
-| BR-5 | [branch_visit_purpose_breakdown.json:35], [curated output dates] |
-| BR-6 | [branch_visit_purpose_breakdown.json:29] SQL ORDER BY |
-| BR-7 | [branch_visit_purpose_breakdown.json:29] SQL, [branch_visit_purpose_breakdown.json:18-22] segments sourced |
-| BR-8 | [curated output 31 dates], [datalake.branch_visits dates], [datalake.branches dates] |
-| BR-9 | [control.job_dependencies] |
-| BR-10 | [branch_visit_purpose_breakdown.json:29] SQL logic |
+| BR-1 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] GROUP BY + COUNT(*) |
+| BR-2 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] JOIN branches |
+| BR-3 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] total_branch_visits computed but not selected |
+| BR-4 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29], [curated.branch_visit_purpose_breakdown] schema |
+| BR-5 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] ORDER BY |
+| BR-6 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:36] |
+| BR-7 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] INNER JOIN |
+| BR-8 | [JobExecutor/Jobs/branch_visit_purpose_breakdown.json:29] ON clause |
 
 ## Open Questions
-- **Why is segments sourced but unused?** The segments DataSourcing module is configured but the SQL never references the segments table. Confidence: MEDIUM that it is dead code.
-- **Why is total_branch_visits computed but not output?** The CTE computes `SUM(COUNT(*)) OVER (PARTITION BY bv.branch_id, bv.as_of) AS total_branch_visits` but the final SELECT does not include this column. This may be a remnant of a previously planned percentage calculation. Confidence: MEDIUM.
-- **SameDay dependency on BranchDirectory**: The job reads from datalake.branches, not curated.branch_directory. The dependency ensures BranchDirectory has run for the same date, but the data flow is not directly linked. This may be an orchestration requirement rather than a data dependency. Confidence: MEDIUM.
+
+- **Q1:** The `visit_id` column is sourced from branch_visits but not used in the SQL. This is a minor unused column issue (already flagged under AP-4 for customer_id). Both visit_id and customer_id should be removed from sourcing. Confidence: HIGH.

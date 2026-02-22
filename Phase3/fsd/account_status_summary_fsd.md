@@ -1,36 +1,56 @@
-# FSD: AccountStatusSummaryV2
+# AccountStatusSummary -- Functional Specification Document
 
-## Overview
-Replaces the original AccountStatusSummary job with a V2 implementation that writes to `double_secret_curated` instead of `curated`. The V2 External module replicates the exact AccountStatusCounter logic -- grouping accounts by (account_type, account_status) and counting -- then writes to `double_secret_curated.account_status_summary` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module replacement)**: The original uses DataSourcing -> External (AccountStatusCounter) -> DataFrameWriter. The V2 replaces both with a single V2 External module.
-- Write mode is Overwrite (matching original), so DscWriterUtil.Write is called with overwrite=true.
-- The segments DataSourcing step is retained in the config (matching the original) even though it is unused.
-- The as_of value is taken from accounts.Rows[0]["as_of"], identical to the original.
-- NULL account_type and account_status are coalesced to empty string via `?.ToString() ?? ""`, identical to the original.
+SQL-first. The original External module (AccountStatusCounter) performs a GROUP BY count on (account_type, account_status). This is a textbook SQL aggregation.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=accounts, columns=[account_id, customer_id, account_type, account_status, current_balance], resultName=accounts |
-| 2 | DataSourcing | schema=datalake, table=segments, columns=[segment_id, segment_name], resultName=segments (unused but retained) |
-| 3 | External | AccountStatusSummaryV2Processor -- groups and counts by (type, status), writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: AccountStatusSummaryV2Processor
-- File: ExternalModules/AccountStatusSummaryV2Processor.cs
-- Processing logic: Reads "accounts" from shared state; gets as_of from first row; builds (account_type, account_status) -> count dictionary; produces output rows; writes to double_secret_curated
-- Output columns: account_type, account_status, account_count, as_of
-- Target table: double_secret_curated.account_status_summary
-- Write mode: Overwrite (overwrite=true)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `segments` DataSourcing module entirely |
+| AP-2    | N                   | N/A                | N/A |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL GROUP BY Transformation |
+| AP-4    | Y                   | Y                  | Removed unused columns (account_id, customer_id, current_balance) from DataSourcing |
+| AP-5    | N                   | N/A                | N/A |
+| AP-6    | Y                   | Y                  | Replaced row-by-row dictionary counting with SQL GROUP BY + COUNT |
+| AP-7    | N                   | N/A                | N/A |
+| AP-8    | N                   | N/A                | N/A |
+| AP-9    | N                   | N/A                | N/A |
+| AP-10   | N                   | N/A                | N/A |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** (`accounts`): Read from `datalake.accounts` with only the 2 columns actually used: account_type, account_status. The framework automatically appends as_of.
+
+2. **Transformation** (`summary_result`): GROUP BY account_type, account_status, as_of with COUNT(*) to produce account_count.
+
+3. **DataFrameWriter**: Write `summary_result` to `account_status_summary` in `double_secret_curated` schema with Overwrite mode.
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    account_type,
+    account_status,
+    COUNT(*) AS account_count,
+    as_of
+FROM accounts
+GROUP BY account_type, account_status, as_of
+```
+
+The original External module takes as_of from the first row and applies it uniformly. Since all rows from DataSourcing for a single effective date have the same as_of value, grouping by as_of produces the same result -- a single as_of value per group.
+
+The original module also applies `?.ToString() ?? ""` to coalesce NULLs, but the datalake.accounts schema enforces NOT NULL on account_type and account_status, so this is defensive-only and does not affect output.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | V2 groups by (account_type, account_status) and counts occurrences |
-| BR-2 | as_of taken from accounts.Rows[0]["as_of"] |
-| BR-3 | segments DataSourcing retained in config but not read by V2 processor |
-| BR-4 | DscWriterUtil.Write called with overwrite=true (Overwrite) |
-| BR-5 | All accounts counted; only grouping dimensions are type and status |
-| BR-6 | NULL account_type and account_status coalesced to "" via ?.ToString() ?? "" |
-| BR-7 | Framework handles date filtering; empty guard returns empty DataFrame |
+|-----------------|-------------------|
+| BR-1            | GROUP BY account_type, account_status with COUNT(*) |
+| BR-2            | as_of included in GROUP BY; since all rows share same as_of per effective date, this matches taking as_of from first row |
+| BR-3            | No WHERE clause; all accounts included in aggregation |
+| BR-4            | SELECT produces exactly 4 columns: account_type, account_status, account_count, as_of |
+| BR-5            | DataFrameWriter writeMode is "Overwrite" |
+| BR-6            | When accounts is empty (weekends), GROUP BY produces zero rows |
+| BR-7            | NULL coalesce is unnecessary since schema enforces NOT NULL; SQL behavior matches -- GROUP BY on non-NULL values |

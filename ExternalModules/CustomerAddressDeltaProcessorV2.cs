@@ -5,8 +5,22 @@ using Lib.Modules;
 
 namespace ExternalModules;
 
-public class CustomerAddressDeltasV2Processor : IExternalStep
+/// <summary>
+/// V2 of CustomerAddressDeltas: detects day-over-day changes in customer addresses
+/// by comparing current effective date against the previous day.
+///
+/// External module justified because:
+/// - Requires TWO date snapshots (current and previous day) -- DataSourcing only provides one date range
+/// - Snapshot fallback for customer names (DISTINCT ON ... WHERE as_of &lt;= date)
+/// - Field-by-field comparison with normalization
+/// - Zero-row sentinel handling for baseline and no-change cases
+///
+/// Anti-patterns eliminated:
+/// - AP-7: Added comment explaining the -1 day offset for day-over-day comparison
+/// </summary>
+public class CustomerAddressDeltaProcessorV2 : IExternalStep
 {
+    // Fields compared to detect changes between current and previous day snapshots
     private static readonly string[] CompareFields =
     {
         "customer_id", "address_line1", "city", "state_province",
@@ -23,6 +37,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
         var currentDate = (DateOnly)sharedState[DataSourcing.MinDateKey];
+        // Day-over-day comparison: compare against yesterday's snapshot
         var previousDate = currentDate.AddDays(-1);
 
         using var connection = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
@@ -32,47 +47,25 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
         var previousAddresses = FetchAddresses(connection, previousDate);
         var customerNames = FetchCustomerNames(connection, currentDate);
 
-        // Baseline day: no previous snapshot means no meaningful delta
+        // Baseline case: no previous snapshot means this is the first date (e.g., Oct 1 with no Sep 30 data)
         if (previousAddresses.Count == 0)
         {
-            var nullRow = new Row(new Dictionary<string, object?>
-            {
-                ["change_type"] = null,
-                ["address_id"] = null,
-                ["customer_id"] = null,
-                ["customer_name"] = null,
-                ["address_line1"] = null,
-                ["city"] = null,
-                ["state_province"] = null,
-                ["postal_code"] = null,
-                ["country"] = null,
-                ["start_date"] = null,
-                ["end_date"] = null,
-                ["as_of"] = currentDate.ToString("yyyy-MM-dd"),
-                ["record_count"] = 0
-            });
-            var sentinelDf = new DataFrame(new List<Row> { nullRow }, OutputColumns);
-            DscWriterUtil.Write("customer_address_deltas", false, sentinelDf);
-            sharedState["output"] = sentinelDf;
+            sharedState["output"] = new DataFrame(
+                new List<Row> { CreateNullRow(currentDate) },
+                OutputColumns);
             return sharedState;
         }
 
         // Build lookup dictionaries keyed by address_id
         var currentByAddressId = new Dictionary<int, Dictionary<string, object?>>();
         foreach (var row in currentAddresses)
-        {
-            var addressId = Convert.ToInt32(row["address_id"]);
-            currentByAddressId[addressId] = row;
-        }
+            currentByAddressId[Convert.ToInt32(row["address_id"])] = row;
 
         var previousByAddressId = new Dictionary<int, Dictionary<string, object?>>();
         foreach (var row in previousAddresses)
-        {
-            var addressId = Convert.ToInt32(row["address_id"]);
-            previousByAddressId[addressId] = row;
-        }
+            previousByAddressId[Convert.ToInt32(row["address_id"])] = row;
 
-        // Detect deltas
+        // Detect deltas: only NEW and UPDATED (deletions not tracked -- BR-13)
         var deltaRows = new List<Row>();
 
         foreach (var (addressId, current) in currentByAddressId.OrderBy(kv => kv.Key))
@@ -107,7 +100,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
                 ["start_date"] = FormatDate(current["start_date"]),
                 ["end_date"] = FormatDate(current["end_date"]),
                 ["as_of"] = currentDate.ToString("yyyy-MM-dd"),
-                ["record_count"] = deltaRows.Count // placeholder, updated below
+                ["record_count"] = 0 // placeholder
             }));
         }
 
@@ -115,37 +108,38 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
 
         if (recordCount == 0)
         {
-            // No deltas: single row with nulls except as_of and record_count
-            deltaRows.Add(new Row(new Dictionary<string, object?>
-            {
-                ["change_type"] = null,
-                ["address_id"] = null,
-                ["customer_id"] = null,
-                ["customer_name"] = null,
-                ["address_line1"] = null,
-                ["city"] = null,
-                ["state_province"] = null,
-                ["postal_code"] = null,
-                ["country"] = null,
-                ["start_date"] = null,
-                ["end_date"] = null,
-                ["as_of"] = currentDate.ToString("yyyy-MM-dd"),
-                ["record_count"] = 0
-            }));
+            // No changes detected: emit null-row sentinel
+            deltaRows.Add(CreateNullRow(currentDate));
         }
         else
         {
-            // Set correct record_count on every row
+            // Set actual record_count on every delta row
             for (int i = 0; i < deltaRows.Count; i++)
-            {
                 deltaRows[i]["record_count"] = recordCount;
-            }
         }
 
-        var df = new DataFrame(deltaRows, OutputColumns);
-        DscWriterUtil.Write("customer_address_deltas", false, df);
-        sharedState["output"] = df;
+        sharedState["output"] = new DataFrame(deltaRows, OutputColumns);
         return sharedState;
+    }
+
+    private static Row CreateNullRow(DateOnly currentDate)
+    {
+        return new Row(new Dictionary<string, object?>
+        {
+            ["change_type"] = null,
+            ["address_id"] = null,
+            ["customer_id"] = null,
+            ["customer_name"] = null,
+            ["address_line1"] = null,
+            ["city"] = null,
+            ["state_province"] = null,
+            ["postal_code"] = null,
+            ["country"] = null,
+            ["start_date"] = null,
+            ["end_date"] = null,
+            ["as_of"] = currentDate.ToString("yyyy-MM-dd"),
+            ["record_count"] = 0
+        });
     }
 
     private static List<Dictionary<string, object?>> FetchAddresses(NpgsqlConnection connection, DateOnly asOfDate)
@@ -167,9 +161,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
         {
             var row = new Dictionary<string, object?>();
             for (int i = 0; i < reader.FieldCount; i++)
-            {
                 row[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
-            }
             rows.Add(row);
         }
 
@@ -178,6 +170,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
 
     private static Dictionary<int, string> FetchCustomerNames(NpgsqlConnection connection, DateOnly asOfDate)
     {
+        // Snapshot fallback: use most recent customer record on or before the effective date
         const string query = @"
             SELECT DISTINCT ON (id) id, first_name, last_name
             FROM datalake.customers
@@ -214,6 +207,12 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
         return false;
     }
 
+    /// <summary>
+    /// Normalizes a value for comparison:
+    /// - NULL/DBNull -> empty string
+    /// - DateTime/DateOnly -> "yyyy-MM-dd" format
+    /// - Other values -> trimmed string representation
+    /// </summary>
     private static string Normalize(object? value)
     {
         if (value is null || value is DBNull) return "";

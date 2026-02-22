@@ -1,37 +1,49 @@
-# FSD: CustomerAddressHistoryV2
+# CustomerAddressHistory -- Functional Specification Document
 
-## Overview
-CustomerAddressHistoryV2 replicates the exact Transformation-based logic of CustomerAddressHistory, filtering addresses to exclude null customer_id and ordering by customer_id. The V2 keeps the same DataSourcing and Transformation steps, replacing DataFrameWriter with a thin External writer that uses DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern B (Transformation + V2 Writer)**: Original uses DataSourcing + Transformation + DataFrameWriter. V2 keeps DataSourcing and Transformation identical, replaces DataFrameWriter with External writer.
-- **Write mode**: Append (overwrite=false) to match original.
-- **Same SQL**: The Transformation SQL is kept identical to ensure behavioral equivalence.
-- **Branches DataSourcing retained**: Original sources branches but SQL never references them. V2 retains this.
+**SQL-first.** The original job already uses a Transformation module (no External module). The V2 simplifies the SQL by removing the unnecessary subquery wrapper, removes the unused `branches` DataSourcing module, and removes the unused `address_id` column from the DataSourcing configuration.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | addresses: address_id, customer_id, address_line1, city, state_province, postal_code, country |
-| 2 | DataSourcing | branches: branch_id, branch_name |
-| 3 | Transformation | SQL filters null customer_id, orders by customer_id. Result: "addr_history" |
-| 4 | External | CustomerAddressHistoryV2Writer - reads addr_history, writes to dsc |
+## Anti-Patterns Eliminated
 
-## V2 External Module: CustomerAddressHistoryV2Writer
-- File: ExternalModules/CustomerAddressHistoryV2Writer.cs
-- Processing logic: Reads "addr_history" DataFrame from shared state, writes to dsc
-- Output columns: customer_id, address_line1, city, state_province, postal_code, country, as_of
-- Target table: double_secret_curated.customer_address_history
-- Write mode: Append (overwrite=false)
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `branches` DataSourcing module |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | N                   | N/A                | Original already uses SQL Transformation |
+| AP-4    | Y                   | Y                  | Removed `address_id` from DataSourcing columns (not in output) |
+| AP-5    | N                   | N/A                | No NULL/default asymmetry |
+| AP-6    | N                   | N/A                | No row-by-row iteration |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | Y                   | Y                  | Removed unnecessary subquery wrapper; direct SELECT with WHERE and ORDER BY |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
 
-## Traceability
+## V2 Pipeline Design
+
+1. **DataSourcing** - `addresses` from `datalake.addresses` with columns: `customer_id`, `address_line1`, `city`, `state_province`, `postal_code`, `country`
+2. **Transformation** - Direct SELECT with WHERE and ORDER BY (no subquery)
+3. **DataFrameWriter** - Write to `customer_address_history` in `double_secret_curated` schema, Append mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT a.customer_id, a.address_line1, a.city, a.state_province, a.postal_code, a.country, a.as_of
+FROM addresses a
+WHERE a.customer_id IS NOT NULL
+ORDER BY a.customer_id
+```
+
+This eliminates the unnecessary subquery from the original:
+`SELECT sub.* FROM (SELECT ... FROM addresses a WHERE ...) sub ORDER BY sub.customer_id`
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 (Non-null customer_id) | SQL WHERE a.customer_id IS NOT NULL |
-| BR-2 (Output columns) | SQL SELECT list |
-| BR-3 (Ordered by customer_id) | SQL ORDER BY sub.customer_id |
-| BR-4 (Append mode) | DscWriterUtil.Write with overwrite=false |
-| BR-5 (Branches unused) | Branches DataSourcing retained, SQL doesn't reference |
-| BR-6 (Subquery pattern) | SQL uses subquery wrapping (preserved for equivalence) |
-| BR-7 (No address_id in output) | SQL doesn't select address_id |
-| BR-8 (Transformation pipeline) | Same Transformation SQL as original |
+|-----------------|-------------------|
+| BR-1 | WHERE clause filters out NULL customer_id rows |
+| BR-2 | SELECT clause specifies exact output columns |
+| BR-3 | ORDER BY customer_id provides ascending sort |
+| BR-4 | DataFrameWriter configured with writeMode: Append |
+| BR-5 | address_id removed from DataSourcing columns (not in output) |
+| BR-6 | DataSourcing fetches addresses for effective date (data exists every day) |

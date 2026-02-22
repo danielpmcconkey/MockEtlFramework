@@ -7,7 +7,7 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id", "visit_purpose"]
+      "columns": ["branch_id"]
     },
     {
       "type": "DataSourcing",
@@ -19,12 +19,14 @@
     {
       "type": "Transformation",
       "resultName": "visit_summary",
-      "sql": "WITH visit_counts AS (SELECT bv.branch_id, COUNT(*) AS visit_count, bv.as_of FROM branch_visits bv GROUP BY bv.branch_id, bv.as_of) SELECT vc.branch_id, b.branch_name, vc.as_of, vc.visit_count FROM visit_counts vc JOIN branches b ON vc.branch_id = b.branch_id AND vc.as_of = b.as_of ORDER BY vc.as_of, vc.branch_id"
+      "sql": "SELECT bv.branch_id, b.branch_name, bv.as_of, COUNT(*) AS visit_count FROM branch_visits bv JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of GROUP BY bv.branch_id, b.branch_name, bv.as_of ORDER BY bv.as_of, bv.branch_id"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.BranchVisitSummaryV2Writer"
+      "type": "DataFrameWriter",
+      "source": "visit_summary",
+      "targetTable": "branch_visit_summary",
+      "writeMode": "Append",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

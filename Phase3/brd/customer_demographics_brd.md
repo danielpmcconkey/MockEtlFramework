@@ -1,115 +1,107 @@
-# BRD: CustomerDemographics
+# CustomerDemographics — Business Requirements Document
 
 ## Overview
-This job produces a customer demographics profile that enriches customer data with computed age, age bracket classification, and primary contact information (first phone number and first email address found). It writes one row per customer to `curated.customer_demographics` using Overwrite mode.
+
+The CustomerDemographics job produces an enriched customer profile with calculated age, age bracket, and primary contact information (phone and email) for each customer as of each effective date. The output table uses Overwrite mode, retaining only the most recent date's data.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| customers | datalake | id, prefix, first_name, last_name, sort_name, suffix, birthdate | Driver table; iterated to produce one output row per customer. prefix, sort_name, suffix are sourced but NOT used by the External module. | [JobExecutor/Jobs/customer_demographics.json:7-11] |
-| phone_numbers | datalake | phone_id, customer_id, phone_type, phone_number | Looked up by customer_id; first phone number encountered is used as primary_phone | [JobExecutor/Jobs/customer_demographics.json:13-17] |
-| email_addresses | datalake | email_id, customer_id, email_address, email_type | Looked up by customer_id; first email address encountered is used as primary_email | [JobExecutor/Jobs/customer_demographics.json:19-23] |
-| segments | datalake | segment_id, segment_name | Sourced into shared state but NOT used by the External module | [JobExecutor/Jobs/customer_demographics.json:25-29]; [ExternalModules/CustomerDemographicsBuilder.cs] no reference to "segments" |
+
+| Table | Alias in Config | Columns Sourced | Purpose |
+|-------|----------------|-----------------|---------|
+| `datalake.customers` | customers | id, prefix, first_name, last_name, sort_name, suffix, birthdate | Core customer data; iterated to produce one output row per customer |
+| `datalake.phone_numbers` | phone_numbers | phone_id, customer_id, phone_type, phone_number | Used to find primary (first-encountered) phone number per customer |
+| `datalake.email_addresses` | email_addresses | email_id, customer_id, email_address, email_type | Used to find primary (first-encountered) email address per customer |
+| `datalake.segments` | segments | segment_id, segment_name | **NOT USED** — sourced but never referenced by the External module |
+
+- Join logic: Phone and email are joined to customers via `customer_id` in a dictionary lookup (first match per customer wins). No explicit JOIN; the External module builds hash maps.
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:28-53] builds `phoneByCustomer` and `emailByCustomer` dictionaries; segments DataFrame is never accessed.
+- Date filtering: All DataSourcing modules get effective dates injected automatically by the framework. Customers, accounts, and loan_accounts tables have weekday-only data (no Sat/Sun as_of dates). Phone, email, and segment tables have data for all 7 days.
 
 ## Business Rules
-BR-1: One output row is produced per customer (driven by the customers table).
-- Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:56] `foreach (var custRow in customers.Rows)`
-- Evidence: [curated.customer_demographics] 223 rows for as_of = 2024-10-31, matching customer count
 
-BR-2: Age is computed as the difference between the as_of date and birthdate, with birthday adjustment.
+BR-1: One output row is produced per customer per effective date.
+- Confidence: HIGH
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:56-93] iterates `customers.Rows` and creates one output row per customer row.
+- Evidence: [curated.customer_demographics] Row count = 223 per as_of date, matching `datalake.customers` count of 223.
+
+BR-2: Age is calculated as the difference between the effective date (as_of) and the customer's birthdate, adjusting for whether the birthday has occurred yet in that year.
 - Confidence: HIGH
 - Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:65-66] `age = asOfDate.Year - birthdate.Year; if (birthdate > asOfDate.AddYears(-age)) age--;`
-- Evidence: This correctly handles leap years and partial years (reduces age by 1 if the customer has not yet had their birthday as of the as_of date)
 
-BR-3: Age bracket classification uses the following ranges:
+BR-3: Age bracket is assigned using the following ranges: 18-25 (age < 26), 26-35 (age 26-35), 36-45 (age 36-45), 46-55 (age 46-55), 56-65 (age 56-65), 65+ (age > 65).
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:68-76]
-  - `< 26` => "18-25"
-  - `<= 35` => "26-35"
-  - `<= 45` => "36-45"
-  - `<= 55` => "46-55"
-  - `<= 65` => "56-65"
-  - `> 65` => "65+"
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:68-76] C# switch expression defines exact brackets.
 
-BR-4: Primary phone is the first phone number found for a customer (first row encountered in the data, not filtered by phone_type).
+BR-4: Primary phone is the first phone number encountered for a customer (based on row order from DataSourcing). If no phone exists, an empty string is used.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:31-38] `if (!phoneByCustomer.ContainsKey(custId))` — only takes the first phone found per customer
-- Evidence: The phone_type column is sourced but not used for filtering or prioritization
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:31-38] `if (!phoneByCustomer.ContainsKey(custId))` ensures only first phone is kept.
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:78] `GetValueOrDefault(customerId, "")` provides empty string fallback.
 
-BR-5: Primary email is the first email address found for a customer (first row encountered in the data, not filtered by email_type).
+BR-5: Primary email is the first email address encountered for a customer (based on row order from DataSourcing). If no email exists, an empty string is used.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:44-51] `if (!emailByCustomer.ContainsKey(custId))` — only takes the first email found per customer
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:44-52] Same first-match pattern as phone.
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:79] `GetValueOrDefault(customerId, "")` provides empty string fallback.
 
-BR-6: If a customer has no phone numbers, primary_phone is set to empty string.
-- Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:78] `phoneByCustomer.GetValueOrDefault(customerId, "")`
-
-BR-7: If a customer has no email addresses, primary_email is set to empty string.
-- Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:79] `emailByCustomer.GetValueOrDefault(customerId, "")`
-
-BR-8: The birthdate is passed through to the output unchanged.
-- Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:86] `["birthdate"] = custRow["birthdate"]`
-
-BR-9: If the customers DataFrame is null or empty, the output is an empty DataFrame.
-- Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:18-22] Guard clause
-
-BR-10: The segments and partially-used customer columns (prefix, sort_name, suffix) are sourced but not used.
-- Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs] No reference to `segments`, `prefix`, `sort_name`, or `suffix`
-- Evidence: [JobExecutor/Jobs/customer_demographics.json:10] columns include prefix, sort_name, suffix but output schema does not
-
-BR-11: The output is written using Overwrite mode.
+BR-6: Output uses Overwrite write mode — the curated table retains only the most recent effective date's data.
 - Confidence: HIGH
 - Evidence: [JobExecutor/Jobs/customer_demographics.json:42] `"writeMode": "Overwrite"`
-- Evidence: [curated.customer_demographics] Only contains data for `as_of = 2024-10-31`
+- Evidence: [curated.customer_demographics] Only has data for as_of = 2024-10-31 (single date, 223 rows).
 
-BR-12: Name fields (first_name, last_name) are null-coalesced to empty string.
+BR-7: If no customers exist for the effective date, an empty DataFrame with the correct schema is written.
 - Confidence: HIGH
-- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:59-60] `?? ""`
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:18-21] Empty guard produces empty DataFrame with output columns.
+
+BR-8: The birthdate column is passed through unchanged from the source.
+- Confidence: HIGH
+- Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:86] `["birthdate"] = custRow["birthdate"]` (raw value passthrough).
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| customer_id | customers.id | Direct mapping via Convert.ToInt32 | [ExternalModules/CustomerDemographicsBuilder.cs:58] |
-| first_name | customers.first_name | Null-coalesced to empty string | [ExternalModules/CustomerDemographicsBuilder.cs:59] |
-| last_name | customers.last_name | Null-coalesced to empty string | [ExternalModules/CustomerDemographicsBuilder.cs:60] |
-| birthdate | customers.birthdate | Passed through unchanged | [ExternalModules/CustomerDemographicsBuilder.cs:86] |
-| age | Computed | asOfDate.Year - birthdate.Year, adjusted for birthday | [ExternalModules/CustomerDemographicsBuilder.cs:65-66] |
-| age_bracket | Computed from age | Switch expression mapping age to bracket string | [ExternalModules/CustomerDemographicsBuilder.cs:68-76] |
-| primary_phone | phone_numbers.phone_number | First phone found for customer; empty string if none | [ExternalModules/CustomerDemographicsBuilder.cs:78] |
-| primary_email | email_addresses.email_address | First email found for customer; empty string if none | [ExternalModules/CustomerDemographicsBuilder.cs:79] |
-| as_of | customers.as_of | Passed through from customers row | [ExternalModules/CustomerDemographicsBuilder.cs:91] |
+
+| Column | Type | Source | Transformation |
+|--------|------|--------|---------------|
+| customer_id | integer | `customers.id` | Renamed from `id` via `Convert.ToInt32` |
+| first_name | varchar(100) | `customers.first_name` | ToString with empty string fallback |
+| last_name | varchar(100) | `customers.last_name` | ToString with empty string fallback |
+| birthdate | date | `customers.birthdate` | Passthrough |
+| age | integer | Calculated | `asOfDate.Year - birthdate.Year` with birthday adjustment |
+| age_bracket | varchar(10) | Calculated | Switch expression on age value |
+| primary_phone | varchar(20) | `phone_numbers.phone_number` | First phone per customer; empty string if none |
+| primary_email | varchar(255) | `email_addresses.email_address` | First email per customer; empty string if none |
+| as_of | date | `customers.as_of` | Passthrough from source row |
 
 ## Edge Cases
-- **NULL names**: first_name and last_name are null-coalesced to empty string. [ExternalModules/CustomerDemographicsBuilder.cs:59-60]
-- **No phone/email**: Customers without phone numbers or email addresses get empty strings (not NULL). [ExternalModules/CustomerDemographicsBuilder.cs:78-79]
-- **Multiple phones/emails**: Only the first encountered row is used. The ordering depends on the database query order from DataSourcing (which uses `ORDER BY as_of`). For a single as_of date, the order is the natural row order from PostgreSQL. [ExternalModules/CustomerDemographicsBuilder.cs:34, 48]
-- **Weekend/holiday behavior**: Customers table is weekday-only (23 dates). On weekends, no customer data exists, so the guard clause produces an empty output. With Overwrite mode, this would truncate the table. The executor gap-fills dates, so weekend dates would be processed but produce empty output.
-- **Date parsing**: The ToDateOnly helper handles DateOnly, DateTime, and string types. [ExternalModules/CustomerDemographicsBuilder.cs:99-105]
-- **Age calculation edge case**: The birthday adjustment `if (birthdate > asOfDate.AddYears(-age)) age--` correctly handles the case where a customer's birthday has not yet occurred in the as_of year.
-- **Unused sourced data**: prefix, sort_name, suffix from customers and the entire segments table are loaded but never used in the output.
+
+- **Weekend/holiday dates:** The `datalake.customers` table has no data for weekends (Sat/Sun). When the framework tries to run for a weekend effective date, DataSourcing returns zero rows, triggering the empty DataFrame guard at line 18-21. The output will be an empty write (Overwrite clears previous data). However, phone_numbers and email_addresses DO have weekend data — this only matters if customers has rows.
+- **Missing phone/email:** Customers without phone numbers or email addresses get empty strings ("") rather than NULL. Evidence: [ExternalModules/CustomerDemographicsBuilder.cs:78-79].
+- **Multiple phones/emails per customer:** Only the first encountered phone/email is used. Order depends on DataSourcing row order (database result order, which is by phone_id/email_id unless otherwise specified).
+- **Birthdate edge case:** The age calculation handles leap year birthdays implicitly via `AddYears(-age)` comparison.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `segments` table is sourced in the job config [JobExecutor/Jobs/customer_demographics.json:28-33] but the External module `CustomerDemographicsBuilder` never accesses `sharedState["segments"]`. The segments DataFrame is loaded into memory and never used. V2 approach: Remove the segments DataSourcing module entirely.
+
+- **AP-3: Unnecessary External Module** — The External module performs: (a) dictionary lookups for first phone/email per customer, (b) age calculation from birthdate, (c) age bracket assignment. All of these are expressible in SQL: age via date arithmetic, age bracket via CASE, primary phone/email via window functions (ROW_NUMBER partitioned by customer_id). V2 approach: Replace with SQL Transformation + DataFrameWriter pipeline.
+
+- **AP-4: Unused Columns Sourced** — The `prefix`, `sort_name`, and `suffix` columns are sourced from `datalake.customers` [JobExecutor/Jobs/customer_demographics.json:10] but never referenced in the External module. The module accesses only `id`, `first_name`, `last_name`, `birthdate`, and `as_of`. Similarly, `phone_id` and `phone_type` are sourced from phone_numbers but unused; `email_id` and `email_type` are sourced from email_addresses but unused. V2 approach: Source only the columns actually needed.
+
+- **AP-6: Row-by-Row Iteration in External Module** — The module iterates over phone_numbers, email_addresses, and customers row by row using foreach loops [ExternalModules/CustomerDemographicsBuilder.cs:31,44,56] to build lookups and produce output. This is set-based logic (join + first-match aggregation) that SQL handles natively. V2 approach: Replace with SQL using JOINs and window functions.
+
+- **AP-7: Hardcoded Magic Values** — Age bracket boundaries (26, 35, 45, 55, 65) appear as literal values [ExternalModules/CustomerDemographicsBuilder.cs:68-76] without documentation of their business meaning (e.g., generational cohorts, regulatory age bands). V2 approach: Keep the values but add SQL comments explaining each bracket.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [ExternalModules/CustomerDemographicsBuilder.cs:56], [curated.customer_demographics row count] |
+| BR-1 | [ExternalModules/CustomerDemographicsBuilder.cs:56-93], [curated.customer_demographics] 223 rows/date |
 | BR-2 | [ExternalModules/CustomerDemographicsBuilder.cs:65-66] |
 | BR-3 | [ExternalModules/CustomerDemographicsBuilder.cs:68-76] |
-| BR-4 | [ExternalModules/CustomerDemographicsBuilder.cs:31-38] |
-| BR-5 | [ExternalModules/CustomerDemographicsBuilder.cs:44-51] |
-| BR-6 | [ExternalModules/CustomerDemographicsBuilder.cs:78] |
-| BR-7 | [ExternalModules/CustomerDemographicsBuilder.cs:79] |
+| BR-4 | [ExternalModules/CustomerDemographicsBuilder.cs:31-38,78] |
+| BR-5 | [ExternalModules/CustomerDemographicsBuilder.cs:44-52,79] |
+| BR-6 | [JobExecutor/Jobs/customer_demographics.json:42], curated output single-date |
+| BR-7 | [ExternalModules/CustomerDemographicsBuilder.cs:18-21] |
 | BR-8 | [ExternalModules/CustomerDemographicsBuilder.cs:86] |
-| BR-9 | [ExternalModules/CustomerDemographicsBuilder.cs:18-22] |
-| BR-10 | [ExternalModules/CustomerDemographicsBuilder.cs], [JobExecutor/Jobs/customer_demographics.json:10] |
-| BR-11 | [JobExecutor/Jobs/customer_demographics.json:42], [curated.customer_demographics dates] |
-| BR-12 | [ExternalModules/CustomerDemographicsBuilder.cs:59-60] |
 
 ## Open Questions
-- **Phone/email ordering**: The "first phone" and "first email" depends on the row order returned by PostgreSQL/DataSourcing. The DataSourcing module orders by `as_of`, but within a single as_of date, the order depends on the natural storage order. This means the "primary" designation is effectively arbitrary if a customer has multiple phones or emails. Confidence: MEDIUM that this is intentional (the code does not attempt to sort or prioritize by phone_type/email_type).
-- **Unused segments sourcing**: Same as CustomerCreditSummary — the segments table is loaded but never referenced. Confidence: HIGH that this is dead code in the config.
-- **Unused customer columns**: prefix, sort_name, suffix are sourced but not used. Confidence: HIGH that they are not needed for this job's output.
+
+- **Phone/email ordering:** The "primary" phone and email depend on row iteration order from DataSourcing, which reflects database query order (likely by primary key: phone_id, email_id). This is deterministic but not explicitly documented as a business rule. If the desired behavior is "lowest phone_id" vs. "Mobile type first", the current logic may not match the intent.
+  - Confidence: MEDIUM — the code is clear about "first encountered" but business intent for "primary" is ambiguous.

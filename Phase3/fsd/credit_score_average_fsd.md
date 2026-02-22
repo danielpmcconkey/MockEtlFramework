@@ -1,38 +1,73 @@
-# FSD: CreditScoreAverageV2
+# CreditScoreAverage -- Functional Specification Document
 
-## Overview
-CreditScoreAverageV2 replicates the exact business logic of CreditScoreAverage, computing per-customer average credit scores with individual bureau breakdowns. The V2 uses the same DataSourcing steps and an External module that replicates the original CreditScoreAverager logic, adding DscWriterUtil.Write() to write to `double_secret_curated.credit_score_average`.
+## Design Approach
 
-## Design Decisions
-- **Pattern A (External module)**: The original uses DataSourcing + External + DataFrameWriter. The V2 keeps DataSourcing steps identical and replaces the External+DataFrameWriter with a single V2 External that includes writing.
-- **Write mode**: Overwrite (overwrite=true) to match original's Overwrite write mode.
-- **Segments DataSourcing retained**: The original sources segments but never uses them. The V2 retains this sourcing for behavioral equivalence.
+**SQL-equivalent logic in External module with empty-DataFrame guard.** The original External module groups credit scores by customer, computes averages, pivots bureau scores, and joins with customer names. This logic IS expressible in SQL (GROUP BY + conditional aggregation + JOIN), but the framework's Transformation module does not register empty DataFrames as SQLite tables. On weekends, both `credit_scores` and `customers` have no data, so pure SQL would crash.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | credit_scores: credit_score_id, customer_id, bureau, score |
-| 2 | DataSourcing | customers: id, first_name, last_name |
-| 3 | DataSourcing | segments: segment_id, segment_name |
-| 4 | External | CreditScoreAverageV2Processor |
+The V2 uses a clean External module that:
+1. Checks if input DataFrames are empty (returning empty output if so)
+2. Uses SQLite in-memory to run the equivalent SQL (eliminating row-by-row iteration)
+3. Rounds AVG to 2 decimal places to match the curated table's NUMERIC(6,2) precision
 
-## V2 External Module: CreditScoreAverageV2Processor
-- File: ExternalModules/CreditScoreAverageV2Processor.cs
-- Processing logic: Groups credit scores by customer, computes average, pivots bureau scores into columns, joins with customer names
-- Output columns: customer_id, first_name, last_name, avg_score, equifax_score, transunion_score, experian_score, as_of
-- Target table: double_secret_curated.credit_score_average
-- Write mode: Overwrite (overwrite=true)
+## Anti-Patterns Eliminated
 
-## Traceability
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y                   | Y                  | Removed unused `segments` DataSourcing module |
+| AP-2    | N                   | N/A                | No duplicated logic |
+| AP-3    | Y                   | Partial            | External module retained for empty-DataFrame guard; internal logic uses set-based SQL instead of row-by-row iteration |
+| AP-4    | Y                   | Y                  | Removed `credit_score_id` from DataSourcing columns |
+| AP-5    | Y                   | N (documented)     | Asymmetric NULL handling reproduced for output equivalence: names coalesced to empty string, missing bureau scores remain NULL |
+| AP-6    | Y                   | Y                  | Row-by-row foreach loops replaced with SQLite-based set operations |
+| AP-7    | N                   | N/A                | No magic values |
+| AP-8    | N                   | N/A                | No overly complex SQL |
+| AP-9    | N                   | N/A                | Name accurately describes the job |
+| AP-10   | N                   | N/A                | No inter-job dependencies needed |
+
+## V2 Pipeline Design
+
+1. **DataSourcing** - `credit_scores` from `datalake.credit_scores` with columns: `customer_id`, `bureau`, `score`
+2. **DataSourcing** - `customers` from `datalake.customers` with columns: `id`, `first_name`, `last_name`
+3. **External** - `CreditScoreAveragerV2`: empty-check guard + SQLite-based aggregation
+4. **DataFrameWriter** - Write to `credit_score_average` in `double_secret_curated` schema, Overwrite mode
+
+## External Module Design
+
+```
+IF credit_scores is empty OR customers is empty:
+    Return empty DataFrame
+ELSE:
+    Run SQL in SQLite:
+    SELECT
+        cs.customer_id,
+        COALESCE(c.first_name, '') AS first_name,
+        COALESCE(c.last_name, '') AS last_name,
+        ROUND(AVG(CAST(cs.score AS REAL)), 2) AS avg_score,
+        MAX(CASE WHEN LOWER(cs.bureau) = 'equifax' THEN cs.score END) AS equifax_score,
+        MAX(CASE WHEN LOWER(cs.bureau) = 'transunion' THEN cs.score END) AS transunion_score,
+        MAX(CASE WHEN LOWER(cs.bureau) = 'experian' THEN cs.score END) AS experian_score,
+        c.as_of
+    FROM credit_scores cs
+    INNER JOIN customers c ON cs.customer_id = c.id
+    GROUP BY cs.customer_id, c.first_name, c.last_name, c.as_of
+```
+
+Key design decisions:
+- INNER JOIN ensures only customers with both scores and customer records are output (BR-1)
+- COALESCE to empty string for names matches the original ?? "" pattern (BR-5/AP-5)
+- ROUND(AVG, 2) matches the curated table's NUMERIC(6,2) precision
+- CASE WHEN with LOWER() for case-insensitive bureau matching (BR-7)
+- Missing bureau columns naturally produce NULL via MAX on no matching rows (BR-4)
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 (Average score) | scores.Average(s => s.score) computation |
-| BR-2 (Bureau pivot) | Switch on bureau.ToLower() for equifax/transunion/experian columns |
-| BR-3 (Case-insensitive) | bureau.ToLower() in switch |
-| BR-4 (Inner join) | Skip customers not in customerNames |
-| BR-5 (DBNull for missing bureau) | Initialize bureau scores as DBNull.Value |
-| BR-6 (as_of from customers) | custRow["as_of"] passed through |
-| BR-7 (Overwrite mode) | DscWriterUtil.Write with overwrite=true |
-| BR-8 (Empty input guard) | Early return with empty DataFrame |
-| BR-9 (Segments unused) | Segments DataSourcing retained but not referenced |
-| BR-10 (Duplicate bureau) | Last bureau score overwrites in column; all contribute to average |
+|-----------------|-------------------|
+| BR-1 | INNER JOIN between credit_scores and customers |
+| BR-2 | AVG() aggregate function with ROUND to 2 decimal places |
+| BR-3 | CASE WHEN LOWER(bureau) = 'equifax'/'transunion'/'experian' THEN score END |
+| BR-4 | MAX(CASE WHEN ...) returns NULL when no matching bureau exists |
+| BR-5 | as_of sourced from customers table via JOIN |
+| BR-6 | Empty-check guard at the top of Execute method |
+| BR-7 | LOWER(cs.bureau) for case-insensitive comparison |
+| BR-8 | DataFrameWriter configured with writeMode: Overwrite |

@@ -1,110 +1,135 @@
-# BRD: BranchVisitLog
+# BranchVisitLog — Business Requirements Document
 
 ## Overview
-Produces an enriched log of branch visits by joining visit records with customer names and branch names. Each visit row is augmented with the customer's first_name/last_name and the branch_name. Uses Append mode to build a historical log across all effective dates.
+
+This job produces an enriched log of branch visits by joining branch visit records with branch names and customer names. Each visit is augmented with the branch's name and the visiting customer's first and last name. The result is written to `curated.branch_visit_log` using Append mode, accumulating a historical record.
 
 ## Source Tables
-| Table | Schema | Columns Used | Join/Filter Logic | Evidence |
-|-------|--------|-------------|-------------------|----------|
-| branch_visits | datalake | visit_id, customer_id, branch_id, visit_timestamp, visit_purpose | Filtered by effective date range. All visits included. | [JobExecutor/Jobs/branch_visit_log.json:6-11] |
-| branches | datalake | branch_id, branch_name, address_line1, city, state_province, postal_code, country | Filtered by effective date range. Joined to visits via branch_id. Only branch_name is used. | [JobExecutor/Jobs/branch_visit_log.json:13-18] |
-| customers | datalake | id, first_name, last_name | Filtered by effective date range. Joined to visits via customer_id = id. | [JobExecutor/Jobs/branch_visit_log.json:20-24] |
-| addresses | datalake | address_id, customer_id, address_line1, city | Filtered by effective date range. Sourced but NOT used in output. | [JobExecutor/Jobs/branch_visit_log.json:26-31] |
+
+### datalake.branch_visits
+- **Columns sourced:** visit_id, customer_id, branch_id, visit_timestamp, visit_purpose
+- **Columns actually used:** All 5 sourced columns plus framework-injected as_of
+- **Join/filter logic:** No filtering. All visit rows for the effective date are included.
+- **Evidence:** [ExternalModules/BranchVisitEnricher.cs:57-76] All visit columns are mapped to output.
+
+### datalake.branches
+- **Columns sourced:** branch_id, branch_name, address_line1, city, state_province, postal_code, country
+- **Columns actually used:** branch_id (join key), branch_name (output)
+- **Evidence:** [ExternalModules/BranchVisitEnricher.cs:38-43] Only branch_id and branch_name are read from the branches DataFrame.
+
+### datalake.customers
+- **Columns sourced:** id, first_name, last_name
+- **Columns actually used:** All 3 (id as join key, first_name and last_name in output)
+- **Evidence:** [ExternalModules/BranchVisitEnricher.cs:47-53] Customer lookup built from id -> (first_name, last_name).
+
+### datalake.addresses
+- **Columns sourced:** address_id, customer_id, address_line1, city
+- **Usage:** NONE — loaded into shared state as "addresses" but never accessed by the External module.
+- **Evidence:** [ExternalModules/BranchVisitEnricher.cs] No reference to `sharedState["addresses"]` anywhere.
 
 ## Business Rules
-BR-1: Each branch visit row is enriched with the branch_name by looking up branch_id in the branches DataFrame.
+
+BR-1: Each branch visit is enriched with the branch name by joining on branch_id.
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:34-43] Builds `branchNames` dictionary from branches.Rows keyed by branch_id
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:38-43] Branch name lookup built by branch_id.
 - Evidence: [ExternalModules/BranchVisitEnricher.cs:62] `var branchName = branchNames.GetValueOrDefault(branchId, "");`
+- Evidence: [curated.branch_visit_log] branch_name column populated correctly (e.g., "Austin TX Branch" for branch_id 6).
 
-BR-2: Each branch visit row is enriched with the customer's first_name and last_name by looking up customer_id in the customers DataFrame.
+BR-2: Each branch visit is enriched with the customer's first and last name by joining on customer_id.
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:46-53] Builds `customerNames` dictionary from customers.Rows keyed by id
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:63] Looks up customer names via `customerNames.GetValueOrDefault(customerId, (null!, null!))`
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:47-53] Customer name lookup built from customers.id.
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:63] `var (firstName, lastName) = customerNames.GetValueOrDefault(customerId, (null!, null!));`
+- Evidence: [curated.branch_visit_log] first_name/last_name populated (e.g., "Ava" / "Garcia" for customer_id 1006).
 
-BR-3: If a branch_id has no match in the branches lookup, an empty string is used for branch_name.
+BR-3: If a branch_id has no matching branch record, branch_name defaults to empty string.
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:62] `branchNames.GetValueOrDefault(branchId, "")`
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:62] `GetValueOrDefault(branchId, "")` returns "" for missing branches.
 
-BR-4: If a customer_id has no match in the customers lookup, null values are used for first_name and last_name.
+BR-4: If a customer_id has no matching customer record, first_name and last_name default to null (null! in C#).
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:63] `customerNames.GetValueOrDefault(customerId, (null!, null!))` returns (null, null) for unmatched customers
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:63] `GetValueOrDefault(customerId, (null!, null!))` returns nulls for missing customers.
+- Note: This is different from AccountCustomerJoin which defaults to empty strings. This is an asymmetric NULL handling pattern.
 
-BR-5: The addresses table is sourced but never used in the output. The BranchVisitEnricher only reads "branch_visits", "branches", and "customers" from shared state.
+BR-5: The output contains 9 columns: visit_id, customer_id, first_name, last_name, branch_id, branch_name, visit_timestamp, visit_purpose, as_of.
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:16-18] Only `branch_visits`, `branches`, and `customers` are read -- no reference to "addresses"
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:10-14] `outputColumns` lists these 9 columns.
+- Evidence: [curated.branch_visit_log] Schema confirms these 9 columns (first_name and last_name are nullable).
 
-BR-6: Write mode is Append -- each effective date's enriched visits are added to the existing table, building a historical log.
+BR-6: Data is written in Append mode, accumulating visits across effective dates.
 - Confidence: HIGH
-- Evidence: [JobExecutor/Jobs/branch_visit_log.json:42] `"writeMode": "Append"`
-- Evidence: [curated.branch_visit_log] Multiple as_of dates present (23 dates, weekday-only)
+- Evidence: [JobExecutor/Jobs/branch_visit_log.json:42] `"writeMode": "Append"`.
+- Evidence: [curated.branch_visit_log] Contains multiple as_of dates with varying row counts.
 
-BR-7: The job returns an empty output if customers is null or empty (weekend guard).
+BR-7: When the customers DataFrame is null or empty, an empty output is returned (even if branch_visits has data).
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:21-25] Comment says "Weekend guard on customers empty"; returns empty DataFrame if customers is null or has 0 rows
-- Note: Customers table has weekday-only data. On weekends, the customers DataSourcing returns empty, triggering this guard.
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:21-25] The customers null/empty check comes FIRST, returning empty before checking branch_visits.
 
-BR-8: The job also returns empty output if branch_visits is null or empty.
+BR-8: When branch_visits is null or empty (but customers is not), an empty output is returned.
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:27-30] Returns empty DataFrame if branch_visits is null or has 0 rows
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:27-30] Second guard after customers check.
 
-BR-9: The output preserves the visit_timestamp as-is from the source.
+BR-9: All branch visits for the effective date are included (no filtering by visit_purpose, branch_id, or any other attribute).
 - Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:72] `["visit_timestamp"] = visitRow["visit_timestamp"]`
-
-BR-10: The job runs only on business days (weekdays) because the customers table is weekday-only, and the weekend guard (BR-7) produces empty output when customers is empty.
-- Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:21-25] Weekend guard on customers
-- Evidence: [curated.branch_visit_log] 23 dates = weekdays only in October 2024
-
-BR-11: No filtering is applied to branch visits -- all visits for the effective date are included.
-- Confidence: HIGH
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:56-77] Iterates all branch visit rows without filtering
-
-BR-12: The branch lookup builds from ALL branch rows (across as_of dates if multi-date). Last-write-wins for duplicate branch_ids. Similarly for customer lookup.
-- Confidence: MEDIUM
-- Evidence: [ExternalModules/BranchVisitEnricher.cs:37-42] Dictionary built from all branch rows; [BranchVisitEnricher.cs:48-53] Same for customer rows
-- Note: In single-date execution mode, this is a non-issue.
+- Evidence: [ExternalModules/BranchVisitEnricher.cs:56-76] foreach iterates all visit rows without conditions.
 
 ## Output Schema
-| Column | Source | Transformation | Evidence |
-|--------|--------|---------------|----------|
-| visit_id | datalake.branch_visits.visit_id | Pass-through | [BranchVisitEnricher.cs:66] |
-| customer_id | datalake.branch_visits.customer_id | Pass-through | [BranchVisitEnricher.cs:67] |
-| first_name | datalake.customers.first_name | Looked up via customer_id -> id; null if no match | [BranchVisitEnricher.cs:68] |
-| last_name | datalake.customers.last_name | Looked up via customer_id -> id; null if no match | [BranchVisitEnricher.cs:69] |
-| branch_id | datalake.branch_visits.branch_id | Pass-through | [BranchVisitEnricher.cs:70] |
-| branch_name | datalake.branches.branch_name | Looked up via branch_id; empty string if no match | [BranchVisitEnricher.cs:71] |
-| visit_timestamp | datalake.branch_visits.visit_timestamp | Pass-through | [BranchVisitEnricher.cs:72] |
-| visit_purpose | datalake.branch_visits.visit_purpose | Pass-through | [BranchVisitEnricher.cs:73] |
-| as_of | datalake.branch_visits.as_of | Pass-through | [BranchVisitEnricher.cs:74] |
+
+| Column | Source | Transformation |
+|--------|--------|----------------|
+| visit_id | datalake.branch_visits.visit_id | Direct pass-through |
+| customer_id | datalake.branch_visits.customer_id | Direct pass-through |
+| first_name | datalake.customers.first_name | Joined via customer_id; NULL if no match |
+| last_name | datalake.customers.last_name | Joined via customer_id; NULL if no match |
+| branch_id | datalake.branch_visits.branch_id | Direct pass-through |
+| branch_name | datalake.branches.branch_name | Joined via branch_id; empty string if no match |
+| visit_timestamp | datalake.branch_visits.visit_timestamp | Direct pass-through |
+| visit_purpose | datalake.branch_visits.visit_purpose | Direct pass-through |
+| as_of | datalake.branch_visits.as_of (injected by framework) | Direct pass-through |
 
 ## Edge Cases
-- **NULL handling for customer names**: Customer first_name and last_name use `?.ToString() ?? ""` when building the lookup (converting NULL to empty string). [BranchVisitEnricher.cs:50-51]
-- **NULL handling for branch names**: Branch names use `?.ToString() ?? ""` when building the lookup. [BranchVisitEnricher.cs:41]
-- **Missing customer match**: Returns (null, null) from `GetValueOrDefault` with default `(null!, null!)`. This means unmatched customers get null first_name and last_name in the output. [BranchVisitEnricher.cs:63]
-- **Missing branch match**: Returns empty string for branch_name. [BranchVisitEnricher.cs:62]
-- **Weekend guard**: Customers table is weekday-only. On weekends, customers DataFrame is empty, triggering the guard to return empty output. Branch_visits has weekend data but it is not processed due to the guard. [BranchVisitEnricher.cs:21-25]
-- **Empty branch_visits**: If no visits for the date, returns empty output. [BranchVisitEnricher.cs:27-30]
-- **Branches null**: If branches is null, the branchNames dictionary stays empty, and all visit rows get empty string for branch_name. [BranchVisitEnricher.cs:36]
+
+- **Missing customer:** first_name and last_name become NULL (not empty string — contrast with AccountCustomerJoin).
+- **Missing branch:** branch_name becomes empty string.
+- **Weekend dates:** branch_visits has data for weekends (unlike accounts/customers). However, customers does NOT have weekend data, and the External module checks customers first — if customers is empty, it returns empty output even if visits exist. This means weekend visits with no customer data will produce zero output rows.
+- **Customers empty on weekends:** Since the customers null/empty guard comes first (BR-7), weekends where datalake.customers has no snapshot will produce empty output, even though branch_visits has data.
+- **Branches available on weekends:** datalake.branches does have weekend data, but this doesn't matter if customers is empty.
+
+## Anti-Patterns Identified
+
+- **AP-1: Redundant Data Sourcing** — The `addresses` DataSourcing module fetches address_id, customer_id, address_line1, city from `datalake.addresses`, but the External module never accesses `sharedState["addresses"]`.
+  - Evidence: [JobExecutor/Jobs/branch_visit_log.json:28-33] addresses DataSourcing defined; [ExternalModules/BranchVisitEnricher.cs] no reference to "addresses".
+  - V2 approach: Remove the addresses DataSourcing module entirely.
+
+- **AP-3: Unnecessary External Module** — The `BranchVisitEnricher` performs two LEFT JOINs (visits -> branches by branch_id, visits -> customers by customer_id). This is straightforward SQL.
+  - Evidence: [ExternalModules/BranchVisitEnricher.cs] Logic is: build branch lookup, build customer lookup, iterate visits and join.
+  - V2 approach: Replace with SQL Transformation using LEFT JOINs. Note: must match the NULL vs empty string behavior exactly.
+
+- **AP-4: Unused Columns Sourced** — The branches DataSourcing fetches address_line1, city, state_province, postal_code, and country, but only branch_id and branch_name are used.
+  - Evidence: [JobExecutor/Jobs/branch_visit_log.json:16] columns include address_line1, city, state_province, postal_code, country; [ExternalModules/BranchVisitEnricher.cs:38-43] only branch_id and branch_name are read.
+  - V2 approach: Only source branch_id and branch_name from branches.
+
+- **AP-5: Asymmetric NULL/Default Handling** — Missing branch names default to empty string, while missing customer names default to NULL. These are both string columns representing names of missing entities, but are handled inconsistently.
+  - Evidence: [ExternalModules/BranchVisitEnricher.cs:62] branch_name defaults to ""; [ExternalModules/BranchVisitEnricher.cs:63] customer names default to (null!, null!).
+  - V2 approach: The V2 must reproduce this asymmetric behavior for output equivalence. Document as a known inconsistency. In the SQL, use `COALESCE(b.branch_name, '')` for branch_name and leave customer names as NULL on LEFT JOIN miss.
+
+- **AP-6: Row-by-Row Iteration in External Module** — The External module iterates visits row-by-row and does dictionary lookups, when SQL LEFT JOIN handles this directly.
+  - Evidence: [ExternalModules/BranchVisitEnricher.cs:56] `foreach (var visitRow in branchVisits.Rows)`
+  - V2 approach: Replace with SQL LEFT JOINs.
 
 ## Traceability Matrix
-| Requirement | Evidence Citations |
+
+| Requirement | Evidence Citation |
 |-------------|-------------------|
-| BR-1 | [BranchVisitEnricher.cs:34-43], [BranchVisitEnricher.cs:62] |
-| BR-2 | [BranchVisitEnricher.cs:46-53], [BranchVisitEnricher.cs:63] |
-| BR-3 | [BranchVisitEnricher.cs:62] |
-| BR-4 | [BranchVisitEnricher.cs:63] |
-| BR-5 | [BranchVisitEnricher.cs:16-18], [branch_visit_log.json:26-31] |
-| BR-6 | [branch_visit_log.json:42], [curated.branch_visit_log dates] |
-| BR-7 | [BranchVisitEnricher.cs:21-25] |
-| BR-8 | [BranchVisitEnricher.cs:27-30] |
-| BR-9 | [BranchVisitEnricher.cs:72] |
-| BR-10 | [BranchVisitEnricher.cs:21-25], [curated.branch_visit_log dates] |
-| BR-11 | [BranchVisitEnricher.cs:56-77] |
-| BR-12 | [BranchVisitEnricher.cs:37-42], [BranchVisitEnricher.cs:48-53] |
+| BR-1 | [ExternalModules/BranchVisitEnricher.cs:38-43, 62], [curated.branch_visit_log] branch_name populated |
+| BR-2 | [ExternalModules/BranchVisitEnricher.cs:47-53, 63], [curated.branch_visit_log] names populated |
+| BR-3 | [ExternalModules/BranchVisitEnricher.cs:62] GetValueOrDefault default "" |
+| BR-4 | [ExternalModules/BranchVisitEnricher.cs:63] GetValueOrDefault default (null!, null!) |
+| BR-5 | [ExternalModules/BranchVisitEnricher.cs:10-14], [curated.branch_visit_log] schema |
+| BR-6 | [JobExecutor/Jobs/branch_visit_log.json:42] |
+| BR-7 | [ExternalModules/BranchVisitEnricher.cs:21-25] |
+| BR-8 | [ExternalModules/BranchVisitEnricher.cs:27-30] |
+| BR-9 | [ExternalModules/BranchVisitEnricher.cs:56-76] no conditions in loop |
 
 ## Open Questions
-- **Why is addresses sourced but unused?** The addresses DataSourcing module is configured in the job but never referenced by BranchVisitEnricher. Confidence: MEDIUM that it is intentionally unused.
-- **Asymmetric null defaults**: Missing branches get empty string ("") for branch_name while missing customers get null for first_name/last_name. This inconsistency may or may not be intentional. Confidence: MEDIUM.
-- **Weekend branch visit data is lost**: Branch_visits has weekend data but the weekend guard prevents processing on weekends because customers is empty on weekends. This means weekend visit data is never output. Confidence: HIGH that this is by design (the code explicitly comments "Weekend guard on customers empty").
+
+- **Q1:** The weekend behavior is important: branch_visits has weekend data, but customers does not. The customers-first empty guard means weekend visits produce no output. This is consistent with the curated output (no weekend as_of dates in branch_visit_log). However, it's unclear if this is intentional or an artifact of the guard ordering. Confidence: MEDIUM that this is unintentional — the guard should logically check branch_visits first, but the result is the same (no output for weekends either way, since the join would produce NULL customer names).

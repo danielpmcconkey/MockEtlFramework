@@ -1,43 +1,62 @@
-# FSD: DailyTransactionSummaryV2
+# DailyTransactionSummary — Functional Specification Document
 
-## Overview
-Replaces the original DailyTransactionSummary job with a V2 implementation that writes to the `double_secret_curated` schema instead of `curated`. Since the original uses a Transformation (SQL) step, the V2 retains the same SQL and adds a V2 External writer module that reads the transformation result and writes it to `double_secret_curated.daily_transaction_summary` via DscWriterUtil.
+## Design Approach
 
-## Design Decisions
-- **Pattern B (Transformation + V2 Writer)**: The original job uses DataSourcing x2 -> Transformation -> DataFrameWriter. The V2 retains the same DataSourcing and Transformation steps, then replaces DataFrameWriter with a V2 External writer module.
-- The V2 writer reads the transformation result DataFrame from shared state (key "daily_txn_summary") and writes it to double_secret_curated.
-- Write mode is Append (matching original), so DscWriterUtil.Write is called with overwrite=false.
-- The branches DataSourcing step is retained (matching original) even though it is unused by the SQL.
+**SQL-first.** The original already uses a SQL Transformation, but with unnecessary complexity: a subquery wrapper and verbose total_amount calculation. The V2 simplifies the SQL while producing identical output.
 
-## Module Pipeline
-| Step | Module Type | Config/Details |
-|------|------------|----------------|
-| 1 | DataSourcing | schema=datalake, table=transactions, columns=[transaction_id, account_id, txn_timestamp, txn_type, amount, description], resultName=transactions |
-| 2 | DataSourcing | schema=datalake, table=branches, columns=[branch_id, branch_name], resultName=branches (unused but retained) |
-| 3 | Transformation | Same SQL as original: subquery pattern aggregating per account_id/as_of with CASE-based debit/credit/total, COUNT(*), ORDER BY as_of, account_id; resultName=daily_txn_summary |
-| 4 | External | DailyTransactionSummaryV2Writer -- reads daily_txn_summary, writes to dsc |
+No External module needed (original did not use one either).
 
-## V2 External Module: DailyTransactionSummaryV2Writer
-- File: ExternalModules/DailyTransactionSummaryV2Writer.cs
-- Processing logic: Reads the "daily_txn_summary" DataFrame from shared state (result of the Transformation step), writes it to double_secret_curated via DscWriterUtil with overwrite=false (Append mode), then puts it in sharedState["output"].
-- Output columns: account_id, as_of, total_amount, transaction_count, debit_total, credit_total (as produced by the Transformation SQL)
-- Target table: double_secret_curated.daily_transaction_summary
-- Write mode: Append (overwrite=false)
+## Anti-Patterns Eliminated
 
-## Traceability
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | Y | Y | Removed unused `branches` DataSourcing module |
+| AP-2    | N | N/A | Not applicable |
+| AP-3    | N | N/A | Original already uses SQL Transformation |
+| AP-4    | Y | Y | Removed unused columns `transaction_id`, `txn_timestamp`, `description` from transactions; sourcing only `account_id`, `txn_type`, `amount` |
+| AP-5    | N | N/A | NULL handling not applicable (aggregation with CASE) |
+| AP-6    | N | N/A | No External module |
+| AP-7    | N | N/A | No magic values |
+| AP-8    | Y | Y | Removed unnecessary subquery wrapper; simplified `total_amount` from `SUM(CASE Debit) + SUM(CASE Credit)` to `ROUND(SUM(t.amount), 2)` since all txn_types are either Debit or Credit |
+| AP-9    | N | N/A | Name accurately reflects output |
+| AP-10   | N | N/A | No undeclared dependencies |
+
+## V2 Pipeline Design
+
+1. **DataSourcing** `transactions` — `datalake.transactions` (account_id, txn_type, amount)
+2. **Transformation** `daily_txn_summary` — Simplified aggregation SQL
+3. **DataFrameWriter** — writes to `double_secret_curated.daily_transaction_summary`, Append mode
+
+## SQL Transformation Logic
+
+```sql
+SELECT
+    t.account_id,
+    t.as_of,
+    /* Total of all transaction amounts regardless of type */
+    ROUND(SUM(t.amount), 2) AS total_amount,
+    COUNT(*) AS transaction_count,
+    /* Sum of Debit transaction amounts */
+    ROUND(SUM(CASE WHEN t.txn_type = 'Debit' THEN t.amount ELSE 0 END), 2) AS debit_total,
+    /* Sum of Credit transaction amounts */
+    ROUND(SUM(CASE WHEN t.txn_type = 'Credit' THEN t.amount ELSE 0 END), 2) AS credit_total
+FROM transactions t
+GROUP BY t.account_id, t.as_of
+ORDER BY t.as_of, t.account_id
+```
+
+**Key simplification:** The original computes `total_amount` as the sum of two CASE-based SUMs (`SUM(Debit) + SUM(Credit)`), which is equivalent to `SUM(amount)` since all transactions are either Debit or Credit. The V2 uses `SUM(amount)` directly and removes the unnecessary subquery wrapper.
+
+## Traceability to BRD
+
 | BRD Requirement | FSD Design Element |
-|----------------|-------------------|
-| BR-1 | Same Transformation SQL with GROUP BY account_id, as_of |
-| BR-2 | Same CASE-based total_amount computation (SUM debit + SUM credit) |
-| BR-3 | Same COUNT(*) for transaction_count |
-| BR-4 | Same CASE-based debit_total with ROUND(2) |
-| BR-5 | Same CASE-based credit_total with ROUND(2) |
-| BR-6 | Same ROUND(2) on total_amount |
-| BR-7 | Same ORDER BY as_of, account_id |
-| BR-8 | Same subquery pattern preserved |
-| BR-9 | DscWriterUtil.Write called with overwrite=false (Append) |
-| BR-10 | branches DataSourcing retained in config but unused |
-| BR-11 | txn_timestamp and description sourced but unused (matching original) |
-| BR-12 | Same Transformation module type (pure SQL) |
-| BR-13 | Transactions exist for all 31 days, producing 31 days of output |
-| BR-14 | CASE ELSE 0 behavior preserved for non-Debit/Credit types |
+|-----------------|-------------------|
+| BR-1: One row per account per date | `GROUP BY t.account_id, t.as_of` |
+| BR-2: total_amount = sum of all amounts | `ROUND(SUM(t.amount), 2)` — equivalent to original's verbose form |
+| BR-3: transaction_count = COUNT(*) | `COUNT(*) AS transaction_count` |
+| BR-4: debit_total = sum of Debit amounts | `ROUND(SUM(CASE WHEN t.txn_type = 'Debit' THEN t.amount ELSE 0 END), 2)` |
+| BR-5: credit_total = sum of Credit amounts | `ROUND(SUM(CASE WHEN t.txn_type = 'Credit' THEN t.amount ELSE 0 END), 2)` |
+| BR-6: Ordered by as_of, account_id | `ORDER BY t.as_of, t.account_id` |
+| BR-7: Append mode | DataFrameWriter `writeMode: "Append"` |
+| BR-8: Weekend dates included | Transactions have weekend data; no date filtering applied |
+| BR-9: All amounts rounded to 2 dp | `ROUND(..., 2)` on total_amount, debit_total, credit_total |

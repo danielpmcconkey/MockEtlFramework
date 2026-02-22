@@ -4,27 +4,22 @@
   "modules": [
     {
       "type": "DataSourcing",
-      "resultName": "branch_visits",
-      "schema": "datalake",
-      "table": "branch_visits",
-      "columns": ["visit_id", "branch_id"]
-    },
-    {
-      "type": "DataSourcing",
-      "resultName": "branches",
-      "schema": "datalake",
-      "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "resultName": "branch_summary",
+      "schema": "curated",
+      "table": "branch_visit_summary",
+      "columns": ["branch_id", "branch_name", "visit_count"]
     },
     {
       "type": "Transformation",
       "resultName": "top_branches",
-      "sql": "WITH visit_totals AS (SELECT bv.branch_id, COUNT(*) AS total_visits FROM branch_visits bv WHERE bv.as_of >= '2024-10-01' GROUP BY bv.branch_id) SELECT vt.branch_id, b.branch_name, vt.total_visits, RANK() OVER (ORDER BY vt.total_visits DESC) AS rank, b.as_of FROM visit_totals vt JOIN branches b ON vt.branch_id = b.branch_id ORDER BY rank, vt.branch_id"
+      "sql": "SELECT branch_id, branch_name, visit_count AS total_visits, RANK() OVER (ORDER BY visit_count DESC) AS rank, as_of FROM branch_summary ORDER BY rank, branch_id"
     },
     {
-      "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
-      "typeName": "ExternalModules.TopBranchesV2Writer"
+      "type": "DataFrameWriter",
+      "source": "top_branches",
+      "targetTable": "top_branches",
+      "writeMode": "Overwrite",
+      "targetSchema": "double_secret_curated"
     }
   ]
 }

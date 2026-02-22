@@ -1,27 +1,34 @@
-# Governance Report: CustomerFullProfile
+# CustomerFullProfile -- Governance Report
 
 ## Links
 - BRD: Phase3/brd/customer_full_profile_brd.md
 - FSD: Phase3/fsd/customer_full_profile_fsd.md
 - Test Plan: Phase3/tests/customer_full_profile_tests.md
-- V2 Module: ExternalModules/CustomerFullProfileV2Processor.cs
 - V2 Config: JobExecutor/Jobs/customer_full_profile_v2.json
 
 ## Summary of Changes
-- Original approach: DataSourcing (customers, phone_numbers, email_addresses, customers_segments, segments) -> External (FullProfileAssembler) -> DataFrameWriter to curated.customer_full_profile
-- V2 approach: DataSourcing (customers, phone_numbers, email_addresses, customers_segments, segments) -> External (CustomerFullProfileV2Processor) writing to double_secret_curated.customer_full_profile via DscWriterUtil
-- Key difference: V2 combines processing and writing. Business logic (demographics + contacts + comma-separated segment names) is identical.
+The original job used an External module (FullProfileAssembler.cs) that re-derived age, age_bracket, primary_phone, and primary_email using logic identical to CustomerDemographics, plus added segment concatenation. The V2 eliminates this duplication by reading pre-computed demographics from `curated.customer_demographics` (fixing AP-2), then enriching with segment data from datalake using a SQL Transformation with JOINs and GROUP_CONCAT. A SameDay dependency on CustomerDemographics is declared.
 
-## Anti-Patterns Identified
-- **Over-fetching columns**: The segments DataSourcing sources `segment_code` which is never used in the output (only `segment_name` is used to build the comma-separated segment list).
-- **Duplicated logic with CustomerDemographics**: Age computation and age bracket classification are implemented identically in both CustomerDemographics and CustomerFullProfile External modules, violating DRY. A shared utility would be more maintainable.
-- **Non-deterministic contact selection**: Same as CustomerDemographics -- primary phone and email selection depends on DataFrame iteration order.
+## Anti-Pattern Scorecard
+
+| AP Code | Present in Original? | Eliminated in V2? | How? |
+|---------|---------------------|--------------------|------|
+| AP-1    | N                   | N/A                | No unused data sources in original |
+| AP-2    | Y                   | Y                  | Instead of re-deriving age, age_bracket, primary_phone, primary_email from raw datalake tables, V2 reads them from curated.customer_demographics |
+| AP-3    | Y                   | Y                  | Replaced External module with SQL Transformation + DataFrameWriter |
+| AP-4    | Y                   | Y                  | Removed unused columns: phone_id/phone_type from phone_numbers; email_id/email_type from email_addresses; segment_code from segments. V2 no longer sources phone_numbers or email_addresses at all. |
+| AP-5    | N                   | N/A                | NULL handling consistent |
+| AP-6    | Y                   | Y                  | Five foreach loops replaced with set-based SQL JOINs and GROUP_CONCAT |
+| AP-7    | Y                   | Documented         | Age bracket magic values no longer computed here (delegated to CustomerDemographics). Documented in that job's FSD. |
+| AP-8    | N                   | N/A                | No complex SQL in original |
+| AP-9    | N                   | N/A                | Name reasonably reflects output |
+| AP-10   | Y                   | Y                  | V2 declares SameDay dependency on CustomerDemographics (required for curated.customer_demographics to be populated) |
 
 ## Comparison Results
-- Dates compared: 31 (Oct 1-31, 2024)
+- Dates verified: 31 (Oct 1-31, 2024)
 - Match percentage: 100%
-- Fix iterations required for this specific job: 0 (assembly name fix and TRUNCATE-to-DELETE fix applied universally, but no job-specific logic fix needed)
+- Write mode: Overwrite
+- Row count: 223
 
 ## Confidence Assessment
-- Overall confidence: HIGH
-- The most feature-rich customer profile job, combining demographics, contacts, and segments. All sub-features are well-documented and verified across 31 dates.
+**HIGH** -- All 10 business rules directly observable. The AP-2 fix (reading from upstream curated table) is the most significant architectural change, properly leveraging the dependency chain. No fix iterations required for this job.

@@ -1,26 +1,43 @@
-# Test Plan: DailyTransactionVolumeV2
+# DailyTransactionVolume — Test Plan
 
 ## Test Cases
-| ID | BRD Req | Description | Expected Result |
-|----|---------|------------|-----------------|
-| TC-1 | BR-1 | Verify one row per as_of date | Each date has exactly one output row |
-| TC-2 | BR-2 | Verify total_transactions | COUNT(*) of all transactions per date |
-| TC-3 | BR-3 | Verify total_amount | SUM(amount) rounded to 2 decimal places |
-| TC-4 | BR-4 | Verify avg_amount | AVG(amount) rounded to 2 decimal places |
-| TC-5 | BR-5 | Verify MIN/MAX computed but excluded | Output has no min_amount or max_amount columns |
-| TC-6 | BR-6 | Verify ordering by as_of | Output rows ordered chronologically |
-| TC-7 | BR-7 | Verify Append mode | Rows accumulate across effective dates |
-| TC-8 | BR-8 | Verify CTE-based SQL | WITH clause used |
-| TC-9 | BR-9 | Verify SameDay dependency exists | DailyTransactionSummaryV2 must succeed first |
-| TC-10 | BR-10 | Verify 31 output rows | One per day of October |
-| TC-11 | BR-11 | Verify columns sourced | transaction_id, account_id, txn_type, amount |
-| TC-12 | BR-12 | Verify all txn_types included in SUM/AVG | No CASE filtering, all amounts equally treated |
-| TC-13 | BR-1,7 | Compare V2 output to original | EXCEPT query yields zero rows |
 
-## Edge Case Tests
-| ID | Scenario | Expected Result |
-|----|----------|-----------------|
-| EC-1 | No transactions on a date | No output row for that date |
-| EC-2 | Weekend data | Transactions exist 7 days/week, so output every day |
-| EC-3 | Single transaction on a date | total_transactions=1, total_amount=amount, avg_amount=amount |
-| EC-4 | All same-amount transactions on a date | avg_amount = that amount |
+### TC-1: One row per date
+- **Traces to:** BR-1
+- **Method:** Verify `SELECT COUNT(*) FROM double_secret_curated.daily_transaction_volume WHERE as_of = {date}` returns 1 for each date.
+- **Expected:** Exactly 1 row per date
+
+### TC-2: total_transactions matches sum of account-level counts
+- **Traces to:** BR-2
+- **Method:** For 2024-10-01, verify total_transactions = 405 (sum of all account transaction_count values from daily_transaction_summary).
+- **Expected:** total_transactions = 405
+
+### TC-3: total_amount matches sum of account-level amounts
+- **Traces to:** BR-3
+- **Method:** For 2024-10-01, verify total_amount = 362968.14.
+- **Expected:** total_amount = 362968.14
+
+### TC-4: avg_amount = total_amount / total_transactions
+- **Traces to:** BR-4
+- **Method:** For all dates, verify `ROUND(total_amount / total_transactions, 2) = avg_amount`.
+- **Expected:** Match for all dates (verified: 362968.14/405 = 896.22)
+
+### TC-5: Append mode — all dates present
+- **Traces to:** BR-5
+- **Method:** After running Oct 1-31, verify 31 distinct as_of values.
+- **Expected:** 31 dates
+
+### TC-6: Weekend dates have data
+- **Traces to:** BR-6
+- **Method:** Verify rows exist for 2024-10-05 and 2024-10-06.
+- **Expected:** Rows present
+
+### TC-7: Values match raw transaction aggregation
+- **Traces to:** BR-7
+- **Method:** For each date, compare with `SELECT COUNT(*), ROUND(SUM(amount),2), ROUND(AVG(amount),2) FROM datalake.transactions WHERE as_of={date}`.
+- **Expected:** All three metrics match
+
+### TC-8: Full EXCEPT comparison with original
+- **Traces to:** All BRs
+- **Method:** For each date: `SELECT * FROM curated.daily_transaction_volume WHERE as_of = {date} EXCEPT SELECT * FROM double_secret_curated.daily_transaction_volume WHERE as_of = {date}` and vice versa.
+- **Expected:** Both EXCEPT queries return 0 rows
