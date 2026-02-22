@@ -1242,3 +1242,86 @@ Implemented the CustomerAddressDeltas CDC job end-to-end:
 All results match the BRD expectations.
 
 ---
+
+## User — 2026-02-22 05:51
+
+Added `Documentation/CoveredTransactionsBrd.md` manually. Asked to commit and push, then discuss the next file.
+
+## Claude — 2026-02-22 05:51
+
+Committed the new BRD file and pushed both commits (CustomerAddressDeltas implementation + CoveredTransactions BRD) to origin. Remote was already SSH.
+
+---
+
+## User — 2026-02-22 05:53
+
+Asked to read the CoveredTransactions BRD and build the job, same approach as CustomerAddressDeltas.
+
+## Claude — 2026-02-22 05:58
+
+Read the BRD and entered plan mode. Explored DB table structures for all 6 source tables (transactions, accounts, customers, addresses, customers_segments, segments). Key findings:
+
+- Transactions exist all 31 Oct days; accounts/customers weekday-only (23 days)
+- 8 segments, 291 customer-segment assignments on Oct 1, customer 1015 has duplicate RICH assignment
+- addresses has country check constraint (US/CA), end_date nullable
+
+Designed plan for External module (`CoveredTransactionProcessor`) that:
+1. Queries 6 tables with appropriate date logic (exact match for transactions/addresses/segments, fallback for accounts/customers)
+2. Filters: Checking accounts only + active US address required
+3. Address tie-breaking: earliest start_date when multiple active US addresses
+4. Segment dedup: first segment_code alphabetically
+5. Sort: customer_id ASC, transaction_id DESC
+6. 24 output columns (22 BRD fields + as_of + record_count)
+7. Zero-row case: null row with as_of + record_count=0
+
+Expected Oct 1-7 row counts from BRD: 6, 2, 4, 3, 5, 1, 2
+
+---
+
+## User — 2026-02-22 05:58
+
+Approved the plan and asked to implement: build the CoveredTransactions ETL job per the plan.
+
+## Claude — 2026-02-22 06:04
+
+Implemented the CoveredTransactions ETL job end-to-end:
+
+**Step 1: Created `ExternalModules/CoveredTransactionProcessor.cs`**
+- Implements `IExternalStep`
+- Reads `__minEffectiveDate` from shared state as `effectiveDate`
+- Opens one DB connection and runs 5 queries:
+  - Transactions: exact date match
+  - Accounts: DISTINCT ON with `as_of <= @date` fallback, filters to Checking only in-memory
+  - Customers: DISTINCT ON with `as_of <= @date` fallback
+  - Addresses: exact date, filtered to active US (country='US', end_date IS NULL or >= date), ordered by start_date ASC
+  - Customer-Segments: DISTINCT ON with segments join, first segment_code alphabetically
+- Builds lookup dictionaries: checkingAccounts, customers, activeUsAddresses, segments
+- For each transaction: looks up checking account → customer with active US address → enriches with demographics, address, segment
+- Sort: customer_id ASC, transaction_id DESC
+- 24 output columns: transaction_id, txn_timestamp, txn_type, amount, description, customer_id, name_prefix, first_name, last_name, sort_name, name_suffix, customer_segment, address_id, address_line1, city, state_province, postal_code, country, account_id, account_type, account_status, account_opened, as_of, record_count
+- Zero-row case: single null row with as_of + record_count = 0
+
+**Step 2: Created `JobExecutor/Jobs/covered_transactions.json`**
+- External module → DataFrameWriter (Append mode) to `curated.covered_transactions`
+
+**Step 3: Registered job in `control.jobs`**
+
+**Step 4: Built and tested**
+- `dotnet build`: 0 warnings, 0 errors
+- `dotnet test`: 33 passed, 0 failed
+
+**Step 5: Ran for all 31 October days — all succeeded**
+
+**Verification results:**
+- All 31 days processed (Oct 1–31), 194,966 total qualifying records
+- Zero non-Checking rows, zero non-US rows
+- Customer 1001: present Oct 1 (2 txns) and Oct 2 (1 txn), absent Oct 3+ (US address ended Oct 2) — matches BRD
+- Customer 1001 segment = 'CANRET' (first alphabetically of CANRET, USRET) — matches confirmed business rule
+- Sort order verified: zero violations of customer_id ASC / transaction_id DESC
+- record_count matches actual row count for every as_of date
+- Zero duplicate transaction rows within any as_of date
+- Weekend fallback working: Oct 5 and Oct 6 both produce data using Oct 4 accounts/customers snapshots
+
+Note: Row counts are higher than the original BRD's 23-customer test data (e.g., Oct 1: 85 vs BRD's 6) because the database now contains 223 customers from the extended October 2024 seed. All business logic validates correctly.
+
+---

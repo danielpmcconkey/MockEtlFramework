@@ -7,7 +7,7 @@ I have a real ETL platform that I have written for my personal use. But I have a
 
 So far, Claude Sonnet has helped me build a simulacrum of my real-world ETL platform, complete with a data lake, populated with data. It is well documented in the strategy doc, I believe.
 
-## Phase 2 <-- you are here
+## Phase 2 of the POC has already happened
 
 I want to create about 30 ETL jobs that run  on this mock platform, using the data in the data lake tables that were created in Phase 1, and writing to the curated output tables that were created in Phase 1.
 
@@ -16,6 +16,10 @@ Your job is to be a bad developer. I can help you with that. I want you to write
 Basically I want you to pretend like a junior developer was listening to Paul's Boutique and ripping bong hits while vibe coding with Grok to produce some really horrible shit. The ETL jobs you write have to work. They have to produce output that would be accepted by a business user who was only looking at the output. Go ahead and document what these jobs do from a business perspective, as well as document all the bad practice you injected.
 
 At the end of Phase 2, I want you to run all ETL jobs for each effective date of October 1, 2024 through October 31, 2024. Run these as if each day was a separate execution. The curated tables' output should be quality. The code / config should not.
+
+## Phase 2.5 <-- you are here
+
+I want to plan out Phase 3 together. However, before we do that, I have a few extra tasks for you.
 
 ## Phase 3
 
