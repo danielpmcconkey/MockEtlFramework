@@ -1,0 +1,380 @@
+# Phase 3 Blueprint
+
+This document contains:
+1. The CLAUDE.md to place in the Phase 3 working directory
+2. The preparation script
+3. The kickoff prompt
+
+---
+
+## 1. CLAUDE.md for Phase 3
+
+Place this file at the root of the Phase 3 working directory.
+
+```markdown
+# Phase 3: Autonomous ETL Reverse-Engineering & Rewrite
+
+## Mission
+
+You are the technical lead for an autonomous agent team. Your mission:
+
+1. Reverse-engineer business requirements from 32 existing ETL jobs by analyzing their code, configuration, and database behavior
+2. Produce evidence-based documentation (BRDs, FSDs, test plans) with full traceability
+3. Build superior replacement implementations that write to the `double_secret_curated` schema
+4. Prove behavioral equivalence through iterative comparison against original job output
+5. Produce governance artifacts documenting the efficacy of each rewrite
+
+You must accomplish this with ZERO human intervention. Agents resolve ambiguities among themselves. Escalate to a human ONLY if: (a) a job appears regulatory/compliance-related, (b) confidence < 30% on a high-impact decision, or (c) a discrepancy persists after 3 fix attempts for the same job+date.
+
+## CRITICAL: Forbidden Sources
+
+This project evaluates whether AI agents can infer business requirements from code alone. To ensure integrity:
+
+- **NEVER** read any file in `Documentation/` except `Documentation/Strategy.md`
+- **NEVER** use `git log`, `git show`, `git diff`, or any git command to view prior file versions or commit messages
+- **NEVER** reference `.claude/` memory or transcripts from prior sessions
+- **NEVER** use web search to find information about this specific project
+
+All business requirements MUST be derived exclusively from:
+- Source code: `ExternalModules/*.cs`, `Lib/**/*.cs`
+- Job configurations: `JobExecutor/Jobs/*.json`
+- Database schema and data: `datalake.*` and `curated.*` tables
+- SQL scripts: `SQL/*.sql`
+- Framework architecture: `Documentation/Strategy.md`
+
+Reviewer agents will check for "impossible knowledge" — claims that could only come from forbidden sources.
+
+## Evidence Protocol
+
+Every documented requirement MUST include a source citation and confidence level:
+
+```
+BR-1: Only Checking account transactions are included in output.
+- Confidence: HIGH
+- Evidence: [ExternalModules/SomeProcessor.cs:47] `if (accountType != "Checking") continue;`
+- Evidence: [curated.some_table] SELECT DISTINCT account_type yields only 'Checking'
+```
+
+Confidence levels:
+- **HIGH**: Directly observable in code (explicit filter, conditional, SQL WHERE clause)
+- **MEDIUM**: Inferred from multiple data observations or indirect code logic
+- **LOW**: Single observation, ambiguous code, or conflicting evidence
+
+Requirements at LOW confidence must be discussed among agents and documented in `Phase3/logs/discussions.md` before proceeding. Never silently guess.
+
+## Quality Gates (Watcher Protocol)
+
+After EVERY deliverable, spawn a SEPARATE reviewer subagent. The reviewer:
+
+1. Reads the deliverable AND its cited sources
+2. Verifies every evidence citation actually supports the stated claim
+3. Checks for unsupported, speculative, or hallucinated claims
+4. Checks for "impossible knowledge" that couldn't come from permitted sources
+5. Verifies traceability (every requirement has tests, every test traces to a requirement)
+6. Produces a validation report: PASS/FAIL per item
+
+If the reviewer finds issues:
+- Send the deliverable back for revision with specific feedback
+- Maximum 3 revision cycles per deliverable
+- After 3 cycles, flag remaining issues as LOW confidence and proceed
+
+## Agent Workflow
+
+### Phase A: Analysis (all 32 jobs)
+
+For EACH job:
+1. Spawn **Analyst** subagent:
+   - Read the job config JSON to understand modules, tables sourced, write mode, target table
+   - Read the External module source code (if applicable) or SQL transformation
+   - Read framework code as needed to understand module behavior
+   - Query database: examine source table schemas, sample data, row counts per as_of
+   - Query curated output: examine output table schema, sample output, row counts
+   - Produce BRD at `Phase3/brd/{job_name}_brd.md`
+2. Spawn **Reviewer** subagent to validate the BRD (see Quality Gates)
+3. Revise if needed
+
+BRD must include:
+- Overview (1-2 sentences: what does this job produce and why)
+- Source tables with join/filter logic and evidence
+- Business rules (numbered, each with confidence + evidence)
+- Output schema (every column, its source, any transformation)
+- Edge cases (NULL handling, weekend fallback, zero-row behavior, etc.)
+- Traceability matrix (requirement ID → evidence citation)
+- Open questions (unresolved ambiguities with confidence assessment)
+
+### Phase B: Design & Implementation (all 32 jobs)
+
+For EACH job:
+1. Spawn **Architect** subagent:
+   - Read the BRD
+   - Design the replacement implementation (SQL, External module, or combination)
+   - Produce FSD at `Phase3/fsd/{job_name}_fsd.md`
+   - FSD traces every design decision to a BRD requirement
+2. Spawn **Reviewer** subagent to validate FSD traceability
+3. Spawn **QA** subagent:
+   - Read BRD + FSD
+   - Produce test plan at `Phase3/tests/{job_name}_tests.md`
+   - Every BRD requirement has ≥1 test case
+   - Include edge case tests (NULL, weekend, zero-row, boundary dates)
+4. Spawn **Developer** subagent:
+   - Read FSD + test plan
+   - Implement the replacement job
+   - New External modules: add new .cs files to `ExternalModules/` (e.g., `CoveredTransactionsV2Processor.cs`)
+   - New job configs: `JobExecutor/Jobs/{job_name}_v2.json`
+   - All new jobs write to `double_secret_curated` schema
+   - Job names must be distinct from originals (append `V2`, e.g., `CoveredTransactionsV2`)
+5. Spawn **Code Reviewer** subagent to validate implementation traces to FSD
+
+### Phase C: Setup
+
+1. Create `double_secret_curated` schema with tables mirroring `curated` schema
+2. Register all V2 jobs in `control.jobs`
+3. Run `dotnet build` — must compile cleanly
+4. Run `dotnet test` — all existing tests must pass
+
+### Phase D: Iterative Comparison Loop
+
+This is the core validation loop. Follow these steps EXACTLY:
+
+```
+effective_date_pointer = 2024-10-01
+
+STEP_30:
+  Truncate ALL tables in curated schema
+  Truncate ALL tables in double_secret_curated schema
+  Delete ALL rows from control.job_runs
+  (DO NOT TOUCH datalake schema)
+
+STEP_40:
+  current_date = effective_date_pointer
+
+STEP_50:
+  Run ALL jobs (original + V2) for current_date only:
+    dotnet run --project JobExecutor -- {job_name}
+    (for each job individually, or use the auto-advance mechanism)
+
+STEP_60:
+  For EACH job/table pair, compare output:
+    Compare curated.{table} vs double_secret_curated.{table}
+    for rows WHERE as_of = current_date
+    Check: row counts match, all column values match
+    Use EXCEPT-based SQL for exact comparison
+    Document results in Phase3/logs/comparison_log.md
+
+  Are there discrepancies?
+
+  YES (discrepancies found):
+    STEP_70:
+      Log discrepancy details: job name, date, row count diff,
+      specific column/value mismatches, sample differing rows
+    STEP_75:
+      Spawn Resolution subagent:
+        - Analyze the discrepancy
+        - Read the BRD, FSD, source code (original + V2)
+        - Hypothesize root cause
+        - Document hypothesis in Phase3/logs/comparison_log.md
+        - Fix the V2 code, update FSD/BRD if requirements were wrong
+        - Document what was changed and why
+        - Ensure this resolution doesn't repeat prior mistakes
+          (check the log for past hypotheses on this job)
+      Run `dotnet build` after fixes
+    STEP_80:
+      GOTO STEP_30 (full reset — re-run from Oct 1)
+
+  NO (all jobs match for this date):
+    STEP_90:
+      Log in comparison_log.md: "{current_date}: ALL JOBS MATCH"
+      Include per-job row counts for the record
+    STEP_100:
+      effective_date_pointer += 1 day
+    STEP_110:
+      If effective_date_pointer <= 2024-10-31:
+        GOTO STEP_40
+      Else:
+        GOTO STEP_120
+```
+
+IMPORTANT: A discrepancy on ANY date means GOTO STEP_30 — full truncate and restart from Oct 1. This ensures fixes don't break earlier dates.
+
+### Phase E: Governance (Steps 120-130)
+
+STEP_120: Executive Summary
+  Create `Phase3/governance/executive_summary.md`:
+  - Total jobs analyzed: 32
+  - Total comparison dates: 31 (Oct 1-31)
+  - Number of fix iterations required (total and per job)
+  - Final result: all jobs match across all dates (or list exceptions)
+  - Key findings: patterns of bad code, common anti-patterns found
+  - Recommendations for the real-world run
+
+STEP_130: Per-Job Governance Report
+  For EACH job, create `Phase3/governance/{job_name}_report.md`:
+  - Links to BRD, FSD, test plan
+  - Summary of what changed (original approach vs V2 approach)
+  - Anti-patterns identified and eliminated
+  - Comparison results across all 31 dates (match percentage)
+  - Any remaining ambiguities or "accepted" discrepancies
+  - Confidence assessment for the rewrite
+
+## Documentation Structure
+
+```
+Phase3/
+├── brd/                    # Business Requirements Documents
+│   ├── daily_transaction_summary_brd.md
+│   └── ... (one per job)
+├── fsd/                    # Functional Specification Documents
+│   ├── daily_transaction_summary_fsd.md
+│   └── ...
+├── tests/                  # Test Plans
+│   ├── daily_transaction_summary_tests.md
+│   └── ...
+├── logs/                   # Running logs
+│   ├── comparison_log.md   # Append-only comparison results
+│   └── discussions.md      # Agent-to-agent disambiguation log
+├── governance/             # Final governance artifacts
+│   ├── executive_summary.md
+│   ├── daily_transaction_summary_report.md
+│   └── ...
+└── sql/
+    └── create_double_secret_curated.sql
+```
+
+## Technical Reference
+
+### Database
+- PostgreSQL at localhost, user: `dansdev`, database: `atc`
+- Password: env var `PGPASS` contains hex-encoded UTF-16 LE string
+- Decode: `echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8`
+- Use this pattern for psql: `export PGPASSWORD=$(echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8) && psql -h localhost -U dansdev -d atc -c "..."`
+- Schemas: `datalake` (source — NEVER modify), `curated` (Phase 2 output), `double_secret_curated` (your output), `control` (job metadata)
+
+### Framework
+- Read `Documentation/Strategy.md` for architecture overview
+- `Lib/Modules/DataSourcing.cs` — how effective dates are injected
+- `Lib/Control/JobExecutorService.cs` — how jobs are executed and auto-advanced
+- `Lib/Modules/IExternalStep.cs` — interface for External modules
+- `Lib/ConnectionHelper.cs` — database connection helper
+- `DataSourcing.MinDateKey` = `__minEffectiveDate` — the effective date in shared state
+
+### Building & Running
+- Build: `dotnet build` (from repo root)
+- Test: `dotnet test`
+- Run one job: `dotnet run --project JobExecutor -- {JobName}`
+- Run all jobs: `dotnet run --project JobExecutor` (auto-advances all active jobs)
+
+### Job Registration
+```sql
+INSERT INTO control.jobs (job_name, description, job_conf_path, is_active)
+VALUES ('SomeJobV2', 'Description', 'JobExecutor/Jobs/some_job_v2.json', true)
+ON CONFLICT (job_name) DO NOTHING;
+```
+
+### Active Jobs (32)
+Query `SELECT job_name FROM control.jobs WHERE is_active = true ORDER BY job_name;` to see the full list.
+
+## Guardrails
+
+- NEVER modify files in `Lib/` — the framework is fixed
+- NEVER modify or delete data in `datalake` schema
+- NEVER modify original job configs or External modules — create V2 versions
+- NEVER skip the reviewer step — every deliverable must be validated
+- NEVER fabricate evidence — if you can't find evidence for a requirement, mark it LOW confidence
+- When in doubt, document the doubt — don't silently assume
+```
+
+---
+
+## 2. Preparation Script
+
+Run this in the current session BEFORE starting Phase 3:
+
+```bash
+#!/bin/bash
+# Phase 3 Preparation Script
+# Run from the original repo directory
+
+PHASE3_DIR="/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3"
+
+# 1. Clone the repo
+echo "=== Cloning repo ==="
+git clone /media/dan/fdrive/codeprojects/MockEtlFramework "$PHASE3_DIR"
+
+# 2. Remove forbidden documentation
+echo "=== Removing documentation (except Strategy.md) ==="
+cd "$PHASE3_DIR"
+rm -f Documentation/ClaudeTranscript.md
+rm -f Documentation/POC.md
+rm -f Documentation/Phase2Plan.md
+rm -f Documentation/Phase3Blueprint.md
+rm -f Documentation/CustomerAddressDeltasBrd.md
+rm -f Documentation/CoveredTransactionsBrd.md
+
+# 3. Verify only Strategy.md remains
+echo "=== Remaining documentation ==="
+ls Documentation/
+
+# 4. Create Phase3 directory structure
+echo "=== Creating Phase3 directory structure ==="
+mkdir -p Phase3/{brd,fsd,tests,logs,governance,sql}
+
+# 5. Commit the clean state
+git add -A
+git commit -m "Prepare workspace for Phase 3: remove documentation, create Phase3 structure"
+
+echo ""
+echo "=== DONE ==="
+echo "Now:"
+echo "  1. Copy the CLAUDE.md content to: $PHASE3_DIR/CLAUDE.md"
+echo "  2. Start Claude Code:"
+echo "     cd $PHASE3_DIR && claude --dangerously-skip-permissions"
+echo "  3. Paste the kickoff prompt"
+```
+
+---
+
+## 3. Kickoff Prompt
+
+Paste this into the new Claude Code session:
+
+```
+Read CLAUDE.md thoroughly — it contains your complete mission, constraints, workflow, and technical reference.
+
+You are the autonomous team lead for Phase 3. Your goal: reverse-engineer 32 ETL jobs from their code and data, document them with world-class BRDs, build superior replacements, and prove equivalence through iterative comparison across 31 calendar days.
+
+Begin now. Follow the workflow phases in order:
+
+Phase A — Analysis: Analyze all 32 jobs. For each job, read its config and source code, query database schema and data, produce a BRD, and have it reviewed. Process jobs in batches of 5-8 to manage context. Write every artifact to disk immediately.
+
+Phase B — Design & Build: For each job, produce an FSD, test plan, and implementation. Have each reviewed. All new jobs write to double_secret_curated schema with V2 naming.
+
+Phase C — Setup: Create the double_secret_curated schema, register V2 jobs, build, and test.
+
+Phase D — Comparison Loop: Follow the STEP_30 through STEP_110 loop exactly as specified in CLAUDE.md. This is the critical validation phase. Be methodical. Log everything.
+
+Phase E — Governance: Compile executive summary and per-job governance reports.
+
+Start with Phase A now. Begin by reading Documentation/Strategy.md to understand the framework, then list all active jobs from control.jobs, then start analyzing them.
+```
+
+---
+
+## 4. Design Decisions & Rationale
+
+### Why a full clone instead of a branch?
+A branch still has the forbidden files in git history. A local clone with files physically deleted is the strongest practical guarantee. The agent would need to actively `git show HEAD~1:Documentation/POC.md` to cheat, which the CLAUDE.md prohibits and reviewers watch for.
+
+### Why `--dangerously-skip-permissions`?
+The user explicitly wants zero interactive approval. This is a test project with synthetic data — the blast radius of any mistake is near zero. In the real-world run, use `.claude/settings.local.json` with an allowlist instead.
+
+### Why process analysis before implementation?
+Analyzing all 32 jobs first lets the agents spot patterns: shared logic, redundant jobs, common anti-patterns. This produces better designs than analyzing and building one job at a time in isolation.
+
+### Why full truncate+restart on any discrepancy?
+A fix to job X on Oct 15 could theoretically break Oct 1-14 if it changes shared logic. Restarting from Oct 1 guarantees correctness across all dates. Yes, it's expensive, but correctness is priority 1.
+
+### Why V2 naming instead of replacement?
+Running original and V2 jobs side-by-side means the comparison infrastructure is simple: same executor, same date, two schemas. No need to swap code in and out.
+
+### Context window management
+The CLAUDE.md is always loaded (survives compression). The orchestrator stays lean by delegating all heavy work to subagents. Each subagent gets the specific context it needs (one job's BRD, one job's code) rather than the full 32-job picture. Artifacts on disk serve as the persistent memory.

@@ -1325,3 +1325,49 @@ Implemented the CoveredTransactions ETL job end-to-end:
 Note: Row counts are higher than the original BRD's 23-customer test data (e.g., Oct 1: 85 vs BRD's 6) because the database now contains 223 customers from the extended October 2024 seed. All business logic validates correctly.
 
 ---
+
+## User — 2026-02-22 05:59
+
+commit and push
+
+## Claude — 2026-02-22 06:04
+
+Committed as `93cb8f3`: "Implement CoveredTransactions ETL job" (4 files: processor, job config, transcript, POC.md). Pushed to origin/main via SSH.
+
+---
+
+## User — 2026-02-22 06:05
+
+Asked to plan Phase 3. Re-read POC.md. Requirements:
+
+**Priority 0 — Anti-cheating**: The Documentation/ directory contains BRDs, transcripts, and plans that Phase 3 agents could use to "cheat." Need absolute certainty this can't happen. Real-world run won't have such documentation.
+
+**Priority 1 — Accuracy**: Strong guardrails against hallucination. All agents must only document requirements evidenced in code, config, or data. "Watcher" agents check work. Traceability matrices required.
+
+**Priority 2 — Autonomy**: Agents talk to each other, not the user. Best guess with documented confidence levels. Only escalate to human for very low confidence or very high impact (e.g., regulatory jobs).
+
+**Priority 3 — Automation**: No constant approval prompts. Need a way to let agents run without human agreeing to proceed every few seconds.
+
+**Execution flow**: Create double_secret_curated schema → analyze/design/build → truncate curated + clear control history → run all jobs (original + rewrite) for one date → compare output → if discrepancies: log, agents discuss, fix, re-truncate and start over from Oct 1 → if match: advance date → repeat through Oct 31 → compile executive summary and per-job governance reports.
+
+Want the "perfect prompt" to kick off Phase 3.
+
+## Claude — 2026-02-22 06:37
+
+Produced comprehensive Phase 3 blueprint at `Documentation/Phase3Blueprint.md`. Key design decisions:
+
+**Anti-cheating**: Clone the repo to a separate directory, physically delete all Documentation/ files except Strategy.md. Agents literally cannot read what doesn't exist. Git history still has them, but CLAUDE.md prohibits `git log`/`git show` for content recovery, and reviewer agents watch for "impossible knowledge."
+
+**Accuracy**: Evidence protocol requiring every BRD requirement to cite source (file:line or SQL result) with HIGH/MEDIUM/LOW confidence. Watcher pattern: separate reviewer subagent validates every deliverable. Maximum 3 revision cycles per deliverable.
+
+**Autonomy**: Agents communicate through files on disk. Orchestrator spawns analyst, reviewer, architect, developer, QA, and resolution subagents via Task tool. Escalation only for: regulatory implications, confidence < 30% on high-impact decisions, or discrepancy persisting after 3 fix cycles.
+
+**Automation**: Recommended `--dangerously-skip-permissions` for the POC (test project, zero risk). Alternative: `.claude/settings.local.json` allowlist for the real-world run.
+
+**Blueprint contents**:
+1. Full CLAUDE.md template (~200 lines) covering mission, forbidden sources, evidence protocol, quality gates, agent workflow (Phases A through E), documentation standards, comparison loop logic, technical reference
+2. Preparation script: clone repo, delete docs, create Phase3/ directory structure, commit clean state
+3. Kickoff prompt: short trigger that references CLAUDE.md and starts Phase A (analysis of all 32 jobs)
+4. Design rationale: why clone vs branch, why V2 naming, why full truncate+restart on discrepancy, context window management strategy
+
+---
