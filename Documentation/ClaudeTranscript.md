@@ -1075,3 +1075,45 @@ Added a full "Job Descriptions" section to `Documentation/Phase2Plan.md` with de
 Committed and pushed.
 
 ---
+
+## User — 2026-02-21 19:43
+
+the ExecutiveDashboard only has one as_of date. is this intentional?
+
+## Claude — 2026-02-21 19:43
+
+Yes — J30 (ExecutiveDashboard) is an Overwrite job. Each run TRUNCATEs the table before inserting, so only the most recent execution's data survives. After the Oct 1–31 run, only the Oct 31 snapshot remains. Same behavior as all other Overwrite jobs. Overwrite = current state snapshot; Append = accumulated history.
+
+---
+
+## User — 2026-02-21 19:45
+
+Okay. the daily_transaction_volume table seems to have duplicated data. Is that intentional?
+
+## Claude — 2026-02-21 19:45
+
+Not intentional — a bug from the previous session. All 14 Append tables have exact 2x duplication because the jobs ran twice per date (two different loop approaches both inserted data). Confirmed every Append table has dup_factor = 2. Proposed deduplication via ctid-based DELETE, but user chose a different approach.
+
+---
+
+## User — 2026-02-21 19:47
+
+I think we should truncate all output tables and run one time through each of the calendar days in October of 2024. Please profile the tables after every day's independent run to ensure the output looks correct. To be clear, only truncate the curated tables. Do not touch the data lake.
+
+## Claude — 2026-02-21 19:53
+
+Planned a clean re-run approach:
+1. Truncate all 30 curated tables only (datalake untouched)
+2. Clear Phase 2 job_runs from control table
+3. Loop Oct 1–31, for each day: clear today's run_date dedup records, execute all jobs, validate row counts and check for duplicates
+4. Stop on first failure for investigation
+
+Execution results — all 31 days passed with 30/30 jobs succeeded each day, zero duplicates:
+
+**Append tables (14):**
+- 31-date tables: daily_transaction_summary (7,288), daily_transaction_volume (31), monthly_transaction_trend (31), transaction_category_summary (62), customer_contact_info (23,250), customer_segment_map (9,021), customer_address_history (6,970), branch_visit_summary (524), branch_visit_purpose_breakdown (664)
+- 23-date tables (weekday-only): account_balance_snapshot (6,371), branch_visit_log (513), large_transaction_log (6,879), customer_transaction_activity (4,536), customer_branch_activity (513)
+
+**Overwrite tables (16):** All contain Oct 31 snapshot — customer_demographics (223), executive_dashboard (9), branch_directory (40), credit_score_snapshot (669), etc.
+
+---
