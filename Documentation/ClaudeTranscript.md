@@ -1039,3 +1039,39 @@ commit and push
 Staged all 56 files (3 modified + 53 new) for Phase 2 implementation and committed with a descriptive message. Pushed to origin/main via SSH.
 
 ---
+
+## User — 2026-02-21 19:37
+
+did you run the ETL jobs for the month of October 2024?
+
+## Claude — 2026-02-21 19:37
+
+Yes, in the previous session. All 30 jobs were executed for every day Oct 1–31 using a day-by-day loop. Final verification: 930 Succeeded, 0 Failed, 0 Skipped. Overwrite tables contain Oct 31 snapshots, Append tables contain multi-date data. The curated data is already populated in the database.
+
+---
+
+## User — 2026-02-21 19:37
+
+Part of phase 2 was to do this: "Go ahead and document what these jobs do from a business perspective, as well as document all the bad practice you injected." Did you? If so, where?
+
+## Claude — 2026-02-21 19:37
+
+Yes — it's in `Documentation/Phase2Plan.md`. It documents all 30 jobs with anti-pattern assignments, the anti-pattern legend (10 bad practices), declared and missing dependencies, and weekend safety design. However, the business purpose descriptions per job are minimal (table names and modes, not prose). Asked user if they'd like the business descriptions fleshed out.
+
+---
+
+## User — 2026-02-21 19:37
+
+yes, flesh out the business descriptions
+
+## Claude — 2026-02-21 19:38
+
+Added a full "Job Descriptions" section to `Documentation/Phase2Plan.md` with detailed entries for all 30 jobs. Each entry includes:
+- **Business purpose**: 1–3 sentence description of what the job produces and why it matters
+- **Anti-patterns applied**: Per-job breakdown listing each anti-pattern code with a specific explanation of how it manifests (e.g., "[1] Sources `branches` table — never referenced in the SQL")
+- For J29 (CustomerValueScore), included the exact scoring formulas and weights
+- For J30 (ExecutiveDashboard), listed all 9 KPI metric names
+
+Committed and pushed.
+
+---
