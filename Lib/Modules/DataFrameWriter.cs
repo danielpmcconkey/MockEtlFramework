@@ -20,13 +20,14 @@ public class DataFrameWriter : IModule
     private readonly string _sourceDataFrameName;
     private readonly string _targetTableName;
     private readonly WriteMode _writeMode;
-    private const string TargetSchema = "curated";
+    private readonly string _targetSchema;
 
-    public DataFrameWriter(string sourceDataFrameName, string targetTableName, WriteMode writeMode)
+    public DataFrameWriter(string sourceDataFrameName, string targetTableName, WriteMode writeMode, string targetSchema = "curated")
     {
         _sourceDataFrameName = sourceDataFrameName ?? throw new ArgumentNullException(nameof(sourceDataFrameName));
         _targetTableName = targetTableName ?? throw new ArgumentNullException(nameof(targetTableName));
         _writeMode = writeMode;
+        _targetSchema = targetSchema ?? "curated";
     }
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -42,7 +43,7 @@ public class DataFrameWriter : IModule
         if (_writeMode == WriteMode.Overwrite)
         {
             using var truncateCmd = connection.CreateCommand();
-            truncateCmd.CommandText = $"TRUNCATE TABLE \"{TargetSchema}\".\"{_targetTableName}\"";
+            truncateCmd.CommandText = $"TRUNCATE TABLE \"{_targetSchema}\".\"{_targetTableName}\"";
             truncateCmd.ExecuteNonQuery();
         }
 
@@ -61,7 +62,7 @@ public class DataFrameWriter : IModule
 
         using var cmd = connection.CreateCommand();
         cmd.CommandText = $@"
-            CREATE TABLE IF NOT EXISTS ""{TargetSchema}"".""{_targetTableName}"" (
+            CREATE TABLE IF NOT EXISTS ""{_targetSchema}"".""{_targetTableName}"" (
                 {string.Join(",\n                ", columnDefs)}
             )";
         cmd.ExecuteNonQuery();
@@ -77,7 +78,7 @@ public class DataFrameWriter : IModule
         using var transaction = connection.BeginTransaction();
         using var insertCmd = connection.CreateCommand();
         insertCmd.Transaction = transaction;
-        insertCmd.CommandText = $"INSERT INTO \"{TargetSchema}\".\"{_targetTableName}\" ({colNames}) VALUES ({paramNames})";
+        insertCmd.CommandText = $"INSERT INTO \"{_targetSchema}\".\"{_targetTableName}\" ({colNames}) VALUES ({paramNames})";
 
         foreach (var row in df.Rows)
         {

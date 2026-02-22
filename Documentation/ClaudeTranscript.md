@@ -1606,3 +1606,127 @@ Commit and push. Also, bring Phase 3 artifacts into the main repo.
 Copied all Phase 3 artifacts into the main repo: 32 V2 External modules, DscWriterUtil.cs, modified .csproj, 33 V2 job configs, CLAUDE.md, and the full Phase3/ directory tree (64 BRDs/reviews, 32 FSDs, 32 test plans, 33 governance reports, 2 log files, 1 SQL script). Build succeeds with 0 warnings, 0 errors. Committed and pushed.
 
 ---
+
+## User — 2026-02-22 08:47
+
+How hard would it be to do an analysis on the anti-patterns and see if they were "burnt out" of the new versions?
+
+## Claude — 2026-02-22 08:48
+
+Not hard at all — we have the anti-pattern catalog from Phase2Plan.md and all V2 implementations. Spawned an Explore agent to compare all 10 anti-pattern categories against the V2 code.
+
+---
+
+## User — 2026-02-22 08:49
+
+When done, write your analysis to a new md file in Documentation.
+
+## Claude — 2026-02-22 08:52
+
+Created `Documentation/Phase3AntiPatternAnalysis.md` with a full analysis of all 10 anti-pattern categories.
+
+**Result: 0% elimination rate.** All 10 anti-pattern categories were preserved in V2 implementations. The agents achieved 100% behavioral equivalence but made zero quality improvements. Anti-pattern [3] was actually made *worse* — SQL-only jobs now have unnecessary External writer modules.
+
+Key insight: the BRDs and reviewer notes correctly identified nearly every anti-pattern ("branches table is sourced but never used," "unused window function noted," "misleading name noted") but the agents reproduced them anyway because their mandate was equivalence, not improvement.
+
+The analysis includes:
+- Per-category breakdown with specific V2 file evidence
+- Summary table showing all 10 categories preserved, most flagged in BRDs
+- Interpretation: agents had the analytical capability to spot bad practices but weren't asked to fix them
+- Implications for real-world use: a separate "quality improvement" phase would be needed
+
+---
+
+## User — 2026-02-22 08:55
+
+That won't work. We need to re-run Phase 3. Help me plan that. Requirements:
+1. Update DataFrameWriter to allow writing to `double_secret_curated` schema (so agents don't need External writer workarounds)
+2. Update the blueprint/prompt so agents match outcomes, not implementation
+3. Tell agents which anti-patterns to look for and what best practice should be
+4. External modules used only as last resort
+5. Question: can we keep the existing BRDs from Run 1?
+
+## Claude — 2026-02-22 09:08
+
+Entered plan mode. Launched three Explore agents in parallel:
+1. **DataFrameWriter analysis**: Found `private const string TargetSchema = "curated"` hardcoded on line 23. Used in TRUNCATE, CREATE TABLE, and INSERT. ModuleFactory reads only 3 fields (source, targetTable, writeMode). Minimal fix: add optional `targetSchema` parameter with default "curated", update ModuleFactory to read optional `targetSchema` from JSON.
+2. **BRD reusability assessment**: Reviewed 4 BRDs + 2 review files. Found HIGH implementation bias — anti-patterns are documented as numbered business rules with HIGH confidence (e.g., "BR-2: branches table is sourced but never used"). An agent reading these would treat dead-end sourcing as a requirement. Recommendation: keep BRDs but audit them against an anti-pattern guide.
+3. **CLAUDE.md/Blueprint analysis**: Found the mission says "superior replacements" but provides no mechanism for quality improvement. Phase D comparison loop enforces exact equivalence with no quality mandate. Identified sections needing changes: Phase B (add SQL-first mandate), Quality Gates (add anti-pattern validation), and a new Anti-Pattern Reference section.
+
+Launched a Plan agent to synthesize into a concrete implementation plan. Key design decisions:
+
+**On BRDs**: Keep them but change Phase A from "full analysis" to "BRD Audit" — agents cross-reference existing BRDs against the anti-pattern guide, classify each requirement as KEEP/ELIMINATE/SIMPLIFY, and produce audit reports. Saves ~25 min vs regeneration.
+
+**Framework change**: Add optional `targetSchema` parameter to DataFrameWriter constructor and ModuleFactory. Defaults to "curated" for backward compatibility. V2 job configs use `"targetSchema": "double_secret_curated"` in DataFrameWriter blocks.
+
+**CLAUDE.md rewrite**: Three major additions:
+- Anti-Pattern Reference Guide (10 patterns with refactoring guidance, explicitly telling agents that BRD entries like "table sourced but never used" are anti-patterns to eliminate, not requirements to preserve)
+- Phase A → BRD Audit (Agent Teams with 4 auditors + 1 reviewer)
+- SQL-First Mandate for Phase B (External modules require explicit justification in FSDs)
+
+Plan written. Awaiting approval.
+
+---
+
+## User — 2026-02-22 09:10
+
+I think we need to do something with the governance files. I didn't see anything in your plan regarding that.
+
+## Claude — 2026-02-22 09:10
+
+Clarified that the plan did address governance in the clone (delete Run 1 files, agents produce new ones with anti-pattern scorecards) but hadn't addressed governance files in the main repo. Asked what the user wanted to do with main repo's Run 1 governance files.
+
+---
+
+## User — 2026-02-22 09:12
+
+Actually, let's do a completely fresh restart. Update the DataFrameWriter per the plan. Update the prompt/blueprint. But create yet another clean (sanitized against cheating) directory in codeprojects and run Phase 3 from scratch from there.
+
+## Claude — 2026-02-22 09:16
+
+Updated the plan to use a completely fresh clone instead of resetting the old one. Key changes:
+
+- New clone directory: `MockEtlFramework-Phase3Run2` (old clone stays as Run 1 record)
+- No BRD reuse — agents produce fresh BRDs from scratch with anti-pattern awareness
+- Phase A returns to full BRD production (not audit), but BRD template now includes an "Anti-Patterns Identified" section
+- Same anti-cheat sanitization as Run 1 (delete all Documentation/ except Strategy.md)
+- Same framework change (DataFrameWriter `targetSchema`)
+- Same SQL-first mandate and anti-pattern guide in CLAUDE.md
+
+Plan updated. Awaiting approval.
+
+---
+
+## User — 2026-02-22 09:17
+
+Implement the following plan: Phase 3 Run 2: Fresh Start with Anti-Pattern Elimination. [Full plan covering Parts 1-3: framework changes to DataFrameWriter, fresh clone setup, and Run 2 launch preparation.]
+
+## Claude — 2026-02-22 09:33
+
+Implemented the full Phase 3 Run 2 preparation plan:
+
+**Part 1 — Framework Changes (Main Repo):**
+- `Lib/Modules/DataFrameWriter.cs`: Replaced `private const string TargetSchema = "curated"` with `private readonly string _targetSchema` and added optional `targetSchema` constructor parameter (default `"curated"`)
+- `Lib/ModuleFactory.cs`: Added `el.TryGetProperty("targetSchema", ...)` to `CreateDataFrameWriter`
+- `Lib.Tests/ModuleFactoryTests.cs`: Added `Create_DataFrameWriter_WithTargetSchema_ReturnsCorrectType` test
+- `Documentation/Phase3Blueprint.md`: Added "Phase 3 Run 2" section documenting motivation, framework changes, CLAUDE.md differences, and kickoff prompt
+- Build: 0 errors, 0 warnings. Tests: 34 passed.
+
+**Part 2 — Fresh Clone Setup:**
+- Cloned main repo to `/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2`
+- Sanitized: removed all Documentation/ except Strategy.md
+- Purged all Run 1 V2 artifacts: 33 V2 job configs, 33 V2 External modules, DscWriterUtil.cs
+- Removed entire Phase3/ directory (Run 1 artifacts)
+- Created fresh `Phase3/{brd,fsd,tests,logs,governance,sql}` structure
+- Copied `create_double_secret_curated.sql` DDL
+- Database cleanup: user ran DROP SCHEMA/CREATE SCHEMA (with dansdev ownership) and V2 job/dependency/run cleanup via pgAdmin
+- Wrote comprehensive CLAUDE.md with anti-pattern guide (AP-1 through AP-10), SQL-first mandate, DataFrameWriter targetSchema docs, improvement mandate, and governance scorecard template
+- Created `.claude/settings.local.json` with blanket permission allowlist
+- Applied DataFrameWriter framework changes to clone (wasn't committed when cloned)
+- Clone builds clean, 34 tests pass
+- Committed clean state in clone
+
+**Additional requests handled:**
+- Created `.claude/settings.local.json` in main repo with blanket permissions (replacing piecemeal allowlist)
+
+---

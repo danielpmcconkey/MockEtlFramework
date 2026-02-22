@@ -60,6 +60,13 @@ public class ModuleFactoryTests
     }
 
     [Fact]
+    public void Create_DataFrameWriter_WithTargetSchema_ReturnsCorrectType()
+    {
+        var el = Parse(@"{""type"": ""DataFrameWriter"", ""source"": ""result"", ""targetTable"": ""output"", ""writeMode"": ""Overwrite"", ""targetSchema"": ""double_secret_curated""}");
+        Assert.IsType<DataFrameWriter>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
     public void Create_External_ReturnsCorrectType()
     {
         var el = Parse(@"{""type"": ""External"", ""assemblyPath"": ""/some/path.dll"", ""typeName"": ""MyNamespace.MyClass""}");

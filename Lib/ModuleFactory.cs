@@ -41,7 +41,8 @@ public static class ModuleFactory
     private static DataFrameWriter CreateDataFrameWriter(JsonElement el) => new(
         el.GetProperty("source").GetString()!,
         el.GetProperty("targetTable").GetString()!,
-        Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!)
+        Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!),
+        el.TryGetProperty("targetSchema", out var ts) ? ts.GetString()! : "curated"
     );
 
     private static External CreateExternal(JsonElement el) => new(

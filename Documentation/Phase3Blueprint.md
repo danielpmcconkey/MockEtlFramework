@@ -426,3 +426,97 @@ Phase A (analysis) is embarrassingly parallel — 32 independent jobs to analyze
 
 ### Context window management
 The CLAUDE.md is always loaded (survives compression). The orchestrator stays lean by delegating all heavy work to subagents (or teammates in Phase A). Each agent gets the specific context it needs (one job's BRD, one job's code) rather than the full 32-job picture. Artifacts on disk serve as the persistent memory.
+
+---
+
+## 5. Phase 3 Run 2: Anti-Pattern Elimination
+
+### Motivation
+
+Run 1 achieved 100% behavioral equivalence (32 jobs, 31 days) but reproduced all 10 planted anti-patterns verbatim. The agents treated the original code as a specification rather than as flawed code implementing a specification. Run 2 addresses this with three changes:
+
+1. **Framework change**: `DataFrameWriter` now accepts a configurable `targetSchema` parameter (default `"curated"`), eliminating the need for custom writer utilities or External modules solely to target `double_secret_curated`.
+2. **Anti-pattern guide**: The CLAUDE.md includes an explicit reference guide describing 10 categories of anti-patterns with refactoring guidance, so agents know what bad code looks like and how to fix it.
+3. **Improvement mandate**: The mission statement explicitly requires V2 implementations to be *better* code, not just equivalent output. Reproducing anti-patterns is a failure condition.
+
+### Framework Change: DataFrameWriter `targetSchema`
+
+**`Lib/Modules/DataFrameWriter.cs`**: The constructor now accepts an optional `targetSchema` parameter (default `"curated"`). The three SQL statements (TRUNCATE, CREATE TABLE, INSERT) use this configurable schema instead of the hardcoded constant.
+
+**`Lib/ModuleFactory.cs`**: `CreateDataFrameWriter` reads an optional `"targetSchema"` field from the JSON config element, passing it to the constructor.
+
+**Job config usage**:
+```json
+{
+  "type": "DataFrameWriter",
+  "source": "result",
+  "targetTable": "my_table",
+  "writeMode": "Overwrite",
+  "targetSchema": "double_secret_curated"
+}
+```
+
+Existing jobs without `targetSchema` continue to write to `curated` (backward compatible).
+
+### Clone Directory
+
+Run 2 uses a fresh clone at `/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3Run2`, sanitized the same way as Run 1 (all Documentation/ removed except Strategy.md, no Phase3/ artifacts from Run 1, no .claude/ memory).
+
+### Key CLAUDE.md Differences from Run 1
+
+| Area | Run 1 | Run 2 |
+|------|-------|-------|
+| Mission | Equivalence-focused | Improvement-while-matching |
+| Anti-pattern awareness | None | Explicit 10-item guide with fix instructions |
+| SQL-first mandate | Implicit | Explicit guardrail with justification requirement for External modules |
+| DataFrameWriter schema | Not configurable (required DscWriterUtil hack) | Configurable via `targetSchema` in job config JSON |
+| BRD template | Standard | Adds "Anti-Patterns Identified" section |
+| FSD template | Standard | Adds "Anti-Patterns Eliminated" table |
+| Governance reports | Standard | Adds AP-1 through AP-10 scorecard per job |
+
+### Preparation
+
+1. Apply DataFrameWriter changes to main repo (this commit)
+2. Clone main repo to `MockEtlFramework-Phase3Run2`
+3. Sanitize clone (remove forbidden docs, Phase3/, .claude/)
+4. Create `Phase3/` directory structure
+5. Write CLAUDE.md with anti-pattern guide and improvement mandate
+6. Create `.claude/settings.local.json` for permission allowlist
+7. Clean database: truncate `double_secret_curated`, remove V2 job registrations
+8. Build and test in clone
+9. Commit clean state
+10. Launch new Claude Code session in clone directory
+
+### Kickoff Prompt
+
+```
+Read CLAUDE.md thoroughly — it contains your complete mission, constraints, workflow, and technical reference.
+
+You are the autonomous team lead for Phase 3 Run 2. Your goal: reverse-engineer 32 ETL jobs from their code and data, document them with world-class BRDs that identify anti-patterns, build SUPERIOR replacements that eliminate those anti-patterns while producing identical output, and prove equivalence through iterative comparison across 31 calendar days.
+
+This is Run 2. The key difference from a hypothetical Run 1: you have an explicit anti-pattern guide and an improvement mandate. Your V2 code must be BETTER than the originals, not just equivalent. Reproducing bad patterns from the original code is a failure.
+
+Begin now. Follow the workflow phases in order:
+
+Phase A — Analysis (AGENT TEAMS):
+1. Read Documentation/Strategy.md to understand the framework architecture.
+2. Query control.jobs to list all 32 active jobs (exclude any V2 jobs if present). Sort alphabetically by job_name and divide into 4 batches of 8.
+3. Spawn 5 Agent Teams teammates:
+   - analyst-1 through analyst-4: each assigned one batch of 8 jobs. Each analyst reads job configs, source code, queries the database, and produces a BRD at Phase3/brd/{job_name}_brd.md. BRDs must include an "Anti-Patterns Identified" section listing which AP codes from the guide apply to each job. Analysts message the reviewer when each BRD is ready.
+   - reviewer: validates every BRD against the Quality Gates in CLAUDE.md. Checks anti-pattern identification for plausibility. Messages analysts back with feedback if issues found. Tracks progress in Phase3/logs/analysis_progress.md. Messages you when all 32 BRDs pass review.
+4. Wait for the reviewer to confirm all 32 BRDs are approved, then dismiss Agent Teams.
+
+Phase B — Design & Build (standard subagents):
+For each job, spawn subagents to produce an FSD (with "Anti-Patterns Eliminated" table), test plan, and implementation. Default to SQL-first: DataSourcing + Transformation + DataFrameWriter with targetSchema. Only use External modules when SQL genuinely cannot express the logic, and justify in the FSD. Have each deliverable reviewed.
+
+Phase C — Setup (standard subagents):
+Ensure double_secret_curated schema exists, register V2 jobs, build, and test.
+
+Phase D — Comparison Loop (standard subagents):
+Follow the STEP_30 through STEP_110 loop exactly as specified in CLAUDE.md.
+
+Phase E — Governance (standard subagents):
+Compile executive summary and per-job governance reports with anti-pattern scorecards.
+
+Start with Phase A now.
+```
