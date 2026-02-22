@@ -1,8 +1,8 @@
 namespace Lib;
 
-internal static class ConnectionHelper
+public static class ConnectionHelper
 {
-    internal static string GetConnectionString()
+    public static string GetConnectionString()
     {
         string? pgPassHex = Environment.GetEnvironmentVariable("PGPASS");
         if (pgPassHex == null) throw new InvalidDataException("PGPASS environment variable not found");

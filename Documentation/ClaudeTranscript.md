@@ -1137,3 +1137,108 @@ Not tonight. I need to sleep. Goodnight
 Goodnight! Phase 2 is fully documented and cleanly verified. Session ended.
 
 ---
+
+## User — 2026-02-22 05:20
+
+Good morning, Claude. Please read the files in /media/dan/fdrive/codeprojects/MockEtlFramework/Documentation . For the entirety of this session, I require you to transcribe all prompts from me (including this one) and all responses from you into the ClaudeTranscript file. Note that prior sessions have presented difficulties with transcription. Please don't be that agent.
+
+## Claude — 2026-02-22 05:20
+
+Read all five documentation files:
+
+- **ClaudeTranscript.md** — Full session history from Feb 21, covering Phase 1 (framework build) and Phase 2 (30 intentionally bad ETL jobs). 1140 lines.
+- **CustomerAddressDeltasBrd.md** — Reverse-engineering analysis of a customer address delta/diff ETL process with business rules, traceability matrix, and ambiguities.
+- **Phase2Plan.md** — Anti-pattern catalog for all 30 jobs, dependency graph (declared vs. missing), weekend safety, and verification results (930/930 succeeded).
+- **POC.md** — Master plan describing all three phases. Currently at Phase 2.5.
+- **Strategy.md** — Technical architecture of the mock ETL framework.
+
+Confirmed transcription will be maintained for every exchange going forward, appended to the bottom of this file with timestamps.
+
+---
+
+## User — 2026-02-22 05:23
+
+The CustomerAddressDeltasBrd.md is a BRD of a job that is running on my real ETL platform. As you see, it reads and writes files while our simulacrum of an ETL platform works with data in my local postgres database. I want you to build this job here in the platform that was created in phase 1. Do you understand?
+
+## Claude — 2026-02-22 05:23
+
+Yes, understood. The BRD describes a change-detection job that compares each day's address snapshot against the previous day's by address_id, classifies records as NEW or UPDATED, enriches with customer_name (first_name + ' ' + last_name), excludes unchanged records, replaces NULL end_date with empty string, and orders by address_id. The adaptation is sourcing from datalake.addresses and datalake.customers and writing deltas to a curated table instead of CSV files.
+
+Asked four clarifying questions:
+1. Write mode — Append (accumulating change log)?
+2. Record count footer — skip, add as column, or other approach for DB context?
+3. NULL end_date — store as empty string '' or keep as NULL in Postgres?
+4. DELETED detection — implement it or leave it out per the BRD's observed behavior?
+
+---
+
+## User — 2026-02-22 05:25
+
+1. Append is correct. This is a CDC process that is later used downstream for the MDM system to update its records.
+2. I like the idea of adding a record_count column to each row and then, you would need it to create a null row with just a record count of 0 on any day without any changes
+3. keep it as NULL in the DB
+4. Addresses and customers are never deleted in the real world data. No need to implement
+
+## Claude — 2026-02-22 05:38
+
+Entered plan mode. Explored the codebase to understand framework patterns — DataSourcing, Transformation, External modules, ConnectionHelper, JobExecutorService, DataFrameWriter.
+
+Identified key challenge: DataSourcing can only query for the executor's effective date (both min and max set to the same day), but this job needs data for TWO dates (today and yesterday). No way to express "effective_date - 1" dynamically in JSON config.
+
+Designed approach using an External module (CustomerAddressDeltaProcessor) that queries the database directly for both dates. This is what External modules are designed for — handling logic the framework doesn't provide out of the box.
+
+Plan summary:
+1. Make `ConnectionHelper` public (currently internal, External modules can't access it)
+2. Create `ExternalModules/CustomerAddressDeltaProcessor.cs` — queries addresses for today and yesterday, customers for most recent snapshot, does comparison, enriches with customer_name, adds record_count column
+3. Create `JobExecutor/Jobs/customer_address_deltas.json` — External module + DataFrameWriter (Append)
+4. Register job in control.jobs
+5. Run and verify for Oct 1–31
+
+Output columns: change_type, address_id, customer_id, customer_name, address_line1, city, state_province, postal_code, country, start_date, end_date, as_of, record_count
+
+Edge cases: Oct 1 (no previous day data) → single null row with record_count = 0. Days with no changes → same null row pattern. Customer lookup uses most recent snapshot <= effective_date (handles weekday-only cadence).
+
+---
+
+## User — 2026-02-22 05:39
+
+Approved the plan and asked to implement: build the CustomerAddressDeltas ETL job per the plan.
+
+## Claude — 2026-02-22 05:51
+
+Implemented the CustomerAddressDeltas CDC job end-to-end:
+
+**Step 1: Made `ConnectionHelper` public** (`Lib/ConnectionHelper.cs`)
+- Changed `internal static class ConnectionHelper` → `public static class ConnectionHelper`
+- Changed `internal static string GetConnectionString()` → `public static string GetConnectionString()`
+
+**Step 2: Created `ExternalModules/CustomerAddressDeltaProcessor.cs`**
+- Implements `IExternalStep`
+- Reads `__minEffectiveDate` from shared state as the current date, computes previous date as `currentDate - 1`
+- Queries `datalake.addresses` for both dates, `datalake.customers` for most recent snapshot `<= currentDate`
+- Compares current vs previous by `address_id`: NEW if absent in previous, UPDATED if any compare field differs
+- Compare fields: customer_id, address_line1, city, state_province, postal_code, country, start_date, end_date
+- Enriches with `customer_name = first_name + " " + last_name` from customer lookup
+- Baseline detection: if previous snapshot is empty (no rows), outputs single null row with record_count = 0
+- No-change days: same null row pattern
+- Orders output by address_id ASC
+- Adds record_count to every row (total delta rows)
+
+**Step 3: Created `JobExecutor/Jobs/customer_address_deltas.json`**
+- External module → DataFrameWriter (Append mode) to `curated.customer_address_deltas`
+
+**Step 4: Registered job in `control.jobs`**
+
+**Step 5: Ran and verified for Oct 1–31**
+- Oct 1: Single null row, record_count = 0 (baseline — no previous day data)
+- Oct 2: 2 rows — address 2001 UPDATED (end_date changed), address 2002 NEW (record_count = 2)
+- Oct 3: Null row, record_count = 0 (no changes)
+- Oct 4: 1 row — address 2003 UPDATED (end_date changed) (record_count = 1)
+- Oct 5: 1 row — address 2004 NEW (record_count = 1)
+- Oct 6–31: Null rows, record_count = 0 (no changes)
+- All 33 existing tests pass
+- No duplicate address_ids within any as_of date
+
+All results match the BRD expectations.
+
+---
