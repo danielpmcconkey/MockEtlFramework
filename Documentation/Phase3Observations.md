@@ -513,6 +513,22 @@ Spot-checked CreditScoreAverage and CustomerBranchActivity FSDs. Both document t
 
 ---
 
+## Check #12 — 2026-02-22 11:12
+
+- **Phase C progress:** Not started yet
+  - V2 jobs registered: 0
+  - double_secret_curated tables: 0
+  - control.job_runs: 31 (only original Phase 2 runs)
+- **Comparison log:** Not yet
+- **Governance artifacts:** 0
+- **Anti-cheat:** Holds
+
+**Phase B → Phase C transition in progress.** The lead agent may still be finishing code reviews for the last few jobs or spawning the Phase C setup subagent. The 31 existing job_runs in the DB are from the original Phase 2 execution (the run that populated curated tables) — not from Run 2.
+
+Note: The `double_secret_curated` schema may need to be created from the SQL script at `Phase3/sql/create_double_secret_curated.sql`. Checking if the schema exists at all or if it's just empty of tables.
+
+---
+
 ## Check #13 — 2026-02-22 11:17
 
 ### PHASE B REVISED — V2 CONFIGS REWRITTEN WITH EXTERNAL GUARDS
@@ -573,22 +589,6 @@ The External count is higher than the ideal (6 from the initial implementation),
 **Note:** The job_runs count of 62 is likely from the Phase C setup (inserting Pending runs), not from actual execution. These will be overwritten as Phase D runs.
 
 This is the high-stakes phase. Run 1 hit two non-logic issues here (assembly naming collision, TRUNCATE permission) and one precision issue (NUMERIC rounding). Run 2 should avoid the assembly issue (no DscWriterUtil hack) and the permission issue (using DataFrameWriter with targetSchema, which creates tables owned by dansdev). The rounding issue may or may not recur depending on how the SQL handles precision.
-
----
-
-## Check #12 — 2026-02-22 11:12
-
-- **Phase C progress:** Not started yet
-  - V2 jobs registered: 0
-  - double_secret_curated tables: 0
-  - control.job_runs: 31 (only original Phase 2 runs)
-- **Comparison log:** Not yet
-- **Governance artifacts:** 0
-- **Anti-cheat:** Holds
-
-**Phase B → Phase C transition in progress.** The lead agent may still be finishing code reviews for the last few jobs or spawning the Phase C setup subagent. The 31 existing job_runs in the DB are from the original Phase 2 execution (the run that populated curated tables) — not from Run 2.
-
-Note: The `double_secret_curated` schema may need to be created from the SQL script at `Phase3/sql/create_double_secret_curated.sql`. Checking if the schema exists at all or if it's just empty of tables.
 
 ---
 
