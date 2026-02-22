@@ -362,7 +362,7 @@ echo "=== DONE ==="
 echo "Now:"
 echo "  1. Copy the CLAUDE.md content to: $PHASE3_DIR/CLAUDE.md"
 echo "  2. Start Claude Code:"
-echo "     cd $PHASE3_DIR && claude --dangerously-skip-permissions"
+echo "     cd $PHASE3_DIR && claude"
 echo "  3. Paste the kickoff prompt"
 ```
 
@@ -409,8 +409,8 @@ Start with Phase A now.
 ### Why a full clone instead of a branch?
 A branch still has the forbidden files in git history. A local clone with files physically deleted is the strongest practical guarantee. The agent would need to actively `git show HEAD~1:Documentation/POC.md` to cheat, which the CLAUDE.md prohibits and reviewers watch for.
 
-### Why `--dangerously-skip-permissions`?
-The user explicitly wants zero interactive approval. This is a test project with synthetic data — the blast radius of any mistake is near zero. In the real-world run, use `.claude/settings.local.json` with an allowlist instead.
+### Why `.claude/settings.local.json` instead of `--dangerously-skip-permissions`?
+Rather than blanket-skipping all permission checks, a `.claude/settings.local.json` file pre-approves specific tool patterns (e.g., `dotnet *`, `psql *`, `git *`, all file read/write) while still prompting for anything unexpected. This gives agents the autonomy they need without surrendering all safety. The file is gitignored by default so it stays as a machine-local config.
 
 ### Why process analysis before implementation?
 Analyzing all 32 jobs first lets the agents spot patterns: shared logic, redundant jobs, common anti-patterns. This produces better designs than analyzing and building one job at a time in isolation.
