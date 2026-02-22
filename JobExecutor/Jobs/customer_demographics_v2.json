@@ -1,0 +1,39 @@
+{
+  "jobName": "CustomerDemographicsV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "prefix", "first_name", "last_name", "sort_name", "suffix", "birthdate"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "phone_numbers",
+      "schema": "datalake",
+      "table": "phone_numbers",
+      "columns": ["phone_id", "customer_id", "phone_type", "phone_number"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "email_addresses",
+      "schema": "datalake",
+      "table": "email_addresses",
+      "columns": ["email_id", "customer_id", "email_address", "email_type"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "segments",
+      "schema": "datalake",
+      "table": "segments",
+      "columns": ["segment_id", "segment_name"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
+      "typeName": "ExternalModules.CustomerDemographicsV2Processor"
+    }
+  ]
+}

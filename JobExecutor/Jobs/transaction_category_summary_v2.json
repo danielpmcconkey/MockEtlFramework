@@ -1,0 +1,30 @@
+{
+  "jobName": "TransactionCategorySummaryV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "segments",
+      "schema": "datalake",
+      "table": "segments",
+      "columns": ["segment_id", "segment_name", "segment_code"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "txn_cat_summary",
+      "sql": "WITH txn_stats AS (SELECT txn_type, as_of, amount, ROW_NUMBER() OVER (PARTITION BY txn_type, as_of ORDER BY transaction_id) AS rn, COUNT(*) OVER (PARTITION BY txn_type, as_of) AS type_count FROM transactions) SELECT txn_type, as_of, ROUND(SUM(amount), 2) AS total_amount, COUNT(*) AS transaction_count, ROUND(AVG(amount), 2) AS avg_amount FROM txn_stats GROUP BY txn_type, as_of ORDER BY as_of, txn_type"
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
+      "typeName": "ExternalModules.TransactionCategorySummaryV2Writer"
+    }
+  ]
+}

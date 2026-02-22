@@ -1,0 +1,11 @@
+{
+  "jobName": "CustomerAddressDeltasV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework-Phase3/ExternalModules/bin/Debug/net8.0/ExternalModulesV2.dll",
+      "typeName": "ExternalModules.CustomerAddressDeltasV2Processor"
+    }
+  ]
+}
