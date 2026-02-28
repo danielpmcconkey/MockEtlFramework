@@ -74,6 +74,34 @@ public class ModuleFactoryTests
     }
 
     [Fact]
+    public void Create_ParquetFileWriter_ReturnsCorrectType()
+    {
+        var el = Parse(@"{""type"": ""ParquetFileWriter"", ""source"": ""output"", ""outputDirectory"": ""Output/test"", ""numParts"": 2, ""writeMode"": ""Overwrite""}");
+        Assert.IsType<ParquetFileWriter>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_ParquetFileWriter_DefaultNumParts_ReturnsCorrectType()
+    {
+        var el = Parse(@"{""type"": ""ParquetFileWriter"", ""source"": ""output"", ""outputDirectory"": ""Output/test"", ""writeMode"": ""Overwrite""}");
+        Assert.IsType<ParquetFileWriter>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_CsvFileWriter_ReturnsCorrectType()
+    {
+        var el = Parse(@"{""type"": ""CsvFileWriter"", ""source"": ""output"", ""outputFile"": ""Output/test.csv"", ""writeMode"": ""Overwrite""}");
+        Assert.IsType<CsvFileWriter>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_CsvFileWriter_WithTrailer_ReturnsCorrectType()
+    {
+        var el = Parse(@"{""type"": ""CsvFileWriter"", ""source"": ""output"", ""outputFile"": ""Output/test.csv"", ""trailerFormat"": ""TRAILER|{row_count}"", ""writeMode"": ""Overwrite""}");
+        Assert.IsType<CsvFileWriter>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
     public void Create_UnknownType_ThrowsInvalidOperationException()
     {
         var el = Parse(@"{""type"": ""UnknownModule""}");

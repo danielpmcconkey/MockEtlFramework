@@ -69,6 +69,8 @@ The core framework library. Referenced by both the job executor and the test pro
 | `Transformation` | Opens an in-memory SQLite connection, registers every `DataFrame` in the current shared state as a SQLite table, executes user-supplied free-form SQL, and stores the result `DataFrame` back into shared state under a caller-specified result name. |
 | `DataFrameWriter` | Writes a named `DataFrame` from shared state to a PostgreSQL curation schema. Auto-creates the target table if it does not exist (type inference from sample values). Supports `Overwrite` mode (truncate then insert) and `Append` mode (insert only). All writes are transaction-wrapped. |
 | `External` | Loads a user-supplied .NET assembly from disk via reflection, locates a named type that implements `IExternalStep`, instantiates it, and delegates `Execute`. Allows teams to inject arbitrary C# logic into any job pipeline without modifying the framework. |
+| `ParquetFileWriter` | Writes a named `DataFrame` from shared state to a directory of Parquet files (`part-00000.parquet`, `part-00001.parquet`, etc.). Supports configurable part count and `Overwrite`/`Append` write modes. Uses Parquet.Net (pure managed C#). Output paths are relative to the solution root. |
+| `CsvFileWriter` | Writes a named `DataFrame` from shared state to a single CSV file. UTF-8 (no BOM), LF line endings, RFC 4180 quoting. Supports optional trailer lines with token substitution (`{row_count}`, `{date}`, `{timestamp}`). Output paths are relative to the solution root. |
 | `IExternalStep` | Interface that external assemblies must implement to be callable via the `External` module. |
 | `ModuleFactory` | Static factory. Reads the `type` discriminator field from a `JsonElement` and instantiates the appropriate `IModule` implementation. Throws `InvalidOperationException` on unknown types and propagates `KeyNotFoundException` if the `type` field is absent. |
 
@@ -77,6 +79,7 @@ The core framework library. Referenced by both the job executor and the test pro
 | Class | Purpose |
 |---|---|
 | `ConnectionHelper` | Internal static helper that builds a Npgsql connection string. Decodes the Postgres password from a hex-encoded UTF-16 LE environment variable (`PGPASS`). |
+| `PathHelper` | Internal static helper that resolves relative output paths against the solution root directory. Walks up from `AppContext.BaseDirectory` to find the `.sln` file. Used by file writer modules. |
 | `JobConf` | JSON deserialization model. Contains the job name, an optional `firstEffectiveDate` (the bootstrap date used when the job has no prior successful runs), and an ordered `List<JsonElement>` of module configurations. |
 | `JobRunner` | Deserializes a job conf from a JSON file path, iterates the module list, creates each module via `ModuleFactory`, and threads shared state through the pipeline. Accepts an optional `initialState` dictionary pre-populated by the executor (used to inject effective dates). Logs progress to the console. |
 
@@ -174,6 +177,88 @@ Unit test coverage for framework components. Tests do not require a live databas
 | In-process SQL engine | Microsoft.Data.Sqlite 8 | Enables free-form SQL in `Transformation` without a running server; well-audited, Microsoft-supported |
 | Test framework | xUnit | Industry standard for modern .NET; no test runner installation required |
 | External assembly loading | `Assembly.LoadFrom` + reflection | Mirrors the production Python `importlib` pattern for user-supplied modules |
+| Parquet file output | Parquet.Net 4.x | Pure managed C#, no native dependencies; simple column-oriented API maps cleanly to DataFrame |
+
+---
+
+## File Writer Modules
+
+In addition to `DataFrameWriter` (which writes to PostgreSQL), the framework supports writing DataFrame output to files for file-to-file comparison workflows.
+
+### Output Directory Convention
+
+```
+Output/
+├── curated/                         # V1 job outputs
+│   ├── some_job/                    # parquet: directory of part files
+│   │   ├── part-00000.parquet
+│   │   └── part-00001.parquet
+│   ├── another_job.csv              # vanilla CSV
+│   └── third_job.csv                # CSV with trailer
+└── double_secret_curated/           # V2 job outputs
+    └── (same structure)
+```
+
+The `Output/` directory is gitignored. All output paths in job configs are relative to the solution root.
+
+### ParquetFileWriter
+
+Writes a DataFrame to one or more Parquet part files in a directory. Uses Parquet.Net (pure managed C#, no native dependencies).
+
+| JSON Property | Required | Default | Description |
+|---|---|---|---|
+| `type` | Yes | — | `"ParquetFileWriter"` |
+| `source` | Yes | — | Name of the DataFrame in shared state |
+| `outputDirectory` | Yes | — | Directory path (relative to solution root) |
+| `numParts` | No | `1` | Number of part files to split output across |
+| `writeMode` | Yes | — | `"Overwrite"` or `"Append"` |
+
+**Example:**
+```json
+{
+  "type": "ParquetFileWriter",
+  "source": "output",
+  "outputDirectory": "Output/curated/account_balance_snapshot",
+  "numParts": 3,
+  "writeMode": "Overwrite"
+}
+```
+
+### CsvFileWriter
+
+Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), LF line endings, RFC 4180 quoting rules.
+
+| JSON Property | Required | Default | Description |
+|---|---|---|---|
+| `type` | Yes | — | `"CsvFileWriter"` |
+| `source` | Yes | — | Name of the DataFrame in shared state |
+| `outputFile` | Yes | — | File path (relative to solution root) |
+| `includeHeader` | No | `true` | Whether to write a header row |
+| `trailerFormat` | No | `null` | Trailer line format string (see below) |
+| `writeMode` | Yes | — | `"Overwrite"` or `"Append"` |
+
+**Trailer tokens:** `{row_count}` (data rows, excluding header/trailer), `{date}` (effective date from `__maxEffectiveDate` in shared state), `{timestamp}` (UTC now, ISO 8601).
+
+**Vanilla CSV example:**
+```json
+{
+  "type": "CsvFileWriter",
+  "source": "output",
+  "outputFile": "Output/curated/customer_contact_info.csv",
+  "writeMode": "Overwrite"
+}
+```
+
+**CSV with trailer example:**
+```json
+{
+  "type": "CsvFileWriter",
+  "source": "output",
+  "outputFile": "Output/curated/daily_txn_summary.csv",
+  "trailerFormat": "TRAILER|{row_count}|{date}",
+  "writeMode": "Overwrite"
+}
+```
 
 ---
 

@@ -15,10 +15,12 @@ public static class ModuleFactory
 
         return type switch
         {
-            "DataSourcing"    => CreateDataSourcing(el),
-            "Transformation"  => CreateTransformation(el),
-            "DataFrameWriter" => CreateDataFrameWriter(el),
-            "External"        => CreateExternal(el),
+            "DataSourcing"      => CreateDataSourcing(el),
+            "Transformation"    => CreateTransformation(el),
+            "DataFrameWriter"   => CreateDataFrameWriter(el),
+            "External"          => CreateExternal(el),
+            "ParquetFileWriter" => CreateParquetFileWriter(el),
+            "CsvFileWriter"     => CreateCsvFileWriter(el),
             _ => throw new InvalidOperationException($"Unknown module type: '{type}'.")
         };
     }
@@ -48,5 +50,20 @@ public static class ModuleFactory
     private static External CreateExternal(JsonElement el) => new(
         el.GetProperty("assemblyPath").GetString()!,
         el.GetProperty("typeName").GetString()!
+    );
+
+    private static ParquetFileWriter CreateParquetFileWriter(JsonElement el) => new(
+        el.GetProperty("source").GetString()!,
+        el.GetProperty("outputDirectory").GetString()!,
+        el.TryGetProperty("numParts", out var np) ? np.GetInt32() : 1,
+        Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!)
+    );
+
+    private static CsvFileWriter CreateCsvFileWriter(JsonElement el) => new(
+        el.GetProperty("source").GetString()!,
+        el.GetProperty("outputFile").GetString()!,
+        !el.TryGetProperty("includeHeader", out var ih) || ih.GetBoolean(),
+        el.TryGetProperty("trailerFormat", out var tf) ? tf.GetString() : null,
+        Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!)
     );
 }
