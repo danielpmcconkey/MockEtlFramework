@@ -70,7 +70,7 @@ The core framework library. Referenced by both the job executor and the test pro
 | `DataFrameWriter` | Writes a named `DataFrame` from shared state to a PostgreSQL curation schema. Auto-creates the target table if it does not exist (type inference from sample values). Supports `Overwrite` mode (truncate then insert) and `Append` mode (insert only). All writes are transaction-wrapped. |
 | `External` | Loads a user-supplied .NET assembly from disk via reflection, locates a named type that implements `IExternalStep`, instantiates it, and delegates `Execute`. Allows teams to inject arbitrary C# logic into any job pipeline without modifying the framework. |
 | `ParquetFileWriter` | Writes a named `DataFrame` from shared state to a directory of Parquet files (`part-00000.parquet`, `part-00001.parquet`, etc.). Supports configurable part count and `Overwrite`/`Append` write modes. Uses Parquet.Net (pure managed C#). Output paths are relative to the solution root. |
-| `CsvFileWriter` | Writes a named `DataFrame` from shared state to a single CSV file. UTF-8 (no BOM), LF line endings, RFC 4180 quoting. Supports optional trailer lines with token substitution (`{row_count}`, `{date}`, `{timestamp}`). Output paths are relative to the solution root. |
+| `CsvFileWriter` | Writes a named `DataFrame` from shared state to a single CSV file. UTF-8 (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting. Supports optional trailer lines with token substitution (`{row_count}`, `{date}`, `{timestamp}`). Output paths are relative to the solution root. |
 | `IExternalStep` | Interface that external assemblies must implement to be callable via the `External` module. |
 | `ModuleFactory` | Static factory. Reads the `type` discriminator field from a `JsonElement` and instantiates the appropriate `IModule` implementation. Throws `InvalidOperationException` on unknown types and propagates `KeyNotFoundException` if the `type` field is absent. |
 
@@ -226,7 +226,7 @@ Writes a DataFrame to one or more Parquet part files in a directory. Uses Parque
 
 ### CsvFileWriter
 
-Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), LF line endings, RFC 4180 quoting rules.
+Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting rules.
 
 | JSON Property | Required | Default | Description |
 |---|---|---|---|
@@ -236,6 +236,7 @@ Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), LF line ending
 | `includeHeader` | No | `true` | Whether to write a header row |
 | `trailerFormat` | No | `null` | Trailer line format string (see below) |
 | `writeMode` | Yes | — | `"Overwrite"` or `"Append"` |
+| `lineEnding` | No | `"LF"` | Line ending style: `"LF"` or `"CRLF"` |
 
 **Trailer tokens:** `{row_count}` (data rows, excluding header/trailer), `{date}` (effective date from `__maxEffectiveDate` in shared state), `{timestamp}` (UTC now, ISO 8601).
 

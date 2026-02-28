@@ -172,4 +172,66 @@ public class ParquetFileWriterTests : IDisposable
         Assert.Contains("Balance", fieldNames);
         Assert.Contains("Active", fieldNames);
     }
+
+    [Fact]
+    public void Execute_DateOnlyColumn_WritesNativeDateType()
+    {
+        var outputDir = Path.Combine(_tempDir, "dateonly");
+        var df = new DataFrame(new[]
+        {
+            new Dictionary<string, object?> { ["Name"] = "Alice", ["BirthDate"] = new DateOnly(1990, 5, 15) },
+            new Dictionary<string, object?> { ["Name"] = "Bob",   ["BirthDate"] = new DateOnly(1985, 12, 1) }
+        });
+        var writer = new ParquetFileWriter("data", outputDir);
+        var state = new Dictionary<string, object> { ["data"] = df };
+
+        writer.Execute(state);
+
+        // Parquet.Net reads DATE back as DateTime on the CLR side, but the
+        // underlying Parquet type is DATE (date32 in pyarrow). Verify the
+        // field exists and is a date/time type rather than string.
+        var file = Directory.GetFiles(outputDir, "*.parquet").Single();
+        using var stream = File.OpenRead(file);
+        using var reader = ParquetReader.CreateAsync(stream).Result;
+        var dateField = reader.Schema.DataFields.First(f => f.Name == "BirthDate");
+        Assert.Equal(typeof(DateTime), dateField.ClrType);
+    }
+
+    [Fact]
+    public void Execute_DateTimeColumn_WritesNativeDateTimeType()
+    {
+        var outputDir = Path.Combine(_tempDir, "datetime");
+        var df = new DataFrame(new[]
+        {
+            new Dictionary<string, object?> { ["Event"] = "Login", ["Timestamp"] = new DateTime(2024, 11, 15, 10, 30, 0) },
+            new Dictionary<string, object?> { ["Event"] = "Logout", ["Timestamp"] = new DateTime(2024, 11, 15, 17, 0, 0) }
+        });
+        var writer = new ParquetFileWriter("data", outputDir);
+        var state = new Dictionary<string, object> { ["data"] = df };
+
+        writer.Execute(state);
+
+        var file = Directory.GetFiles(outputDir, "*.parquet").Single();
+        using var stream = File.OpenRead(file);
+        using var reader = ParquetReader.CreateAsync(stream).Result;
+        var tsField = reader.Schema.DataFields.First(f => f.Name == "Timestamp");
+        Assert.Equal(typeof(DateTime), tsField.ClrType);
+    }
+
+    [Fact]
+    public void Execute_DateOnlyColumn_NullsHandledCorrectly()
+    {
+        var outputDir = Path.Combine(_tempDir, "datenull");
+        var df = new DataFrame(new[]
+        {
+            new Dictionary<string, object?> { ["Name"] = "Alice", ["EndDate"] = new DateOnly(2025, 1, 1) },
+            new Dictionary<string, object?> { ["Name"] = "Bob",   ["EndDate"] = null }
+        });
+        var writer = new ParquetFileWriter("data", outputDir);
+        var state = new Dictionary<string, object> { ["data"] = df };
+
+        writer.Execute(state);
+
+        Assert.Single(Directory.GetFiles(outputDir, "*.parquet"));
+    }
 }

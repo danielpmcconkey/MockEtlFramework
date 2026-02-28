@@ -64,6 +64,12 @@ public static class ModuleFactory
         el.GetProperty("outputFile").GetString()!,
         !el.TryGetProperty("includeHeader", out var ih) || ih.GetBoolean(),
         el.TryGetProperty("trailerFormat", out var tf) ? tf.GetString() : null,
-        Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!)
+        Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!),
+        el.TryGetProperty("lineEnding", out var le) ? le.GetString()! switch
+        {
+            "CRLF" => "\r\n",
+            "LF"   => "\n",
+            _      => "\n"
+        } : "\n"
     );
 }

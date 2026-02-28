@@ -248,4 +248,36 @@ public class CsvFileWriterTests : IDisposable
         Assert.Same(state, result);
         Assert.Equal("keep me", result["other"]);
     }
+
+    [Fact]
+    public void Execute_CrlfLineEndings()
+    {
+        var path = Path.Combine(_tempDir, "crlf.csv");
+        var writer = new CsvFileWriter("data", path, lineEnding: "\r\n");
+        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+
+        writer.Execute(state);
+
+        var bytes = File.ReadAllBytes(path);
+        var text = Encoding.UTF8.GetString(bytes);
+        // Every line should end with \r\n
+        Assert.Contains("\r\n", text);
+        // Strip all \r\n, then confirm no stray \n remains
+        var stripped = text.Replace("\r\n", "");
+        Assert.DoesNotContain("\n", stripped);
+    }
+
+    [Fact]
+    public void Execute_DefaultLineEndingIsLf()
+    {
+        var path = Path.Combine(_tempDir, "defaultlf.csv");
+        var writer = new CsvFileWriter("data", path);
+        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+
+        writer.Execute(state);
+
+        var text = Encoding.UTF8.GetString(File.ReadAllBytes(path));
+        Assert.DoesNotContain("\r\n", text);
+        Assert.Contains("\n", text);
+    }
 }

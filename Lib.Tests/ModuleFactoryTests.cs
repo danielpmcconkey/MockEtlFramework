@@ -102,6 +102,13 @@ public class ModuleFactoryTests
     }
 
     [Fact]
+    public void Create_CsvFileWriter_WithCrlfLineEnding_ReturnsCorrectType()
+    {
+        var el = Parse(@"{""type"": ""CsvFileWriter"", ""source"": ""output"", ""outputFile"": ""Output/test.csv"", ""writeMode"": ""Overwrite"", ""lineEnding"": ""CRLF""}");
+        Assert.IsType<CsvFileWriter>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
     public void Create_UnknownType_ThrowsInvalidOperationException()
     {
         var el = Parse(@"{""type"": ""UnknownModule""}");

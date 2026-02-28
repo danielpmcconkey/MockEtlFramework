@@ -97,8 +97,8 @@ public class ParquetFileWriter : IModule
         double or float => typeof(double?),
         decimal => typeof(decimal?),
         bool => typeof(bool?),
-        DateOnly => typeof(DateTimeOffset?),
-        DateTime => typeof(DateTimeOffset?),
+        DateOnly => typeof(DateOnly?),
+        DateTime => typeof(DateTime?),
         _ => typeof(string)
     };
 
@@ -118,19 +118,12 @@ public class ParquetFileWriter : IModule
             return rows.Select(r => r[col] is null ? (decimal?)null : Convert.ToDecimal(r[col])).ToArray();
         if (clrType == typeof(bool?))
             return rows.Select(r => r[col] is null ? (bool?)null : Convert.ToBoolean(r[col])).ToArray();
-        if (clrType == typeof(DateTimeOffset?))
-            return rows.Select(r => CoerceDateTimeOffset(r[col])).ToArray();
+        if (clrType == typeof(DateOnly?))
+            return rows.Select(r => r[col] is DateOnly d ? (DateOnly?)d : null).ToArray();
+        if (clrType == typeof(DateTime?))
+            return rows.Select(r => r[col] is DateTime dt ? (DateTime?)dt : null).ToArray();
 
         // string (default) — nulls become null strings
         return rows.Select(r => r[col]?.ToString()).ToArray();
     }
-
-    private static DateTimeOffset? CoerceDateTimeOffset(object? val) => val switch
-    {
-        null => null,
-        DateOnly d => new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
-        DateTime dt => new DateTimeOffset(dt, TimeSpan.Zero),
-        DateTimeOffset dto => dto,
-        _ => null
-    };
 }
