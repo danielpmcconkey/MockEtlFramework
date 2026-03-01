@@ -52,7 +52,7 @@ dotnet run --project JobExecutor -- 2024-10-15  # backfill specific date, all jo
 dotnet run --project JobExecutor -- 2024-10-15 JobName  # backfill specific date, one job
 ```
 
-**Detailed architecture:** `Documentation/Strategy.md`
+**Detailed architecture:** `Documentation/Architecture.md`
 
 ---
 
@@ -96,11 +96,4 @@ VALUES ('SomeJob', 'Description', 'JobExecutor/Jobs/some_job.json', true)
 ON CONFLICT (job_name) DO NOTHING;
 ```
 
----
 
-## Hand-Crafted BRDs (Reference Benchmarks)
-
-Two BRDs were hand-crafted as quality benchmarks for what agent-produced BRDs should aspire to:
-
-- **CustomerAddressDeltasBrd.md** -- Day-over-day change detection on customer address data. 13 business rules, 7 ambiguities, full traceability matrix.
-- **CoveredTransactionsBrd.md** -- The most complex job: 6-table join, weekend snapshot fallback, segment deduplication. 17 business rules, 11 resolved ambiguities.
