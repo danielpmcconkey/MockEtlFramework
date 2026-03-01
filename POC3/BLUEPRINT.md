@@ -237,9 +237,36 @@ Build verification is the **lead's responsibility**, not the subagents'. After e
 
 Subagents do read/write work only: reading BRDs/FSDs, writing FSDs/test plans/code. This is lightweight and can run at full parallelism safely.
 
+### Batch Structure & Context Refresh
+
+**CRITICAL: Phase B runs in batches of 20 jobs max.** Do not process more than 20 jobs before completing a batch boundary checkpoint. With 101 jobs, this means ~5 batches.
+
+**At every batch boundary (after each group of ≤20 jobs completes the full pipeline), you MUST execute this checklist IN ORDER before starting the next batch:**
+
+1. **CLUTCH CHECK:** Check if `POC3/CLUTCH` exists. If it does, execute the wind-down sequence (see Clutch Protocol above). Do NOT proceed to the next batch.
+2. **BUILD CHECKPOINT:** Run `dotnet build`. If it fails, fix before proceeding (see Build Checkpoints below).
+3. **CONTEXT REFRESH — Re-read these sections of this document:**
+   - The Clutch Protocol section (lines 69-102)
+   - The Dual Mandate section (lines 213-220)
+   - The Module Hierarchy section (lines 222-230)
+   - The Build Serialization section (lines 232-237)
+4. **SESSION STATE UPDATE:** Write current progress to `POC3/logs/session_state.md` — which jobs are complete, which batch you're about to start, total artifact counts. This is a mini-resurrection file. If you crash or hit the clutch mid-batch, the next session picks up here.
+5. **Proceed to next batch.**
+
+This is not optional. Skipping the context refresh or clutch check at a batch boundary is a protocol violation.
+
+### Concurrency Cap
+
+**Maximum 10 concurrent subagents at any point.** If a batch has 20 jobs going through a pipeline step, run them in two waves of 10. Do not spawn more than 10 subagents simultaneously regardless of how many jobs are pending.
+
+This limit exists because:
+- Higher concurrency saturates host machine resources
+- More concurrent agents means more context for you (the lead) to track, which degrades governance compliance
+- Run 2 spawned 34 concurrent architects, which was excessive and contributed to the clutch protocol failure
+
 ### Per-Job Pipeline
 
-For EACH job (can batch 10-15 jobs per cycle):
+For EACH job (batch up to 20 jobs, max 10 concurrent subagents per step):
 
 1. Spawn **Architect** subagent:
    - Read the BRD AND `POC3/KNOWN_ANTI_PATTERNS.md`
