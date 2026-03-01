@@ -17,12 +17,10 @@ dotnet run --project JobExecutor -- 2024-10-15 {JobName}   # Run one job for spe
 
 ## Database
 
-- PostgreSQL at localhost, user: `dansdev`, database: `atc`
-- Password: env var `PGPASS` contains hex-encoded UTF-16 LE string
-- Decode: `echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8`
+- PostgreSQL at `172.18.0.1`, user: `claude`, password: `claude`, database: `atc`
 - Use this pattern for psql:
   ```bash
-  export PGPASSWORD=$(echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8) && psql -h localhost -U dansdev -d atc -c "..."
+  PGPASSWORD=claude psql -h 172.18.0.1 -U claude -d atc -c "..."
   ```
 - Schemas:
   - `datalake` — source data (NEVER modify)

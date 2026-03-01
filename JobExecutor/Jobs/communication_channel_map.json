@@ -32,7 +32,7 @@
     },
     {
       "type": "External",
-      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
       "typeName": "ExternalModules.CommunicationChannelMapper"
     },
     {
