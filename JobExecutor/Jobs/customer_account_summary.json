@@ -22,10 +22,12 @@
       "sql": "SELECT c.id AS customer_id, c.first_name, c.last_name, COUNT(a.account_id) AS account_count, ROUND(SUM(CASE WHEN a.account_status = 'Active' THEN a.current_balance ELSE 0 END), 2) AS active_balance FROM customers c LEFT JOIN accounts a ON c.id = a.customer_id GROUP BY c.id, c.first_name, c.last_name ORDER BY c.id"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "customer_account_summary",
-      "targetTable": "customer_account_summary",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/customer_account_summary.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }

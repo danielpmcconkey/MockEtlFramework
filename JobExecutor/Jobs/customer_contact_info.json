@@ -29,9 +29,10 @@
       "sql": "WITH all_contacts AS (SELECT customer_id, 'Phone' AS contact_type, phone_type AS contact_subtype, phone_number AS contact_value, as_of FROM phone_numbers UNION ALL SELECT customer_id, 'Email' AS contact_type, email_type AS contact_subtype, email_address AS contact_value, as_of FROM email_addresses) SELECT customer_id, contact_type, contact_subtype, contact_value, as_of FROM all_contacts ORDER BY customer_id, contact_type, contact_subtype"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "contact_info",
-      "targetTable": "customer_contact_info",
+      "outputDirectory": "Output/curated/customer_contact_info/",
+      "numParts": 2,
       "writeMode": "Append"
     }
   ]

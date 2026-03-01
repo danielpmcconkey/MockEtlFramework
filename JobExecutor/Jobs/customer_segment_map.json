@@ -29,10 +29,12 @@
       "sql": "SELECT cs.customer_id, cs.segment_id, s.segment_name, s.segment_code, cs.as_of FROM customers_segments cs JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of ORDER BY cs.customer_id, cs.segment_id"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "seg_map",
-      "targetTable": "customer_segment_map",
-      "writeMode": "Append"
+      "outputFile": "Output/curated/customer_segment_map.csv",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF"
     }
   ]
 }

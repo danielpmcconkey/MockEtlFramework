@@ -36,9 +36,10 @@
       "typeName": "ExternalModules.BranchVisitEnricher"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "branch_visit_log",
+      "outputDirectory": "Output/curated/branch_visit_log/",
+      "numParts": 3,
       "writeMode": "Append"
     }
   ]

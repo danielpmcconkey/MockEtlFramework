@@ -1,0 +1,32 @@
+{
+  "jobName": "PreferenceChangeCount",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customer_preferences",
+      "schema": "datalake",
+      "table": "customer_preferences",
+      "columns": ["preference_id", "customer_id", "preference_type", "opted_in", "updated_date"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "prefix", "first_name", "last_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "pref_counts",
+      "sql": "WITH all_prefs AS (SELECT cp.customer_id, cp.preference_type, cp.opted_in, cp.as_of, RANK() OVER (PARTITION BY cp.customer_id, cp.preference_type ORDER BY cp.preference_id) AS rnk FROM customer_preferences cp), summary AS (SELECT customer_id, COUNT(*) AS preference_count, MAX(CASE WHEN preference_type = 'MARKETING_EMAIL' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_email_opt_in, MAX(CASE WHEN preference_type = 'MARKETING_SMS' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_sms_opt_in, as_of FROM all_prefs GROUP BY customer_id, as_of) SELECT s.customer_id, s.preference_count, s.has_email_opt_in, s.has_sms_opt_in, s.as_of FROM summary s"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "pref_counts",
+      "outputDirectory": "Output/curated/preference_change_count/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

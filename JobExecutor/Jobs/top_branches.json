@@ -22,10 +22,13 @@
       "sql": "WITH visit_totals AS (SELECT bv.branch_id, COUNT(*) AS total_visits FROM branch_visits bv WHERE bv.as_of >= '2024-10-01' GROUP BY bv.branch_id) SELECT vt.branch_id, b.branch_name, vt.total_visits, RANK() OVER (ORDER BY vt.total_visits DESC) AS rank, b.as_of FROM visit_totals vt JOIN branches b ON vt.branch_id = b.branch_id ORDER BY rank, vt.branch_id"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "top_branches",
-      "targetTable": "top_branches",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/top_branches.csv",
+      "includeHeader": true,
+      "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }

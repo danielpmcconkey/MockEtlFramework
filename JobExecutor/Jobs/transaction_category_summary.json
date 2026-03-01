@@ -22,10 +22,13 @@
       "sql": "WITH txn_stats AS (SELECT txn_type, as_of, amount, ROW_NUMBER() OVER (PARTITION BY txn_type, as_of ORDER BY transaction_id) AS rn, COUNT(*) OVER (PARTITION BY txn_type, as_of) AS type_count FROM transactions) SELECT txn_type, as_of, ROUND(SUM(amount), 2) AS total_amount, COUNT(*) AS transaction_count, ROUND(AVG(amount), 2) AS avg_amount FROM txn_stats GROUP BY txn_type, as_of ORDER BY as_of, txn_type"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "txn_cat_summary",
-      "targetTable": "transaction_category_summary",
-      "writeMode": "Append"
+      "outputFile": "Output/curated/transaction_category_summary.csv",
+      "includeHeader": true,
+      "trailerFormat": "END|{row_count}",
+      "writeMode": "Append",
+      "lineEnding": "LF"
     }
   ]
 }

@@ -15,10 +15,13 @@
       "sql": "WITH daily_agg AS (SELECT as_of, COUNT(*) AS total_transactions, ROUND(SUM(amount), 2) AS total_amount, ROUND(AVG(amount), 2) AS avg_amount, MIN(amount) AS min_amount, MAX(amount) AS max_amount FROM transactions GROUP BY as_of) SELECT as_of, total_transactions, total_amount, avg_amount FROM daily_agg ORDER BY as_of"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "daily_vol",
-      "targetTable": "daily_transaction_volume",
-      "writeMode": "Append"
+      "outputFile": "Output/curated/daily_transaction_volume.csv",
+      "includeHeader": true,
+      "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
+      "writeMode": "Append",
+      "lineEnding": "CRLF"
     }
   ]
 }

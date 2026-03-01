@@ -22,9 +22,10 @@
       "typeName": "ExternalModules.LoanSnapshotBuilder"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "loan_portfolio_snapshot",
+      "outputDirectory": "Output/curated/loan_portfolio_snapshot/",
+      "numParts": 1,
       "writeMode": "Overwrite"
     }
   ]

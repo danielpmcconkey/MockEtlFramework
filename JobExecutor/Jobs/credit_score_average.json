@@ -29,10 +29,13 @@
       "typeName": "ExternalModules.CreditScoreAverager"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "credit_score_average",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/credit_score_average.csv",
+      "includeHeader": true,
+      "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
+      "writeMode": "Overwrite",
+      "lineEnding": "CRLF"
     }
   ]
 }

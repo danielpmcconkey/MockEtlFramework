@@ -29,10 +29,12 @@
       "typeName": "ExternalModules.CustomerBranchActivityBuilder"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "customer_branch_activity",
-      "writeMode": "Append"
+      "outputFile": "Output/curated/customer_branch_activity.csv",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "CRLF"
     }
   ]
 }

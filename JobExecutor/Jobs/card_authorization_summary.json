@@ -1,0 +1,34 @@
+{
+  "jobName": "CardAuthorizationSummary",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "card_transactions",
+      "schema": "datalake",
+      "table": "card_transactions",
+      "columns": ["card_txn_id", "card_id", "customer_id", "amount", "authorization_status"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "cards",
+      "schema": "datalake",
+      "table": "cards",
+      "columns": ["card_id", "customer_id", "card_type"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "WITH txn_detail AS (SELECT ct.card_txn_id, ct.card_id, ct.authorization_status, c.card_type, ct.amount, ct.as_of, ROW_NUMBER() OVER (PARTITION BY c.card_type ORDER BY ct.card_txn_id) AS rn FROM card_transactions ct INNER JOIN cards c ON ct.card_id = c.card_id), unused_summary AS (SELECT card_type, COUNT(*) AS cnt FROM txn_detail GROUP BY card_type) SELECT td.card_type, COUNT(*) AS total_count, SUM(CASE WHEN td.authorization_status = 'Approved' THEN 1 ELSE 0 END) AS approved_count, SUM(CASE WHEN td.authorization_status = 'Declined' THEN 1 ELSE 0 END) AS declined_count, CAST(SUM(CASE WHEN td.authorization_status = 'Approved' THEN 1 ELSE 0 END) AS INTEGER) / CAST(COUNT(*) AS INTEGER) AS approval_rate, td.as_of FROM txn_detail td GROUP BY td.card_type, td.as_of"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/curated/card_authorization_summary.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

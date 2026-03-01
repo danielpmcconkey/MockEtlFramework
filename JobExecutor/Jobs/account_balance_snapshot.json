@@ -22,9 +22,10 @@
       "typeName": "ExternalModules.AccountSnapshotBuilder"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "account_balance_snapshot",
+      "outputDirectory": "Output/curated/account_balance_snapshot/",
+      "numParts": 2,
       "writeMode": "Append"
     }
   ]

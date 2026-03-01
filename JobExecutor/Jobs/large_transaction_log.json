@@ -36,9 +36,10 @@
       "typeName": "ExternalModules.LargeTransactionProcessor"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "large_transaction_log",
+      "outputDirectory": "Output/curated/large_transaction_log/",
+      "numParts": 3,
       "writeMode": "Append"
     }
   ]

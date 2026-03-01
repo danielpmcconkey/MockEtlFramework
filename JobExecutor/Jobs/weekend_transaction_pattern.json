@@ -1,0 +1,29 @@
+{
+  "jobName": "WeekendTransactionPattern",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "txn_timestamp", "txn_type", "amount"],
+      "minEffectiveDate": "2024-10-01",
+      "maxEffectiveDate": "2024-12-31"
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.WeekendTransactionPatternProcessor"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/curated/weekend_transaction_pattern.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

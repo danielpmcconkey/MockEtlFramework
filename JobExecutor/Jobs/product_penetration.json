@@ -1,0 +1,47 @@
+{
+  "jobName": "ProductPenetration",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "account_type"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "cards",
+      "schema": "datalake",
+      "table": "cards",
+      "columns": ["card_id", "customer_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "investments",
+      "schema": "datalake",
+      "table": "investments",
+      "columns": ["investment_id", "customer_id"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "WITH customer_counts AS (SELECT COUNT(DISTINCT id) AS total_customers FROM customers), account_holders AS (SELECT COUNT(DISTINCT customer_id) AS cnt FROM accounts), card_holders AS (SELECT COUNT(DISTINCT customer_id) AS cnt FROM cards), investment_holders AS (SELECT COUNT(DISTINCT customer_id) AS cnt FROM investments), product_stats AS (SELECT 'accounts' AS product_type, cc.total_customers AS customer_count, ah.cnt AS product_count, CAST(ah.cnt AS INTEGER) / CAST(cc.total_customers AS INTEGER) AS penetration_rate FROM customer_counts cc, account_holders ah UNION ALL SELECT 'cards' AS product_type, cc.total_customers AS customer_count, ch.cnt AS product_count, CAST(ch.cnt AS INTEGER) / CAST(cc.total_customers AS INTEGER) AS penetration_rate FROM customer_counts cc, card_holders ch UNION ALL SELECT 'investments' AS product_type, cc.total_customers AS customer_count, ih.cnt AS product_count, CAST(ih.cnt AS INTEGER) / CAST(cc.total_customers AS INTEGER) AS penetration_rate FROM customer_counts cc, investment_holders ih) SELECT ps.product_type, ps.customer_count, ps.product_count, ps.penetration_rate, customers.as_of FROM product_stats ps JOIN customers ON 1=1 LIMIT 3"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/curated/product_penetration.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

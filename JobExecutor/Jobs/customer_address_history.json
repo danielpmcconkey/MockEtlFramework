@@ -22,9 +22,10 @@
       "sql": "SELECT sub.customer_id, sub.address_line1, sub.city, sub.state_province, sub.postal_code, sub.country, sub.as_of FROM (SELECT a.customer_id, a.address_line1, a.city, a.state_province, a.postal_code, a.country, a.as_of FROM addresses a WHERE a.customer_id IS NOT NULL) sub ORDER BY sub.customer_id"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "addr_history",
-      "targetTable": "customer_address_history",
+      "outputDirectory": "Output/curated/customer_address_history/",
+      "numParts": 2,
       "writeMode": "Append"
     }
   ]

@@ -1,0 +1,33 @@
+{
+  "jobName": "FeeWaiverAnalysis",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "overdraft_events",
+      "schema": "datalake",
+      "table": "overdraft_events",
+      "columns": ["overdraft_id", "account_id", "customer_id", "overdraft_amount", "fee_amount", "fee_waived", "event_timestamp"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "account_type", "account_status", "interest_rate", "credit_limit", "apr"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "fee_waiver_summary",
+      "sql": "SELECT oe.fee_waived, COUNT(*) AS event_count, ROUND(SUM(CASE WHEN oe.fee_amount IS NULL THEN 0.0 ELSE oe.fee_amount END), 2) AS total_fees, ROUND(AVG(CASE WHEN oe.fee_amount IS NULL THEN 0.0 ELSE oe.fee_amount END), 2) AS avg_fee, oe.as_of FROM overdraft_events oe LEFT JOIN accounts a ON oe.account_id = a.account_id AND oe.as_of = a.as_of GROUP BY oe.fee_waived, oe.as_of ORDER BY oe.fee_waived"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "fee_waiver_summary",
+      "outputFile": "Output/curated/fee_waiver_analysis.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

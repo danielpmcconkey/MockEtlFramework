@@ -36,10 +36,12 @@
       "typeName": "ExternalModules.CustomerValueCalculator"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "customer_value_score",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/customer_value_score.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }

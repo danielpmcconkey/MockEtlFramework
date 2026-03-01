@@ -1,0 +1,33 @@
+{
+  "jobName": "TransactionSizeBuckets",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "account_type"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "size_buckets",
+      "sql": "WITH txn_detail AS (SELECT t.transaction_id, t.account_id, t.amount, t.as_of, ROW_NUMBER() OVER (PARTITION BY t.account_id ORDER BY t.amount DESC) AS rn FROM transactions t), bucketed AS (SELECT td.transaction_id, td.account_id, td.amount, td.as_of, CASE WHEN td.amount >= 0 AND td.amount < 25 THEN '0-25' WHEN td.amount >= 25 AND td.amount < 100 THEN '25-100' WHEN td.amount >= 100 AND td.amount < 500 THEN '100-500' WHEN td.amount >= 500 AND td.amount < 1000 THEN '500-1000' ELSE '1000+' END AS amount_bucket FROM txn_detail td), summary AS (SELECT b.amount_bucket, COUNT(*) AS txn_count, ROUND(SUM(b.amount), 2) AS total_amount, ROUND(AVG(b.amount), 2) AS avg_amount, b.as_of FROM bucketed b GROUP BY b.amount_bucket, b.as_of) SELECT s.amount_bucket, s.txn_count, s.total_amount, s.avg_amount, s.as_of FROM summary s ORDER BY s.as_of, s.amount_bucket"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "size_buckets",
+      "outputFile": "Output/curated/transaction_size_buckets.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

@@ -8,9 +8,10 @@
       "typeName": "ExternalModules.CustomerAddressDeltaProcessor"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "customer_address_deltas",
+      "outputDirectory": "Output/curated/customer_address_deltas/",
+      "numParts": 1,
       "writeMode": "Append"
     }
   ]

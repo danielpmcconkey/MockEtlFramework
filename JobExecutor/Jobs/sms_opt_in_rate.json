@@ -1,0 +1,39 @@
+{
+  "jobName": "SmsOptInRate",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customer_preferences",
+      "schema": "datalake",
+      "table": "customer_preferences",
+      "columns": ["preference_id", "customer_id", "preference_type", "opted_in"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers_segments",
+      "schema": "datalake",
+      "table": "customers_segments",
+      "columns": ["customer_id", "segment_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "segments",
+      "schema": "datalake",
+      "table": "segments",
+      "columns": ["segment_id", "segment_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "sms_opt_in",
+      "sql": "SELECT s.segment_name, SUM(CASE WHEN cp.opted_in = 1 THEN 1 ELSE 0 END) AS opted_in_count, COUNT(*) AS total_count, CAST(SUM(CASE WHEN cp.opted_in = 1 THEN 1 ELSE 0 END) AS INTEGER) / CAST(COUNT(*) AS INTEGER) AS opt_in_rate, cp.as_of FROM customer_preferences cp JOIN customers_segments cs ON cp.customer_id = cs.customer_id JOIN segments s ON cs.segment_id = s.segment_id WHERE cp.preference_type = 'MARKETING_SMS' GROUP BY s.segment_name, cp.as_of"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "sms_opt_in",
+      "outputDirectory": "Output/curated/sms_opt_in_rate/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

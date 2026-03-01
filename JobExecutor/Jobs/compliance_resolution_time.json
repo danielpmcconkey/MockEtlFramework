@@ -1,0 +1,27 @@
+{
+  "jobName": "ComplianceResolutionTime",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "compliance_events",
+      "schema": "datalake",
+      "table": "compliance_events",
+      "columns": ["event_id", "customer_id", "event_type", "event_date", "status", "review_date"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "resolution_stats",
+      "sql": "WITH resolved AS (SELECT event_type, event_date, review_date, CAST(julianday(review_date) - julianday(event_date) AS INTEGER) AS days_to_resolve, ROW_NUMBER() OVER (PARTITION BY event_type ORDER BY event_date) AS rn FROM compliance_events WHERE status = 'Cleared' AND review_date IS NOT NULL) SELECT resolved.event_type, COUNT(*) AS resolved_count, SUM(days_to_resolve) AS total_days, CAST(SUM(days_to_resolve) AS INTEGER) / CAST(COUNT(*) AS INTEGER) AS avg_resolution_days, compliance_events.as_of FROM resolved JOIN compliance_events ON 1=1 GROUP BY resolved.event_type, compliance_events.as_of"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "resolution_stats",
+      "outputFile": "Output/curated/compliance_resolution_time.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

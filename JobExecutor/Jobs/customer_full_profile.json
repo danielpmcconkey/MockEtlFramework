@@ -43,9 +43,10 @@
       "typeName": "ExternalModules.FullProfileAssembler"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "customer_full_profile",
+      "outputDirectory": "Output/curated/customer_full_profile/",
+      "numParts": 2,
       "writeMode": "Overwrite"
     }
   ]

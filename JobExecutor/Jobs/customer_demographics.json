@@ -36,10 +36,12 @@
       "typeName": "ExternalModules.CustomerDemographicsBuilder"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "customer_demographics",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/customer_demographics.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "CRLF"
     }
   ]
 }

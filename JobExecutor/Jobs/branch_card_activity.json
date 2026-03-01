@@ -1,0 +1,46 @@
+{
+  "jobName": "BranchCardActivity",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "card_transactions",
+      "schema": "datalake",
+      "table": "card_transactions",
+      "columns": ["card_txn_id", "card_id", "customer_id", "amount", "authorization_status"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branches",
+      "schema": "datalake",
+      "table": "branches",
+      "columns": ["branch_id", "branch_name", "country"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "segments",
+      "schema": "datalake",
+      "table": "segments",
+      "columns": ["segment_id", "segment_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT b.branch_id, b.branch_name, COUNT(ct.card_txn_id) AS card_txn_count, ROUND(SUM(ct.amount), 2) AS total_card_amount, ct.as_of FROM card_transactions ct JOIN customers c ON ct.customer_id = c.id JOIN branches b ON b.branch_id = (ct.customer_id % (SELECT MAX(branch_id) FROM branches)) + 1 GROUP BY b.branch_id, b.branch_name, ct.as_of"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/curated/branch_card_activity/",
+      "numParts": 50,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

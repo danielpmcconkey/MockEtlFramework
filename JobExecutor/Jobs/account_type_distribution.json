@@ -22,10 +22,13 @@
       "typeName": "ExternalModules.AccountDistributionCalculator"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "account_type_distribution",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/account_type_distribution.csv",
+      "includeHeader": true,
+      "trailerFormat": "END|{row_count}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }

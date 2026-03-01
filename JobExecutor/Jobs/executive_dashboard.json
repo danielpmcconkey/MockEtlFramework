@@ -57,10 +57,13 @@
       "typeName": "ExternalModules.ExecutiveDashboardBuilder"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "executive_dashboard",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/executive_dashboard.csv",
+      "includeHeader": true,
+      "trailerFormat": "SUMMARY|{row_count}|{date}|{timestamp}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }

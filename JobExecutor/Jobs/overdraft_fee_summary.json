@@ -1,0 +1,26 @@
+{
+  "jobName": "OverdraftFeeSummary",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "overdraft_events",
+      "schema": "datalake",
+      "table": "overdraft_events",
+      "columns": ["overdraft_id", "account_id", "customer_id", "overdraft_amount", "fee_amount", "fee_waived", "event_timestamp"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "fee_summary",
+      "sql": "WITH all_events AS (SELECT oe.overdraft_id, oe.fee_amount, oe.fee_waived, oe.as_of, ROW_NUMBER() OVER (PARTITION BY oe.as_of ORDER BY oe.overdraft_id) AS rn FROM overdraft_events oe) SELECT ae.fee_waived, ROUND(SUM(ae.fee_amount), 2) AS total_fees, COUNT(*) AS event_count, ROUND(AVG(ae.fee_amount), 2) AS avg_fee, ae.as_of FROM all_events ae GROUP BY ae.fee_waived, ae.as_of ORDER BY ae.fee_waived"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "fee_summary",
+      "outputFile": "Output/curated/overdraft_fee_summary.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "jobName": "BondMaturitySchedule",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "securities",
+      "schema": "datalake",
+      "table": "securities",
+      "columns": ["security_id", "ticker", "security_name", "security_type", "sector", "exchange"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "holdings",
+      "schema": "datalake",
+      "table": "holdings",
+      "columns": ["holding_id", "investment_id", "security_id", "customer_id", "quantity", "cost_basis", "current_value"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.BondMaturityScheduleBuilder"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/curated/bond_maturity_schedule/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

@@ -22,10 +22,12 @@
       "typeName": "ExternalModules.CreditScoreProcessor"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "credit_score_snapshot",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/credit_score_snapshot.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "CRLF"
     }
   ]
 }

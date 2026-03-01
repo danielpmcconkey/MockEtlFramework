@@ -1,0 +1,46 @@
+{
+  "jobName": "BranchTransactionVolume",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "txn_type", "amount", "description"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "interest_rate"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branches",
+      "schema": "datalake",
+      "table": "branches",
+      "columns": ["branch_id", "branch_name", "city", "state_province"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name", "prefix"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "branch_txn_vol",
+      "sql": "SELECT t.account_id, a.customer_id, COUNT(*) AS txn_count, ROUND(SUM(t.amount), 2) AS total_amount, t.as_of FROM transactions t JOIN accounts a ON t.account_id = a.account_id AND t.as_of = a.as_of GROUP BY t.account_id, a.customer_id, t.as_of ORDER BY t.as_of, t.account_id"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "branch_txn_vol",
+      "outputDirectory": "Output/curated/branch_transaction_volume/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "jobName": "SecuritiesDirectory",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "securities",
+      "schema": "datalake",
+      "table": "securities",
+      "columns": ["security_id", "ticker", "security_name", "security_type", "sector", "exchange"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "holdings",
+      "schema": "datalake",
+      "table": "holdings",
+      "columns": ["holding_id", "investment_id", "security_id", "customer_id", "quantity", "current_value"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "securities_dir",
+      "sql": "SELECT s.security_id, s.ticker, s.security_name, s.security_type, s.sector, s.exchange, s.as_of FROM securities s ORDER BY s.security_id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "securities_dir",
+      "outputFile": "Output/curated/securities_directory.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

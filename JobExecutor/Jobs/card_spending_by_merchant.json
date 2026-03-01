@@ -1,0 +1,32 @@
+{
+  "jobName": "CardSpendingByMerchant",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "card_transactions",
+      "schema": "datalake",
+      "table": "card_transactions",
+      "columns": ["card_txn_id", "card_id", "customer_id", "merchant_name", "merchant_category_code", "amount", "txn_timestamp", "authorization_status"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "merchant_categories",
+      "schema": "datalake",
+      "table": "merchant_categories",
+      "columns": ["mcc_code", "mcc_description", "risk_level"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CardSpendingByMerchantProcessor"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/curated/card_spending_by_merchant/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

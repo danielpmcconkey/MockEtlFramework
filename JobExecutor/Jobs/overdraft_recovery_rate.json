@@ -1,0 +1,27 @@
+{
+  "jobName": "OverdraftRecoveryRate",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "overdraft_events",
+      "schema": "datalake",
+      "table": "overdraft_events",
+      "columns": ["overdraft_id", "account_id", "customer_id", "overdraft_amount", "fee_amount", "fee_waived", "event_timestamp"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.OverdraftRecoveryRateProcessor"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/curated/overdraft_recovery_rate.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

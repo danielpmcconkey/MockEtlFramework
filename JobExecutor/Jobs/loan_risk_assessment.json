@@ -36,9 +36,10 @@
       "typeName": "ExternalModules.LoanRiskCalculator"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "loan_risk_assessment",
+      "outputDirectory": "Output/curated/loan_risk_assessment/",
+      "numParts": 2,
       "writeMode": "Overwrite"
     }
   ]

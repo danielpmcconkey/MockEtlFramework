@@ -22,10 +22,12 @@
       "sql": "WITH base AS (SELECT as_of, COUNT(*) AS daily_transactions, ROUND(SUM(amount), 2) AS daily_amount, ROUND(AVG(amount), 2) AS avg_transaction_amount FROM transactions WHERE as_of >= '2024-10-01' GROUP BY as_of) SELECT as_of, daily_transactions, daily_amount, avg_transaction_amount FROM base ORDER BY as_of"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "monthly_trend",
-      "targetTable": "monthly_transaction_trend",
-      "writeMode": "Append"
+      "outputFile": "Output/curated/monthly_transaction_trend.csv",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF"
     }
   ]
 }

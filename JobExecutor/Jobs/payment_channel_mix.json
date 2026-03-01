@@ -1,0 +1,39 @@
+{
+  "jobName": "PaymentChannelMix",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "amount", "description"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "card_transactions",
+      "schema": "datalake",
+      "table": "card_transactions",
+      "columns": ["card_txn_id", "card_id", "amount", "merchant_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "wire_transfers",
+      "schema": "datalake",
+      "table": "wire_transfers",
+      "columns": ["wire_id", "customer_id", "amount", "counterparty_bank"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT 'transaction' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, transactions.as_of FROM transactions GROUP BY transactions.as_of UNION ALL SELECT 'card' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, card_transactions.as_of FROM card_transactions GROUP BY card_transactions.as_of UNION ALL SELECT 'wire' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, wire_transfers.as_of FROM wire_transfers GROUP BY wire_transfers.as_of"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/curated/payment_channel_mix/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

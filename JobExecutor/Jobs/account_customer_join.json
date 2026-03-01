@@ -29,9 +29,10 @@
       "typeName": "ExternalModules.AccountCustomerDenormalizer"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "account_customer_join",
+      "outputDirectory": "Output/curated/account_customer_join/",
+      "numParts": 2,
       "writeMode": "Overwrite"
     }
   ]

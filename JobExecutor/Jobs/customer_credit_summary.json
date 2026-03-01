@@ -43,10 +43,12 @@
       "typeName": "ExternalModules.CustomerCreditSummaryBuilder"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "customer_credit_summary",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/customer_credit_summary.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }

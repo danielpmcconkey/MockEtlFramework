@@ -8,9 +8,10 @@
       "typeName": "ExternalModules.CoveredTransactionProcessor"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "ParquetFileWriter",
       "source": "output",
-      "targetTable": "covered_transactions",
+      "outputDirectory": "Output/curated/covered_transactions/",
+      "numParts": 4,
       "writeMode": "Append"
     }
   ]

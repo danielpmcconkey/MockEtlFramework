@@ -22,10 +22,13 @@
       "typeName": "ExternalModules.AccountStatusCounter"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "account_status_summary",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/account_status_summary.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }

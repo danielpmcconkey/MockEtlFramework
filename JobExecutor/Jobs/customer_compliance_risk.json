@@ -1,0 +1,47 @@
+{
+  "jobName": "CustomerComplianceRisk",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "compliance_events",
+      "schema": "datalake",
+      "table": "compliance_events",
+      "columns": ["event_id", "customer_id", "event_type", "status"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "wire_transfers",
+      "schema": "datalake",
+      "table": "wire_transfers",
+      "columns": ["wire_id", "customer_id", "amount", "direction"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "amount", "txn_type"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CustomerComplianceRiskCalculator"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/curated/customer_compliance_risk.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

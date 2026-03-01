@@ -1,0 +1,28 @@
+{
+  "jobName": "DailyWireVolume",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "wire_transfers",
+      "schema": "datalake",
+      "table": "wire_transfers",
+      "columns": ["wire_id", "customer_id", "direction", "amount", "status", "wire_timestamp"],
+      "minEffectiveDate": "2024-10-01",
+      "maxEffectiveDate": "2024-12-31"
+    },
+    {
+      "type": "Transformation",
+      "resultName": "daily_vol",
+      "sql": "SELECT as_of AS wire_date, COUNT(*) AS wire_count, ROUND(SUM(amount), 2) AS total_amount, as_of FROM wire_transfers WHERE as_of >= '2024-10-01' AND as_of <= '2024-12-31' GROUP BY as_of ORDER BY as_of"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "daily_vol",
+      "outputFile": "Output/curated/daily_wire_volume.csv",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF"
+    }
+  ]
+}

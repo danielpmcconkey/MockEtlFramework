@@ -1,0 +1,53 @@
+{
+  "jobName": "QuarterlyExecutiveKpis",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "current_balance"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "amount"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "investments",
+      "schema": "datalake",
+      "table": "investments",
+      "columns": ["investment_id", "customer_id", "current_value"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "compliance_events",
+      "schema": "datalake",
+      "table": "compliance_events",
+      "columns": ["event_id", "customer_id", "event_type", "status"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/media/dan/fdrive/codeprojects/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.QuarterlyExecutiveKpiBuilder"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/curated/quarterly_executive_kpis/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

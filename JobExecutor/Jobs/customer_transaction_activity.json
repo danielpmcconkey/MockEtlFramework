@@ -22,10 +22,12 @@
       "typeName": "ExternalModules.CustomerTxnActivityBuilder"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "customer_transaction_activity",
-      "writeMode": "Append"
+      "outputFile": "Output/curated/customer_transaction_activity.csv",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF"
     }
   ]
 }

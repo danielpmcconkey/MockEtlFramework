@@ -22,10 +22,12 @@
       "typeName": "ExternalModules.HighBalanceFilter"
     },
     {
-      "type": "DataFrameWriter",
+      "type": "CsvFileWriter",
       "source": "output",
-      "targetTable": "high_balance_accounts",
-      "writeMode": "Overwrite"
+      "outputFile": "Output/curated/high_balance_accounts.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
     }
   ]
 }
