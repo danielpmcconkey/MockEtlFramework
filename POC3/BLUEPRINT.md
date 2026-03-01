@@ -210,20 +210,54 @@ using standard Task tool subagents.
 
 ## Phase B: Design & Implementation (Standard Subagents)
 
+### CRITICAL: Dual Mandate
+
+Every V2 implementation must satisfy TWO goals simultaneously:
+
+1. **Output equivalence:** V2 must produce byte-identical output to V1.
+2. **Anti-pattern elimination:** V2 must NOT reproduce V1's known anti-patterns.
+
+These are equally weighted. Output equivalence alone is not success — a copy of V1 with different variable names demonstrates copying ability, not engineering judgment. Read `POC3/KNOWN_ANTI_PATTERNS.md` before designing or implementing ANY V2 job. It contains the full anti-pattern taxonomy (W-codes for output-affecting wrinkles, AP-codes for code-quality anti-patterns) with specific prescriptions for what V2 should do instead.
+
+### Module Hierarchy
+
+Design every V2 job using the simplest module chain that produces correct output:
+
+- **Tier 1 — Framework Only (DEFAULT):** `DataSourcing → Transformation (SQL) → Writer`. Use this whenever the job's business logic can be expressed in SQL. This is the majority of jobs.
+- **Tier 2 — Framework + Minimal External (SCALPEL):** `DataSourcing → Transformation → External (minimal) → Writer`. Use only when ONE specific operation can't be expressed in SQL. The External handles ONLY that operation.
+- **Tier 3 — Full External (LAST RESORT):** `External → Writer`. Only when DataSourcing fundamentally cannot support the job's data access pattern.
+
+**External modules are not a get-out-of-jail-free card.** Needing an External for one operation does not license putting the entire pipeline in C#. Even Tier 3 External modules must use `decimal` for money, named constants for thresholds, set-based operations where possible, and zero dead-end data sources.
+
+### Build Serialization
+
+**CRITICAL: Subagents must NEVER run `dotnet build` or `dotnet test`.** Multiple concurrent builds against the same project directory will saturate the host machine (CPU, RAM, and shared obj/bin directories). This happened in Run 1 — 10 agents building simultaneously rendered the operator's workstation unresponsive for 20 minutes.
+
+Build verification is the **lead's responsibility**, not the subagents'. After each batch of Developer subagents finishes writing code, the lead runs a single `dotnet build` to verify compilation. If the build fails, the lead identifies which files caused the failure and spawns a targeted fix agent before continuing to the next batch.
+
+Subagents do read/write work only: reading BRDs/FSDs, writing FSDs/test plans/code. This is lightweight and can run at full parallelism safely.
+
+### Per-Job Pipeline
+
 For EACH job (can batch 10-15 jobs per cycle):
 
 1. Spawn **Architect** subagent:
-   - Read the BRD
-   - Design the replacement implementation (SQL, External module, or combination)
+   - Read the BRD AND `POC3/KNOWN_ANTI_PATTERNS.md`
+   - Identify which W-codes and AP-codes apply to this job (the BRD may reference specific codes)
+   - Design the replacement implementation using the Module Hierarchy above — start at Tier 1, escalate only with justification
    - Produce FSD at `POC3/fsd/{job_name}_fsd.md`
    - FSD traces every design decision to a BRD requirement
+   - **FSD must document:** which anti-patterns were identified, which were eliminated, which were preserved for output equivalence (W-codes), and why
    - **CRITICAL:** V2 jobs MUST use the same writer type as V1. Only the output path changes.
    - **FSD must include Proofmark config design:**
      - Which columns (if any) should be EXCLUDED and why
      - Which columns (if any) should be FUZZY and why
      - Start with the assumption of zero exclusions and zero fuzzy — only add with evidence
 
-2. Spawn **Reviewer** subagent to validate FSD traceability
+2. Spawn **Reviewer** subagent to validate FSD traceability AND verify anti-pattern handling:
+   - Every AP-code identified in the BRD must be addressed in the FSD (eliminated or justified)
+   - Module tier selection must be justified — if the FSD uses Tier 2 or Tier 3, the reviewer must verify that Tier 1 is genuinely insufficient
+   - W-code handling must be documented with the clean-code prescription from KNOWN_ANTI_PATTERNS.md
 
 3. Spawn **QA** subagent:
    - Read BRD + FSD
@@ -232,8 +266,9 @@ For EACH job (can batch 10-15 jobs per cycle):
    - Include edge case tests (NULL, weekend, zero-row, boundary dates)
 
 4. Spawn **Developer** subagent:
-   - Read FSD + test plan
-   - Implement the replacement job
+   - Read FSD + test plan + `POC3/KNOWN_ANTI_PATTERNS.md`
+   - Implement the replacement job following the FSD's module tier and anti-pattern prescriptions
+   - **Do NOT run `dotnet build` or `dotnet test`.** Write code only. The lead handles build verification.
    - V2 External modules: `ExternalModules/{JobName}V2Processor.cs`
    - V2 job configs: `JobExecutor/Jobs/{job_name}_v2.json`
    - **V2 output paths:**
@@ -243,7 +278,21 @@ For EACH job (can batch 10-15 jobs per cycle):
    - **All writer config params must match V1 exactly:** `numParts`, `writeMode`, `trailerFormat`, `lineEnding`, `includeHeader`
    - Job names must be distinct from originals (append `V2`, e.g., `CoveredTransactionsV2`)
 
-5. Spawn **Code Reviewer** subagent to validate implementation traces to FSD
+5. Spawn **Code Reviewer** subagent to validate:
+   - Implementation traces to FSD
+   - No AP-code anti-patterns reproduced (spot-check: unnecessary External modules, integer division, magic values, dead-end sources)
+   - W-code behaviors reproduced with clean, documented code (not copy-pasted V1 patterns)
+   - Module tier matches FSD justification
+   - **Do NOT run `dotnet build` or `dotnet test`.** Code review is read-only.
+
+### Build Checkpoints
+
+After each batch of Developer + Code Reviewer subagents completes:
+
+1. **Lead runs `dotnet build`** (single build, no parallelism)
+2. If build succeeds: proceed to next batch
+3. If build fails: read the error output, identify which V2 files caused the failure, spawn a targeted fix agent for those files only, then re-build
+4. After ALL batches are done and building clean: run `dotnet test` once to verify no regressions
 
 ### Naming Conventions (V2 Artifacts)
 
@@ -253,6 +302,8 @@ All V2 artifacts MUST include `V2` or `_v2` in their names:
 - Job registrations: `{JobName}V2` (e.g., `CoveredTransactionsV2`)
 
 This convention is mandatory. Do not deviate from it.
+
+**STOP HERE.** Do not proceed to Phase C until you receive explicit go-ahead from the human operator.
 
 ---
 
@@ -334,6 +385,8 @@ dotnet run --project JobExecutor
 ```
 
 Verify V1 output exists in `Output/curated/` for all expected jobs.
+
+**STOP HERE.** Do not proceed to Phase D until you receive explicit go-ahead from the human operator.
 
 ---
 
@@ -432,6 +485,8 @@ For EACH validated job, spawn a **Consistency Verifier** subagent (read-only). T
 **If any job is INCONSISTENT:** Send the consistency report back to a Resolution subagent to fix the document chain (code changes are NOT expected — this is a documentation fix). After fixes, re-run the consistency verifier for that job.
 
 **Completion Gate:** Phase D is complete when ALL validated jobs are CONSISTENT and all remaining jobs are explicitly marked UNRESOLVED (with full documentation of why). UNRESOLVED jobs do not require consistency verification.
+
+**STOP HERE.** Do not proceed to Phase E until you receive explicit go-ahead from the human operator.
 
 ---
 
