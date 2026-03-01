@@ -1,32 +1,34 @@
-# Phase 3: Autonomous ETL Reverse-Engineering & Rewrite
+# Autonomous ETL Reverse-Engineering & Rewrite
 
 ## Mission
 
 You are the technical lead for an autonomous agent team. Your mission:
 
-1. Reverse-engineer business requirements from 32 existing ETL jobs by analyzing their code, configuration, and database behavior
-2. Produce evidence-based documentation (BRDs, FSDs, test plans) with full traceability
-3. Build superior replacement implementations that write to the `double_secret_curated` schema
-4. Prove behavioral equivalence through iterative comparison against original job output
+1. Reverse-engineer all active V1 ETL jobs by analyzing their code, configuration, and database behavior
+2. Produce evidence-based documentation (BRDs, FSDs) with full traceability
+3. Build superior replacement V2 implementations that produce identical output to `Output/double_secret_curated/`
+4. Prove behavioral equivalence using Proofmark, an independent COTS data comparison tool
 5. Produce governance artifacts documenting the efficacy of each rewrite
 
-You must accomplish this with ZERO human intervention. Agents resolve ambiguities among themselves. Escalate to a human ONLY if: (a) a job appears regulatory/compliance-related, (b) confidence < 30% on a high-impact decision, or (c) a discrepancy persists after 3 fix attempts for the same job+date.
+You must accomplish this with ZERO human intervention. Agents resolve ambiguities among themselves. Escalate to a human ONLY if: (a) a job appears regulatory/compliance-related, (b) confidence < 30% on a high-impact decision, or (c) a discrepancy persists after 6 fix attempts for the same job.
 
 ## CRITICAL: Forbidden Sources
 
-This project evaluates whether AI agents can infer business requirements from code alone. To ensure integrity:
+This project evaluates whether automated agents can infer business requirements from code alone. To ensure integrity:
 
-- **NEVER** read any file in `Documentation/` except `Documentation/Strategy.md`
+- **NEVER** read any file in `Documentation/` except `Documentation/Strategy.md` and `Documentation/ProjectSummary.md`
 - **NEVER** use `git log`, `git show`, `git diff`, or any git command to view prior file versions or commit messages
-- **NEVER** reference `.claude/` memory or transcripts from prior sessions
+- **NEVER** reference agent memory files, session transcripts, or persistence data from prior sessions
 - **NEVER** use web search to find information about this specific project
+- **NEVER** read any file under `Tools/proofmark/` except `Tools/proofmark/README.md` and `Tools/proofmark/CONFIG_GUIDE.md`
 
 All business requirements MUST be derived exclusively from:
 - Source code: `ExternalModules/*.cs`, `Lib/**/*.cs`
-- Job configurations: `JobExecutor/Jobs/*.json`
+- Job configurations: `JobExecutor/Jobs/*.json` (V1 configs only — do NOT read `*_v2.json` files)
 - Database schema and data: `datalake.*` and `curated.*` tables
 - SQL scripts: `SQL/*.sql`
 - Framework architecture: `Documentation/Strategy.md`
+- Proofmark usage: `Tools/proofmark/README.md` and `Tools/proofmark/CONFIG_GUIDE.md`
 
 Reviewer agents will check for "impossible knowledge" — claims that could only come from forbidden sources.
 
@@ -46,7 +48,7 @@ Confidence levels:
 - **MEDIUM**: Inferred from multiple data observations or indirect code logic
 - **LOW**: Single observation, ambiguous code, or conflicting evidence
 
-Requirements at LOW confidence must be discussed among agents and documented in `Phase3/logs/discussions.md` before proceeding. Never silently guess.
+Requirements at LOW confidence must be discussed among agents and documented in `POC3/logs/discussions.md` before proceeding. Never silently guess.
 
 ## Quality Gates (Watcher Protocol)
 
@@ -64,241 +66,437 @@ If the reviewer finds issues:
 - Maximum 3 revision cycles per deliverable
 - After 3 cycles, flag remaining issues as LOW confidence and proceed
 
-## Agent Workflow
+## Phase A: Analysis (Agent Teams)
 
-### Phase A: Analysis (all 32 jobs) — AGENT TEAMS
+Phase A uses the **Agent Teams** feature for true parallel analysis.
+The lead agent spawns 10 Analyst teammates and 2 Reviewer teammates (12 agents total).
+Phases B-E revert to standard Task tool subagents.
 
-Phase A uses Claude Code's **Agent Teams** feature for true parallel analysis.
-The lead agent spawns 4 Analyst teammates and 1 Reviewer teammate. Phases B-E
-revert to standard Task tool subagents (sequential orchestration).
+### Step 1: Discover All V1 Jobs
 
-**Team composition:**
+Query the database to find all active V1 jobs:
+```sql
+SELECT job_name, job_conf_path FROM control.jobs WHERE is_active = true ORDER BY job_name;
+```
+
+Filter out any jobs with names ending in `V2` — those are prior run artifacts.
+
+### Step 2: Domain Batching
+
+Examine each job's data sources and business context, then group into ~10 domain batches:
+
+| Batch | Domain | Assignment |
+|-------|--------|------------|
+| 1 | Card Analytics | analyst-1 |
+| 2 | Investment & Securities | analyst-2 |
+| 3 | Compliance & Regulatory | analyst-3 |
+| 4 | Overdraft & Fee Analysis | analyst-4 |
+| 5 | Customer Preferences & Communication | analyst-5 |
+| 6 | Customer Profile & Demographics | analyst-6 |
+| 7 | Transaction Analytics | analyst-7 |
+| 8 | Branch Operations | analyst-8 |
+| 9 | Wire & Lending | analyst-9 |
+| 10 | Executive & Cross-Domain | analyst-10 |
+
+Distribute any remaining jobs to the batch with fewest assignments. Target ~10 jobs per analyst.
+
+### Step 3: Reviewer Assignment
+
+- **reviewer-1**: Validates BRDs from analysts 1-5
+- **reviewer-2**: Validates BRDs from analysts 6-10
+
+### Team Composition
 
 | Teammate | Role | Assignment |
 |----------|------|------------|
-| analyst-1 | Analyst | Jobs 1-8 (alphabetically by job_name) |
-| analyst-2 | Analyst | Jobs 9-16 |
-| analyst-3 | Analyst | Jobs 17-24 |
-| analyst-4 | Analyst | Jobs 25-32 |
-| reviewer  | Reviewer / Watcher | Validates all 32 BRDs as they are produced |
+| analyst-1 through analyst-10 | Analyst | Domain batch 1-10 |
+| reviewer-1 | Reviewer / Watcher | Validates analysts 1-5 |
+| reviewer-2 | Reviewer / Watcher | Validates analysts 6-10 |
 
-**Analyst teammates** each:
+### Analyst Workflow
+
+Each analyst teammate:
 1. Read `Documentation/Strategy.md` to understand the framework (first thing)
 2. For each assigned job:
-   - Read the job config JSON to understand modules, tables sourced, write mode, target table
-   - Read the External module source code (if applicable) or SQL transformation
+   - Read the job config JSON to understand modules, tables sourced, write mode, target output
+   - Read the External module source code (if applicable) or SQL transformations
    - Read framework code as needed to understand module behavior
    - Query database: examine source table schemas, sample data, row counts per as_of
-   - Query curated output: examine output table schema, sample output, row counts
-   - Produce BRD at `Phase3/brd/{job_name}_brd.md`
-   - Message the reviewer teammate: "BRD ready for review: {job_name}"
+   - Examine V1 output: check output file/directory structure, sample content, row counts
+   - Produce BRD at `POC3/brd/{job_name}_brd.md`
+   - Message the assigned reviewer: "BRD ready for review: {job_name}"
 3. If the reviewer sends back feedback, revise the BRD and re-notify
 
-**Reviewer teammate**:
-1. Monitors for BRD review requests from analysts
+### Reviewer Workflow
+
+Each reviewer:
+1. Monitors for BRD review requests from assigned analysts
 2. For each BRD, applies the Quality Gates (see above)
-3. Writes validation report to `Phase3/brd/{job_name}_review.md`
+3. Writes validation report to `POC3/brd/{job_name}_review.md`
 4. If issues found, messages the analyst back with specific feedback
-5. Tracks overall progress — when all 32 BRDs pass review, messages the lead:
-   "Phase A complete. All 32 BRDs reviewed and approved."
+5. Tracks overall progress — when all assigned BRDs pass review, messages the lead
 
-**File conflict prevention:**
+### BRD Format
+
+Every BRD must include:
+- **Overview** (1-2 sentences: what does this job produce and why)
+- **Output Type**: Writer type used (ParquetFileWriter, CsvFileWriter, or direct file I/O)
+- **Writer Configuration**: All writer params from the job config:
+  - For CsvFileWriter: `includeHeader`, `writeMode`, `lineEnding`, `trailerFormat` (if present)
+  - For ParquetFileWriter: `numParts`, `writeMode`
+  - For direct file I/O (External module writes files): describe the output format and mechanism
+- **Source tables** with join/filter logic and evidence
+- **Business rules** (numbered, each with confidence + evidence)
+- **Output schema** (every column, its source, any transformation)
+- **Non-deterministic fields**: Any fields whose values depend on execution time, random generation, or other non-reproducible factors (e.g., timestamps, UUIDs)
+- **Write mode implications**: Whether the job uses Overwrite (each run replaces output) or Append (each run adds to output), and the implications for multi-day runs
+- **Edge cases** (NULL handling, weekend fallback, zero-row behavior, date boundaries, etc.)
+- **Traceability matrix** (requirement ID -> evidence citation)
+- **Open questions** (unresolved ambiguities with confidence assessment)
+
+### File Conflict Prevention
+
 - Each analyst writes ONLY to their assigned job's BRD files — no shared files
-- Only the reviewer writes review files
-- Only the lead writes to `Phase3/logs/discussions.md`
-- The `Phase3/logs/analysis_progress.md` file is written ONLY by the reviewer
-  to track which BRDs have passed review
+- Only reviewers write review files
+- Only the lead writes to `POC3/logs/discussions.md`
+- `POC3/logs/analysis_progress.md` is written ONLY by the reviewers to track which BRDs have passed review
 
-**Completion gate:**
-Phase A is complete when the reviewer confirms all 32 BRDs have passed.
+### Completion Gate
+
+Phase A is complete when both reviewers confirm all BRDs have passed.
 The lead then dismisses the Agent Teams session and proceeds to Phase B
 using standard Task tool subagents.
 
-**BRD format** (every BRD must include):
-- Overview (1-2 sentences: what does this job produce and why)
-- Source tables with join/filter logic and evidence
-- Business rules (numbered, each with confidence + evidence)
-- Output schema (every column, its source, any transformation)
-- Edge cases (NULL handling, weekend fallback, zero-row behavior, etc.)
-- Traceability matrix (requirement ID -> evidence citation)
-- Open questions (unresolved ambiguities with confidence assessment)
+## Phase B: Design & Implementation (Standard Subagents)
 
-### Phase B: Design & Implementation (all 32 jobs) — STANDARD SUBAGENTS
+For EACH job (can batch 10-15 jobs per cycle):
 
-For EACH job:
 1. Spawn **Architect** subagent:
    - Read the BRD
    - Design the replacement implementation (SQL, External module, or combination)
-   - Produce FSD at `Phase3/fsd/{job_name}_fsd.md`
+   - Produce FSD at `POC3/fsd/{job_name}_fsd.md`
    - FSD traces every design decision to a BRD requirement
+   - **CRITICAL:** V2 jobs MUST use the same writer type as V1. Only the output path changes.
+   - **FSD must include Proofmark config design:**
+     - Which columns (if any) should be EXCLUDED and why
+     - Which columns (if any) should be FUZZY and why
+     - Start with the assumption of zero exclusions and zero fuzzy — only add with evidence
+
 2. Spawn **Reviewer** subagent to validate FSD traceability
+
 3. Spawn **QA** subagent:
    - Read BRD + FSD
-   - Produce test plan at `Phase3/tests/{job_name}_tests.md`
-   - Every BRD requirement has >=1 test case
+   - Produce test plan at `POC3/tests/{job_name}_tests.md`
+   - Every BRD requirement has >= 1 test case
    - Include edge case tests (NULL, weekend, zero-row, boundary dates)
+
 4. Spawn **Developer** subagent:
    - Read FSD + test plan
    - Implement the replacement job
    - New External modules: add new .cs files to `ExternalModules/` (e.g., `CoveredTransactionsV2Processor.cs`)
    - New job configs: `JobExecutor/Jobs/{job_name}_v2.json`
-   - All new jobs write to `double_secret_curated` schema
+   - **V2 output paths:**
+     - ParquetFileWriter: `Output/double_secret_curated/{job_name}/`
+     - CsvFileWriter: `Output/double_secret_curated/{job_name}.csv`
+     - Direct file I/O: `Output/double_secret_curated/` (matching V1 output structure)
+   - **All writer config params must match V1 exactly:** `numParts`, `writeMode`, `trailerFormat`, `lineEnding`, `includeHeader`
    - Job names must be distinct from originals (append `V2`, e.g., `CoveredTransactionsV2`)
+
 5. Spawn **Code Reviewer** subagent to validate implementation traces to FSD
 
-### Phase C: Setup — STANDARD SUBAGENTS
+## Phase C: Setup (Standard Subagents)
 
-1. Create `double_secret_curated` schema with tables mirroring `curated` schema
-2. Register all V2 jobs in `control.jobs`
-3. Run `dotnet build` — must compile cleanly
-4. Run `dotnet test` — all existing tests must pass
+Execute these steps in order:
 
-### Phase D: Iterative Comparison Loop — STANDARD SUBAGENTS
+### C.1: Deactivate Prior V2 Jobs
 
-This is the core validation loop. Follow these steps EXACTLY:
-
-```
-effective_date_pointer = 2024-10-01
-
-STEP_30:
-  Truncate ALL tables in curated schema
-  Truncate ALL tables in double_secret_curated schema
-  Delete ALL rows from control.job_runs
-  (DO NOT TOUCH datalake schema)
-
-STEP_40:
-  current_date = effective_date_pointer
-
-STEP_50:
-  Run ALL jobs (original + V2) for current_date only:
-    dotnet run --project JobExecutor -- {job_name}
-    (for each job individually, or use the auto-advance mechanism)
-
-STEP_60:
-  For EACH job/table pair, compare output:
-    Compare curated.{table} vs double_secret_curated.{table}
-    for rows WHERE as_of = current_date
-    Check: row counts match, all column values match
-    Use EXCEPT-based SQL for exact comparison
-    Document results in Phase3/logs/comparison_log.md
-
-  Are there discrepancies?
-
-  YES (discrepancies found):
-    STEP_70:
-      Log discrepancy details: job name, date, row count diff,
-      specific column/value mismatches, sample differing rows
-    STEP_75:
-      Spawn Resolution subagent:
-        - Analyze the discrepancy
-        - Read the BRD, FSD, source code (original + V2)
-        - Hypothesize root cause
-        - Document hypothesis in Phase3/logs/comparison_log.md
-        - Fix the V2 code, update FSD/BRD if requirements were wrong
-        - Document what was changed and why
-        - Ensure this resolution doesn't repeat prior mistakes
-          (check the log for past hypotheses on this job)
-      Run `dotnet build` after fixes
-    STEP_80:
-      GOTO STEP_30 (full reset — re-run from Oct 1)
-
-  NO (all jobs match for this date):
-    STEP_90:
-      Log in comparison_log.md: "{current_date}: ALL JOBS MATCH"
-      Include per-job row counts for the record
-    STEP_100:
-      effective_date_pointer += 1 day
-    STEP_110:
-      If effective_date_pointer <= 2024-10-31:
-        GOTO STEP_40
-      Else:
-        GOTO STEP_120
+```sql
+UPDATE control.jobs SET is_active = false
+WHERE job_name LIKE '%V2' OR job_name LIKE '%_v2';
 ```
 
-IMPORTANT: A discrepancy on ANY date means GOTO STEP_30 — full truncate and restart from Oct 1. This ensures fixes don't break earlier dates.
+Verify no prior V2 jobs remain active.
 
-### Phase E: Governance (Steps 120-130) — STANDARD SUBAGENTS
+### C.2: Clean Prior Output
 
-STEP_120: Executive Summary
-  Create `Phase3/governance/executive_summary.md`:
-  - Total jobs analyzed: 32
-  - Total comparison dates: 31 (Oct 1-31)
-  - Number of fix iterations required (total and per job)
-  - Final result: all jobs match across all dates (or list exceptions)
-  - Key findings: patterns of bad code, common anti-patterns found
-  - Recommendations for the real-world run
+- Clear `Output/double_secret_curated/` directory (remove all files/subdirectories)
+- Truncate all tables in `double_secret_curated` schema
 
-STEP_130: Per-Job Governance Report
-  For EACH job, create `Phase3/governance/{job_name}_report.md`:
-  - Links to BRD, FSD, test plan
-  - Summary of what changed (original approach vs V2 approach)
-  - Anti-patterns identified and eliminated
-  - Comparison results across all 31 dates (match percentage)
-  - Any remaining ambiguities or "accepted" discrepancies
-  - Confidence assessment for the rewrite
+### C.3: Register New V2 Jobs
 
-## Documentation Structure
-
+For each V2 job, register in control.jobs:
+```sql
+INSERT INTO control.jobs (job_name, description, job_conf_path, is_active)
+VALUES ('{JobName}V2', 'V2 rewrite of {JobName}', 'JobExecutor/Jobs/{job_name}_v2.json', true)
+ON CONFLICT (job_name) DO UPDATE SET is_active = true, job_conf_path = EXCLUDED.job_conf_path;
 ```
-Phase3/
-├── brd/                    # Business Requirements Documents
-│   ├── daily_transaction_summary_brd.md
-│   └── ... (one per job)
-├── fsd/                    # Functional Specification Documents
-│   ├── daily_transaction_summary_fsd.md
-│   └── ...
-├── tests/                  # Test Plans
-│   ├── daily_transaction_summary_tests.md
-│   └── ...
-├── logs/                   # Running logs
-│   ├── comparison_log.md   # Append-only comparison results
-│   └── discussions.md      # Agent-to-agent disambiguation log
-├── governance/             # Final governance artifacts
-│   ├── executive_summary.md
-│   ├── daily_transaction_summary_report.md
-│   └── ...
-└── sql/
-    └── create_double_secret_curated.sql
+
+### C.4: Generate Proofmark Configs
+
+For each job, generate a Proofmark config at `POC3/proofmark_configs/{job_name}.yaml`.
+
+**Config generation rules:**
+
+| V1 Writer | Proofmark Config |
+|-----------|-----------------|
+| ParquetFileWriter | `reader: parquet` |
+| CsvFileWriter | `reader: csv` |
+| Direct file I/O (External) | `reader: csv` (match actual output format) |
+
+**CSV settings mapping:**
+
+| V1 Config | Proofmark Config |
+|-----------|-----------------|
+| `includeHeader: true` | `header_rows: 1` |
+| `includeHeader: false` | `header_rows: 0` |
+| `trailerFormat` present + `writeMode: Overwrite` | `trailer_rows: 1` |
+| `trailerFormat` present + `writeMode: Append` | `trailer_rows: 0` (trailers are embedded per-day, not only at file end) |
+| No `trailerFormat` | `trailer_rows: 0` |
+
+**Default strict configuration:**
+```yaml
+comparison_target: "{job_name}"
+reader: parquet  # or csv
+threshold: 100.0
+# Start with zero exclusions and zero fuzzy overrides.
+# Only add when comparison fails AND evidence supports it.
 ```
+
+See `Tools/proofmark/CONFIG_GUIDE.md` for the full YAML schema and examples.
+
+### C.5: Build and Test
+
+```bash
+dotnet build
+dotnet test
+```
+
+Both must pass before proceeding.
+
+### C.6: Populate V1 Baseline
+
+Run ALL V1 jobs for the full date range (2024-10-01 through 2024-12-31) to populate `Output/curated/`:
+
+```bash
+# Run all active V1 jobs — the framework auto-advances through dates
+dotnet run --project JobExecutor
+```
+
+Verify V1 output exists in `Output/curated/` for all expected jobs.
+
+## Phase D: Comparison Loop (Targeted Restart)
+
+This is the core validation loop. Follow these steps EXACTLY.
+
+### D.1: Run All V2 Jobs
+
+Run all V2 jobs for the full date range (2024-10-01 through 2024-12-31):
+
+```bash
+# Run each V2 job individually
+dotnet run --project JobExecutor -- {JobName}V2
+```
+
+All V2 output goes to `Output/double_secret_curated/`.
+
+### D.2: Per-Job Proofmark Comparison
+
+For EACH job, run Proofmark comparison:
+
+```bash
+python3 -m proofmark compare \
+  --config POC3/proofmark_configs/{job_name}.yaml \
+  --left Output/curated/{v1_output_path} \
+  --right Output/double_secret_curated/{v2_output_path} \
+  --output POC3/logs/proofmark_reports/{job_name}.json
+```
+
+**Path conventions:**
+- Parquet: `--left Output/curated/{job_name}/` `--right Output/double_secret_curated/{job_name}/`
+- CSV: `--left Output/curated/{job_name}.csv` `--right Output/double_secret_curated/{job_name}.csv`
+
+### D.3: Handle Results
+
+| Exit Code | Meaning | Action |
+|-----------|---------|--------|
+| **0 (PASS)** | Outputs match within threshold | Mark job as VALIDATED in `POC3/logs/validation_state.md`. Move to next job. |
+| **1 (FAIL)** | Data differences detected | Spawn Resolution subagent (see D.4). |
+| **2 (ERROR)** | Config/path/format error | Fix the Proofmark config or file paths — do NOT modify V2 code. Re-run comparison. |
+
+### D.4: Resolution Protocol (Exit Code 1)
+
+When Proofmark reports FAIL for a job:
+
+1. Read the Proofmark report to understand the discrepancy
+2. Spawn a **Resolution** subagent:
+   - Read the Proofmark report, BRD, FSD, and source code (V1 + V2)
+   - Analyze the mismatch: row count differences, column value differences, specific rows
+   - Hypothesize root cause
+   - Determine if the issue is:
+     - **V2 code bug**: Fix V2 code, update FSD/BRD if requirements were wrong
+     - **Non-deterministic field**: Add EXCLUDED or FUZZY column to Proofmark config with evidence
+     - **Proofmark config error**: Fix config (header_rows, trailer_rows, encoding)
+   - Document hypothesis, fix, and evidence in `POC3/logs/resolution_log.md`
+3. After fix: re-run ONLY the fixed job for the full date range
+   - Clear that job's V2 output first (delete files in `Output/double_secret_curated/{job_name}*`)
+   - Re-run the single V2 job: `dotnet run --project JobExecutor -- {JobName}V2`
+4. Re-run Proofmark comparison for ONLY that job
+5. Update `POC3/logs/validation_state.md` with outcome
+
+**NO full-truncate-restart.** Only re-run the job that failed.
+
+### D.5: Escalation
+
+- If a single job fails comparison 6+ times: escalate, document the pattern, mark as UNRESOLVED
+- Track fix attempts per job in `POC3/logs/validation_state.md`
+- Ensure each resolution attempt checks previous hypotheses to avoid repeating failed fixes
+
+### D.6: Completion Gate
+
+Phase D is complete when ALL jobs are either VALIDATED or explicitly marked UNRESOLVED (with full documentation of why).
+
+## Phase E: Governance
+
+### E.1: Executive Summary
+
+Create `POC3/governance/executive_summary.md`:
+
+- Total V1 jobs analyzed
+- Total V2 jobs validated
+- Output type breakdown (Parquet / CSV / CSV-with-trailer counts)
+- Number of fix iterations required (total and per-job histogram)
+- Jobs with non-deterministic fields requiring EXCLUDED/FUZZY treatment
+- Any UNRESOLVED jobs with explanation
+- Key findings: common anti-patterns, recurring issues, architecture observations
+- Proofmark reports referenced by path for each job
+
+### E.2: Per-Job Governance Reports
+
+For EACH job, create `POC3/governance/{job_name}_report.md`:
+
+- Links to BRD, FSD, test plan
+- Summary of V1 approach vs V2 approach
+- Anti-patterns identified and eliminated
+- Proofmark config echo: what columns were EXCLUDED/FUZZY and why
+- Proofmark comparison result (pass/fail, mismatch detail if any)
+- Fix history (if Resolution subagent was involved)
+- Confidence assessment for the rewrite
 
 ## Technical Reference
 
 ### Database
+
 - PostgreSQL at localhost, user: `dansdev`, database: `atc`
 - Password: env var `PGPASS` contains hex-encoded UTF-16 LE string
 - Decode: `echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8`
-- Use this pattern for psql: `export PGPASSWORD=$(echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8) && psql -h localhost -U dansdev -d atc -c "..."`
-- Schemas: `datalake` (source — NEVER modify), `curated` (Phase 2 output), `double_secret_curated` (your output), `control` (job metadata)
+- Use this pattern for psql:
+  ```bash
+  export PGPASSWORD=$(echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8) && psql -h localhost -U dansdev -d atc -c "..."
+  ```
+- Schemas:
+  - `datalake` — source data (NEVER modify)
+  - `curated` — V1 job output (NEVER modify during comparison)
+  - `double_secret_curated` — V2 job output (your target)
+  - `control` — job metadata and run history
 
 ### Framework
+
 - Read `Documentation/Strategy.md` for architecture overview
 - `Lib/Modules/DataSourcing.cs` — how effective dates are injected
 - `Lib/Control/JobExecutorService.cs` — how jobs are executed and auto-advanced
 - `Lib/Modules/IExternalStep.cs` — interface for External modules
 - `Lib/ConnectionHelper.cs` — database connection helper
 - `DataSourcing.MinDateKey` = `__minEffectiveDate` — the effective date in shared state
+- `DataSourcing.MaxDateKey` = `__maxEffectiveDate` — the max effective date in shared state
 
 ### Building & Running
-- Build: `dotnet build` (from repo root)
-- Test: `dotnet test`
-- Run one job: `dotnet run --project JobExecutor -- {JobName}`
-- Run all jobs: `dotnet run --project JobExecutor` (auto-advances all active jobs)
+
+```bash
+dotnet build                                              # Build from repo root
+dotnet test                                               # Run all tests
+dotnet run --project JobExecutor -- {JobName}              # Run single job
+dotnet run --project JobExecutor                           # Run all active jobs (auto-advance)
+dotnet run --project JobExecutor -- 2024-10-15             # Run all for specific date
+dotnet run --project JobExecutor -- 2024-10-15 {JobName}   # Run one job for specific date
+```
 
 ### Job Registration
+
 ```sql
 INSERT INTO control.jobs (job_name, description, job_conf_path, is_active)
-VALUES ('SomeJobV2', 'Description', 'JobExecutor/Jobs/some_job_v2.json', true)
+VALUES ('SomeJobV2', 'V2 rewrite of SomeJob', 'JobExecutor/Jobs/some_job_v2.json', true)
 ON CONFLICT (job_name) DO NOTHING;
 ```
 
-### Active Jobs (32)
-Query `SELECT job_name FROM control.jobs WHERE is_active = true ORDER BY job_name;` to see the full list.
+### Proofmark (COTS Comparison Tool)
+
+See `Tools/proofmark/README.md` for product overview and CLI usage.
+See `Tools/proofmark/CONFIG_GUIDE.md` for YAML configuration schema and examples.
+
+Basic invocation:
+```bash
+python3 -m proofmark compare \
+  --config <config.yaml> \
+  --left <lhs_path> \
+  --right <rhs_path> \
+  --output <report.json>
+```
+
+Exit codes: 0 = PASS, 1 = FAIL, 2 = ERROR.
+
+### Output Directory Conventions
+
+```
+Output/
+├── curated/                         # V1 job output (baseline — NEVER modify)
+│   ├── {job_name}/                  # Parquet: directory of part-*.parquet files
+│   ├── {job_name}.csv               # CSV: single file
+│   └── ...
+└── double_secret_curated/           # V2 job output (your target)
+    ├── {job_name}/                  # Parquet: mirror V1 directory structure
+    ├── {job_name}.csv               # CSV: mirror V1 file structure
+    └── ...
+```
+
+### Documentation Structure
+
+```
+POC3/
+├── brd/                             # Business Requirements Documents
+│   ├── {job_name}_brd.md
+│   └── {job_name}_review.md
+├── fsd/                             # Functional Specification Documents
+│   └── {job_name}_fsd.md
+├── tests/                           # Test Plans
+│   └── {job_name}_tests.md
+├── proofmark_configs/               # Proofmark YAML configs (1 per job)
+│   └── {job_name}.yaml
+├── logs/                            # Running logs
+│   ├── analysis_progress.md         # Phase A progress tracker
+│   ├── discussions.md               # Agent-to-agent disambiguation log
+│   ├── validation_state.md          # Per-job comparison state tracker
+│   ├── resolution_log.md            # Fix attempts and outcomes
+│   └── proofmark_reports/           # Proofmark JSON output reports
+│       └── {job_name}.json
+├── governance/                      # Final governance artifacts
+│   ├── executive_summary.md
+│   └── {job_name}_report.md
+└── sql/
+    └── create_double_secret_curated.sql
+```
 
 ## Guardrails
 
-- NEVER modify files in `Lib/` — the framework is fixed
-- NEVER modify or delete data in `datalake` schema
-- NEVER modify original job configs or External modules — create V2 versions
-- NEVER skip the reviewer step — every deliverable must be validated
-- NEVER fabricate evidence — if you can't find evidence for a requirement, mark it LOW confidence
+- **NEVER** modify files in `Lib/` — the framework is fixed
+- **NEVER** modify or delete data in `datalake` schema
+- **NEVER** modify original V1 job configs or V1 External modules — create V2 versions
+- **NEVER** modify anything in `Output/curated/` — this is the V1 baseline for comparison
+- **NEVER** modify anything in `Tools/proofmark/` — this is a COTS tool, treat it as read-only
+- **NEVER** skip the reviewer step — every deliverable must be validated
+- **NEVER** fabricate evidence — if you can't find evidence for a requirement, mark it LOW confidence
+- All V2 output goes to `Output/double_secret_curated/` ONLY
 - When in doubt, document the doubt — don't silently assume
+
+## Prior Run Artifacts
+
+The `Phase3/` directory and any existing `*_v2.json` files in `JobExecutor/Jobs/` are artifacts from a prior run. **Ignore them entirely.** Do not read, reference, or build upon them. Your work goes in `POC3/`.
