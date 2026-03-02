@@ -43,6 +43,16 @@ public class ParquetFileWriter : IModule
 
         var rows = df.Rows;
         var totalRows = rows.Count;
+
+        if (totalRows == 0 || df.Columns.Count == 0)
+        {
+            Console.WriteLine($"[ParquetFileWriter] Skipping empty DataFrame '{_sourceDataFrameName}' — no rows to write.");
+            return sharedState;
+        }
+
+        // Infer types once from ALL rows so every part file gets a consistent schema.
+        var clrTypes = InferColumnTypes(df.Columns, rows);
+
         var partSize = totalRows / _numParts;
         var remainder = totalRows % _numParts;
 
@@ -56,22 +66,28 @@ public class ParquetFileWriter : IModule
             var fileName = $"part-{part:D5}.parquet";
             var filePath = Path.Combine(resolvedDir, fileName);
 
-            WriteParquetFile(filePath, df.Columns, partRows);
+            WriteParquetFile(filePath, df.Columns, partRows, clrTypes);
         }
 
         return sharedState;
     }
 
-    private static void WriteParquetFile(string filePath, IReadOnlyList<string> columns,
-        List<Row> rows)
+    /// <summary>
+    /// Infer CLR types for each column by scanning ALL rows. This ensures consistent
+    /// schema across part files even when some parts have all-null values for a column.
+    /// </summary>
+    private static Type[] InferColumnTypes(IReadOnlyList<string> columns, IReadOnlyList<Row> rows)
     {
-        // Build schema by inspecting first non-null value per column
-        var clrTypes = columns.Select(col =>
+        return columns.Select(col =>
         {
             var sample = rows.Select(r => r[col]).FirstOrDefault(v => v != null);
             return GetParquetType(sample);
         }).ToArray();
+    }
 
+    private static void WriteParquetFile(string filePath, IReadOnlyList<string> columns,
+        List<Row> rows, Type[] clrTypes)
+    {
         var fields = columns.Select((col, i) =>
             new DataField(col, clrTypes[i], isNullable: true)).ToArray();
 
