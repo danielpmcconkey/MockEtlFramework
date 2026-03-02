@@ -1,0 +1,277 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-02T00:30:51Z",
+    "proofmark_version": "0.1.0",
+    "comparison_target": "compliance_transaction_ratio",
+    "config_path": "/workspace/MockEtlFramework/POC3/proofmark_configs/compliance_transaction_ratio.yaml"
+  },
+  "config": {
+    "comparison_target": "compliance_transaction_ratio",
+    "reader": "csv",
+    "threshold": 100.0,
+    "csv": {
+      "header_rows": 1,
+      "trailer_rows": 1
+    }
+  },
+  "column_classifications": [
+    {
+      "name": "event_type",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "event_count",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "txn_count",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "events_per_1000_txns",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "as_of",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    }
+  ],
+  "summary": {
+    "row_count_lhs": 5,
+    "row_count_rhs": 5,
+    "match_count": 0,
+    "mismatch_count": 5,
+    "match_percentage": 0.0,
+    "result": "FAIL",
+    "threshold": 100.0,
+    "line_break_mismatch": false
+  },
+  "header_comparison": [
+    {
+      "position": 0,
+      "lhs": "event_type,event_count,txn_count,events_per_1000_txns,as_of",
+      "rhs": "event_type,event_count,txn_count,events_per_1000_txns,as_of",
+      "match": true
+    }
+  ],
+  "trailer_comparison": [
+    {
+      "position": 0,
+      "lhs": "TRAILER|4347|2024-12-31",
+      "rhs": "TRAILER|4378|2024-10-01",
+      "match": false
+    }
+  ],
+  "mismatches": {
+    "schema_mismatches": null,
+    "hash_groups": [
+      {
+        "hash_value": "1a9c4cb5aa3caffe685ca417a042c184",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "ID_VERIFICATION|25|4263|5|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "1ebc7161c83ab86c388210c976217b0d",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "KYC_REVIEW|22|4232|5|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "25efb7a9ae58c919d58c65b35e62793a",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "PEP_CHECK|27|4263|6|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "4739fcbb510c7eeae6890f1391335b25",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "PEP_CHECK|27|4232|6|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "82f76f5cb4f54a04a034a6eb748e1e99",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "SANCTIONS_SCREEN|20|4263|4|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "9497d3e3c5e7c58534649c116bfbe905",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "SANCTIONS_SCREEN|20|4232|4|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "c96e0e1151af025ad3a95428e4594234",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "ID_VERIFICATION|25|4232|5|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "d1c46b7a882c8a27742d50c057c0155f",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "AML_FLAG|21|4232|4|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f3b9cef183d4244cbde8254a9678df82",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "AML_FLAG|21|4263|4|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f440ccd1f001ff92480eef7f0978c357",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "KYC_REVIEW|22|4263|5|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      }
+    ],
+    "correlation": {
+      "correlated_pairs": [
+        {
+          "lhs_row": "AML_FLAG|21|4232|4|2024-12-31",
+          "rhs_row": "AML_FLAG|21|4263|4|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "txn_count",
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "ID_VERIFICATION|25|4232|5|2024-12-31",
+          "rhs_row": "ID_VERIFICATION|25|4263|5|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "txn_count",
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "KYC_REVIEW|22|4232|5|2024-12-31",
+          "rhs_row": "KYC_REVIEW|22|4263|5|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "txn_count",
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "PEP_CHECK|27|4232|6|2024-12-31",
+          "rhs_row": "PEP_CHECK|27|4263|6|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "txn_count",
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "SANCTIONS_SCREEN|20|4232|4|2024-12-31",
+          "rhs_row": "SANCTIONS_SCREEN|20|4263|4|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "txn_count",
+            "as_of"
+          ]
+        }
+      ],
+      "uncorrelated_lhs": [],
+      "uncorrelated_rhs": []
+    }
+  },
+  "attestation": "Output equivalence certifies equivalence to the original, NOT correctness in an absolute sense. If the original has a bug and the rewrite faithfully reproduces it, Proofmark reports PASS."
+}

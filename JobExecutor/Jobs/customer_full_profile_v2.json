@@ -1,0 +1,53 @@
+{
+  "jobName": "CustomerFullProfileV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name", "birthdate"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "phone_numbers",
+      "schema": "datalake",
+      "table": "phone_numbers",
+      "columns": ["phone_id", "customer_id", "phone_number"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "email_addresses",
+      "schema": "datalake",
+      "table": "email_addresses",
+      "columns": ["email_id", "customer_id", "email_address"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers_segments",
+      "schema": "datalake",
+      "table": "customers_segments",
+      "columns": ["customer_id", "segment_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "segments",
+      "schema": "datalake",
+      "table": "segments",
+      "columns": ["segment_id", "segment_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "WITH primary_phone AS (SELECT customer_id, phone_number, as_of, ROW_NUMBER() OVER (PARTITION BY customer_id, as_of ORDER BY phone_id) AS rn FROM phone_numbers), primary_email AS (SELECT customer_id, email_address, as_of, ROW_NUMBER() OVER (PARTITION BY customer_id, as_of ORDER BY email_id) AS rn FROM email_addresses), customer_segs AS (SELECT cs.customer_id, cs.as_of, GROUP_CONCAT(s.segment_name) AS segments FROM customers_segments cs INNER JOIN segments s ON cs.segment_id = s.segment_id AND cs.as_of = s.as_of GROUP BY cs.customer_id, cs.as_of) SELECT CAST(c.id AS INTEGER) AS customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, CAST(strftime('%Y', c.as_of) AS INTEGER) - CAST(strftime('%Y', c.birthdate) AS INTEGER) - CASE WHEN strftime('%m-%d', c.birthdate) > strftime('%m-%d', c.as_of) THEN 1 ELSE 0 END AS age, CASE WHEN (CAST(strftime('%Y', c.as_of) AS INTEGER) - CAST(strftime('%Y', c.birthdate) AS INTEGER) - CASE WHEN strftime('%m-%d', c.birthdate) > strftime('%m-%d', c.as_of) THEN 1 ELSE 0 END) < 26 THEN '18-25' WHEN (CAST(strftime('%Y', c.as_of) AS INTEGER) - CAST(strftime('%Y', c.birthdate) AS INTEGER) - CASE WHEN strftime('%m-%d', c.birthdate) > strftime('%m-%d', c.as_of) THEN 1 ELSE 0 END) <= 35 THEN '26-35' WHEN (CAST(strftime('%Y', c.as_of) AS INTEGER) - CAST(strftime('%Y', c.birthdate) AS INTEGER) - CASE WHEN strftime('%m-%d', c.birthdate) > strftime('%m-%d', c.as_of) THEN 1 ELSE 0 END) <= 45 THEN '36-45' WHEN (CAST(strftime('%Y', c.as_of) AS INTEGER) - CAST(strftime('%Y', c.birthdate) AS INTEGER) - CASE WHEN strftime('%m-%d', c.birthdate) > strftime('%m-%d', c.as_of) THEN 1 ELSE 0 END) <= 55 THEN '46-55' WHEN (CAST(strftime('%Y', c.as_of) AS INTEGER) - CAST(strftime('%Y', c.birthdate) AS INTEGER) - CASE WHEN strftime('%m-%d', c.birthdate) > strftime('%m-%d', c.as_of) THEN 1 ELSE 0 END) <= 65 THEN '56-65' ELSE '65+' END AS age_bracket, COALESCE(pp.phone_number, '') AS primary_phone, COALESCE(pe.email_address, '') AS primary_email, COALESCE(csg.segments, '') AS segments, c.as_of FROM customers c LEFT JOIN primary_phone pp ON c.id = pp.customer_id AND c.as_of = pp.as_of AND pp.rn = 1 LEFT JOIN primary_email pe ON c.id = pe.customer_id AND c.as_of = pe.as_of AND pe.rn = 1 LEFT JOIN customer_segs csg ON c.id = csg.customer_id AND c.as_of = csg.as_of ORDER BY c.id"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/customer_full_profile/",
+      "numParts": 2,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

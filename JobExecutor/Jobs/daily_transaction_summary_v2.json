@@ -1,0 +1,27 @@
+{
+  "jobName": "DailyTransactionSummaryV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["account_id", "txn_type", "amount"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "daily_txn_summary",
+      "sql": "SELECT t.account_id, t.as_of, ROUND(SUM(CASE WHEN t.txn_type = 'Debit' THEN t.amount ELSE 0 END) + SUM(CASE WHEN t.txn_type = 'Credit' THEN t.amount ELSE 0 END), 2) AS total_amount, COUNT(*) AS transaction_count, ROUND(SUM(CASE WHEN t.txn_type = 'Debit' THEN t.amount ELSE 0 END), 2) AS debit_total, ROUND(SUM(CASE WHEN t.txn_type = 'Credit' THEN t.amount ELSE 0 END), 2) AS credit_total FROM transactions t GROUP BY t.account_id, t.as_of ORDER BY t.as_of, t.account_id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "daily_txn_summary",
+      "outputFile": "Output/double_secret_curated/daily_transaction_summary.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Append",
+      "lineEnding": "LF"
+    }
+  ]
+}

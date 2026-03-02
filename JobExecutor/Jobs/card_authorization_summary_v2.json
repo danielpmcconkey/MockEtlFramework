@@ -1,0 +1,34 @@
+{
+  "jobName": "CardAuthorizationSummaryV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "card_transactions",
+      "schema": "datalake",
+      "table": "card_transactions",
+      "columns": ["card_txn_id", "card_id", "authorization_status"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "cards",
+      "schema": "datalake",
+      "table": "cards",
+      "columns": ["card_id", "card_type"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT c.card_type, COUNT(*) AS total_count, SUM(CASE WHEN ct.authorization_status = 'Approved' THEN 1 ELSE 0 END) AS approved_count, SUM(CASE WHEN ct.authorization_status = 'Declined' THEN 1 ELSE 0 END) AS declined_count, CAST(SUM(CASE WHEN ct.authorization_status = 'Approved' THEN 1 ELSE 0 END) AS INTEGER) / CAST(COUNT(*) AS INTEGER) AS approval_rate, ct.as_of FROM card_transactions ct INNER JOIN cards c ON ct.card_id = c.card_id GROUP BY c.card_type, ct.as_of"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/card_authorization_summary.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

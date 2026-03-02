@@ -1,0 +1,39 @@
+{
+  "jobName": "CardTransactionDailyV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "card_transactions",
+      "schema": "datalake",
+      "table": "card_transactions",
+      "columns": ["card_id", "amount"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "cards",
+      "schema": "datalake",
+      "table": "cards",
+      "columns": ["card_id", "card_type"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "enriched_txns",
+      "sql": "SELECT COALESCE(c.card_type, 'Unknown') AS card_type, ct.amount, ct.as_of FROM card_transactions ct LEFT JOIN cards c ON ct.card_id = c.card_id AND ct.as_of = c.as_of"
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CardTransactionDailyV2Processor"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/card_transaction_daily.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

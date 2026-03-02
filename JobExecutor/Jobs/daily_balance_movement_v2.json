@@ -1,0 +1,33 @@
+{
+  "jobName": "DailyBalanceMovementV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["account_id", "txn_type", "amount"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT CAST(t.account_id AS INTEGER) AS account_id, COALESCE(a.customer_id, 0) AS customer_id, COALESCE(SUM(CASE WHEN t.txn_type = 'Debit' THEN CAST(t.amount AS REAL) ELSE 0.0 END), 0.0) AS debit_total, COALESCE(SUM(CASE WHEN t.txn_type = 'Credit' THEN CAST(t.amount AS REAL) ELSE 0.0 END), 0.0) AS credit_total, COALESCE(SUM(CASE WHEN t.txn_type = 'Credit' THEN CAST(t.amount AS REAL) ELSE 0.0 END), 0.0) - COALESCE(SUM(CASE WHEN t.txn_type = 'Debit' THEN CAST(t.amount AS REAL) ELSE 0.0 END), 0.0) AS net_movement, MIN(t.as_of) AS as_of FROM transactions t LEFT JOIN accounts a ON CAST(t.account_id AS INTEGER) = CAST(a.account_id AS INTEGER) GROUP BY t.account_id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/daily_balance_movement.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

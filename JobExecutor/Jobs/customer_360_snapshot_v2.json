@@ -1,0 +1,46 @@
+{
+  "jobName": "Customer360SnapshotV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["customer_id", "current_balance"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "cards",
+      "schema": "datalake",
+      "table": "cards",
+      "columns": ["customer_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "investments",
+      "schema": "datalake",
+      "table": "investments",
+      "columns": ["customer_id", "current_value"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "WITH date_calc AS ( SELECT CASE CAST(strftime('%w', as_of) AS INTEGER) WHEN 6 THEN date(as_of, '-1 day') WHEN 0 THEN date(as_of, '-2 days') ELSE as_of END AS target_date FROM (SELECT MAX(as_of) AS as_of FROM customers) ), filtered_customers AS ( SELECT c.id, c.first_name, c.last_name FROM customers c, date_calc d WHERE c.as_of = d.target_date ), account_agg AS ( SELECT a.customer_id, COUNT(*) AS account_count, SUM(a.current_balance) AS total_balance FROM accounts a, date_calc d WHERE a.as_of = d.target_date GROUP BY a.customer_id ), card_agg AS ( SELECT cd.customer_id, COUNT(*) AS card_count FROM cards cd, date_calc d WHERE cd.as_of = d.target_date GROUP BY cd.customer_id ), investment_agg AS ( SELECT inv.customer_id, COUNT(*) AS investment_count, SUM(inv.current_value) AS total_investment_value FROM investments inv, date_calc d WHERE inv.as_of = d.target_date GROUP BY inv.customer_id ) SELECT CAST(fc.id AS INTEGER) AS customer_id, COALESCE(fc.first_name, '') AS first_name, COALESCE(fc.last_name, '') AS last_name, COALESCE(aa.account_count, 0) AS account_count, ROUND(COALESCE(aa.total_balance, 0), 2) AS total_balance, COALESCE(ca.card_count, 0) AS card_count, COALESCE(ia.investment_count, 0) AS investment_count, ROUND(COALESCE(ia.total_investment_value, 0), 2) AS total_investment_value, d.target_date AS as_of FROM filtered_customers fc CROSS JOIN date_calc d LEFT JOIN account_agg aa ON fc.id = aa.customer_id LEFT JOIN card_agg ca ON fc.id = ca.customer_id LEFT JOIN investment_agg ia ON fc.id = ia.customer_id"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/customer_360_snapshot/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

@@ -334,9 +334,11 @@ This convention is mandatory. Do not deviate from it.
 
 ---
 
-## Phase C: Setup (Standard Subagents)
+## Phase C: Setup (Sequential — No Subagents)
 
-Execute these steps in order:
+Execute these steps in order. **Phase C runs entirely sequentially with NO subagent parallelism.** You (the lead) perform every step directly — do not spawn subagents for job registration, Proofmark config generation, or any other Phase C work. This keeps resource consumption predictable during the build-heavy steps.
+
+**CLUTCH checks in Phase C:** Because Phase C has no subagent spawning, the standard CLUTCH trigger ("before spawning subagents") won't fire. Instead, **check for `POC3/CLUTCH` before starting EACH numbered step (C.1 through C.6).** If the CLUTCH is engaged, execute the wind-down sequence from the Clutch Protocol section above.
 
 ### C.1: Delete Prior V2 Jobs
 
@@ -359,6 +361,8 @@ INSERT INTO control.jobs (job_name, description, job_conf_path, is_active)
 VALUES ('{JobName}V2', 'V2 rewrite of {JobName}', 'JobExecutor/Jobs/{job_name}_v2.json', true)
 ON CONFLICT (job_name) DO UPDATE SET is_active = true, job_conf_path = EXCLUDED.job_conf_path;
 ```
+
+**GOVERNANCE BREAK.** After C.3 completes, update `POC3/logs/session_state.md` with current progress, then **STOP and wait for the human operator to tell you to continue.** Do not proceed to C.4.
 
 ### C.4: Generate Proofmark Configs
 
@@ -393,6 +397,8 @@ threshold: 100.0
 
 See `Tools/proofmark/CONFIG_GUIDE.md` for the full YAML schema and examples.
 
+**GOVERNANCE BREAK.** After C.4 completes, update `POC3/logs/session_state.md` with current progress, then **STOP and wait for the human operator to tell you to continue.** Do not proceed to C.5.
+
 ### C.5: Build and Test
 
 ```bash
@@ -406,9 +412,14 @@ Both must pass before proceeding.
 
 Run ALL V1 jobs for the full date range (2024-10-01 through 2024-12-31) to populate `Output/curated/`:
 
+**CRITICAL: Do NOT use bare `dotnet run --project JobExecutor`.** The framework's auto-advance behavior runs from the last processed date all the way to today, NOT to the end of the data range. Use an explicit date loop:
+
 ```bash
-# Run all active V1 jobs — the framework auto-advances through dates
-dotnet run --project JobExecutor
+# Explicit date loop — 92 days (Oct 1 through Dec 31, 2024)
+for d in $(seq 0 91); do
+  dt=$(date -d "2024-10-01 + $d days" +%Y-%m-%d)
+  dotnet run --project JobExecutor -- "$dt"
+done
 ```
 
 Verify V1 output exists in `Output/curated/` for all expected jobs.
@@ -421,13 +432,22 @@ Verify V1 output exists in `Output/curated/` for all expected jobs.
 
 This is the core validation loop. Follow these steps EXACTLY.
 
+**V1 BASELINE IS FROZEN.** After Phase C, `Output/curated/` is the immutable ground truth. NEVER re-run V1 jobs, NEVER modify or delete files in `Output/curated/`, NEVER run the bare all-jobs command (which would re-run V1 jobs alongside V2). If a comparison fails, the problem is in V2 — fix V2, re-run V2, re-compare. V1 output does not change.
+
 ### D.1: Run All V2 Jobs
 
-Run all V2 jobs for the full date range (2024-10-01 through 2024-12-31):
+Run all V2 jobs for the full date range (2024-10-01 through 2024-12-31).
 
+**CRITICAL: Do NOT use bare `dotnet run`.** The framework's auto-advance behavior runs from the last processed date all the way to today, NOT to the end of the data range. Use an explicit date loop.
+
+Run each V2 job individually. Do NOT use the bare all-jobs command — it re-runs V1 jobs too, wasting compute and unnecessarily touching the V1 baseline.
+
+Query `control.jobs` for all active V2 job names, then for each:
 ```bash
-# Run each V2 job individually
-dotnet run --project JobExecutor -- {JobName}V2
+for d in $(seq 0 91); do
+  dt=$(date -d "2024-10-01 + $d days" +%Y-%m-%d)
+  dotnet run --project JobExecutor -- "$dt" {JobName}V2
+done
 ```
 
 All V2 output goes to `Output/double_secret_curated/`.
@@ -477,9 +497,15 @@ When Proofmark reports FAIL for a job:
    - **Changes flow uphill.** Every fix must update ALL upstream documents that are now inaccurate. The final state of BRD, FSD, test plan, Proofmark config, and V2 code must be internally consistent. Governance artifacts that don't match the implementation are worthless.
    - **MANDATORY: Every resolution MUST cite V1 ground-truth evidence.** The resolution log entry must include specific references to V1 source code (file:line), V1 job config fields, or datalake query results that confirm the diagnosis. "Changed the code and now it passes" is not a resolution. The evidence must prove WHY the mismatch existed, not just that a change fixed it.
    - Document hypothesis, fix, and evidence in `POC3/logs/resolution_log.md`
-3. After fix: re-run ONLY the fixed job for the full date range
+3. After fix: re-run ONLY the fixed V2 job for the full date range. NEVER re-run V1 — the baseline is frozen.
    - Clear that job's V2 output first (delete files in `Output/double_secret_curated/{job_name}*`)
-   - Re-run the single V2 job: `dotnet run --project JobExecutor -- {JobName}V2`
+   - Re-run with explicit date loop (do NOT use bare `dotnet run` — auto-advance will overshoot):
+     ```bash
+     for d in $(seq 0 91); do
+       dt=$(date -d "2024-10-01 + $d days" +%Y-%m-%d)
+       dotnet run --project JobExecutor -- "$dt" {JobName}V2
+     done
+     ```
 4. Re-run Proofmark comparison for ONLY that job
 5. Update `POC3/logs/validation_state.md` with outcome
 

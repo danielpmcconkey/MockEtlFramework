@@ -1,0 +1,33 @@
+{
+  "jobName": "HighRiskMerchantActivityV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "card_transactions",
+      "schema": "datalake",
+      "table": "card_transactions",
+      "columns": ["card_txn_id", "merchant_name", "merchant_category_code", "amount", "txn_timestamp"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "merchant_categories",
+      "schema": "datalake",
+      "table": "merchant_categories",
+      "columns": ["mcc_code", "mcc_description", "risk_level"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT ct.card_txn_id, ct.merchant_name, ct.merchant_category_code AS mcc_code, mc.mcc_description, ct.amount, ct.txn_timestamp, ct.as_of FROM card_transactions ct INNER JOIN merchant_categories mc ON ct.merchant_category_code = mc.mcc_code AND ct.as_of = mc.as_of WHERE mc.risk_level = 'High'"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/high_risk_merchant_activity.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "jobName": "TransactionSizeBucketsV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["account_id", "amount"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "size_buckets",
+      "sql": "SELECT CASE WHEN t.amount >= 0 AND t.amount < 25 THEN '0-25' WHEN t.amount >= 25 AND t.amount < 100 THEN '25-100' WHEN t.amount >= 100 AND t.amount < 500 THEN '100-500' WHEN t.amount >= 500 AND t.amount < 1000 THEN '500-1000' ELSE '1000+' END AS amount_bucket, COUNT(*) AS txn_count, ROUND(SUM(t.amount), 2) AS total_amount, ROUND(AVG(t.amount), 2) AS avg_amount, t.as_of FROM transactions t GROUP BY CASE WHEN t.amount >= 0 AND t.amount < 25 THEN '0-25' WHEN t.amount >= 25 AND t.amount < 100 THEN '25-100' WHEN t.amount >= 100 AND t.amount < 500 THEN '100-500' WHEN t.amount >= 500 AND t.amount < 1000 THEN '500-1000' ELSE '1000+' END, t.as_of ORDER BY t.as_of, amount_bucket"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "size_buckets",
+      "outputFile": "Output/double_secret_curated/transaction_size_buckets.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "jobName": "PreferenceChangeCountV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customer_preferences",
+      "schema": "datalake",
+      "table": "customer_preferences",
+      "columns": ["customer_id", "preference_type", "opted_in"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "pref_counts",
+      "sql": "SELECT cp.customer_id, COUNT(*) AS preference_count, MAX(CASE WHEN cp.preference_type = 'MARKETING_EMAIL' AND cp.opted_in = 1 THEN 1 ELSE 0 END) AS has_email_opt_in, MAX(CASE WHEN cp.preference_type = 'MARKETING_SMS' AND cp.opted_in = 1 THEN 1 ELSE 0 END) AS has_sms_opt_in, cp.as_of FROM customer_preferences cp GROUP BY cp.customer_id, cp.as_of"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "pref_counts",
+      "outputDirectory": "Output/double_secret_curated/preference_change_count/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

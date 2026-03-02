@@ -1,0 +1,6 @@
+comparison_target: "card_transaction_daily"
+reader: csv
+threshold: 100.0
+csv:
+  header_rows: 1
+  trailer_rows: 1

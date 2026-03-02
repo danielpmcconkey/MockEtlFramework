@@ -1,0 +1,27 @@
+{
+  "jobName": "TransactionCategorySummaryV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["txn_type", "amount"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "txn_cat_summary",
+      "sql": "SELECT t.txn_type, t.as_of, ROUND(SUM(t.amount), 2) AS total_amount, COUNT(*) AS transaction_count, ROUND(AVG(t.amount), 2) AS avg_amount FROM transactions t GROUP BY t.txn_type, t.as_of ORDER BY t.as_of, t.txn_type"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "txn_cat_summary",
+      "outputFile": "Output/double_secret_curated/transaction_category_summary.csv",
+      "includeHeader": true,
+      "trailerFormat": "END|{row_count}",
+      "writeMode": "Append",
+      "lineEnding": "LF"
+    }
+  ]
+}

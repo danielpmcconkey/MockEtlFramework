@@ -1,0 +1,32 @@
+{
+  "jobName": "PortfolioValueSummaryV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "holdings",
+      "schema": "datalake",
+      "table": "holdings",
+      "columns": ["customer_id", "current_value"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.PortfolioValueSummaryV2Processor"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/portfolio_value_summary/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

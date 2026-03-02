@@ -1,0 +1,25 @@
+{
+  "jobName": "WireTransferDailyV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "wire_transfers",
+      "schema": "datalake",
+      "table": "wire_transfers",
+      "columns": ["wire_id", "amount"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT as_of AS wire_date, COUNT(*) AS wire_count, ROUND(SUM(amount), 2) AS total_amount, ROUND(SUM(amount) / COUNT(*), 2) AS avg_amount, as_of FROM wire_transfers WHERE as_of IS NOT NULL GROUP BY as_of UNION ALL SELECT 'MONTHLY_TOTAL' AS wire_date, COUNT(*) AS wire_count, ROUND(SUM(amount), 2) AS total_amount, ROUND(SUM(amount) / COUNT(*), 2) AS avg_amount, MAX(as_of) AS as_of FROM wire_transfers WHERE as_of IS NOT NULL HAVING COUNT(*) > 0 AND strftime('%d', MAX(as_of), '+1 day') = '01'"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/wire_transfer_daily/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

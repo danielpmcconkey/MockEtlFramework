@@ -1,0 +1,37 @@
+{
+  "jobName": "PortfolioConcentrationV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "holdings",
+      "schema": "datalake",
+      "table": "holdings",
+      "columns": ["customer_id", "investment_id", "security_id", "current_value"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "securities",
+      "schema": "datalake",
+      "table": "securities",
+      "columns": ["security_id", "sector"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "sector_agg",
+      "sql": "SELECT h.customer_id, h.investment_id, COALESCE(s.sector, 'Unknown') AS sector, SUM(h.current_value) AS sector_value, cust_total.total_value AS total_value, (SELECT MAX(as_of) FROM holdings) AS as_of FROM holdings h LEFT JOIN securities s ON h.security_id = s.security_id AND h.as_of = s.as_of LEFT JOIN (SELECT customer_id, SUM(current_value) AS total_value FROM holdings GROUP BY customer_id) cust_total ON h.customer_id = cust_total.customer_id GROUP BY h.customer_id, h.investment_id, COALESCE(s.sector, 'Unknown'), cust_total.total_value ORDER BY h.customer_id, h.investment_id, sector"
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.PortfolioConcentrationV2Processor"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/portfolio_concentration/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+comparison_target: "high_risk_merchant_activity"
+reader: csv
+threshold: 100.0
+csv:
+  header_rows: 1
+  trailer_rows: 0

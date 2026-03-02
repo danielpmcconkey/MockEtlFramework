@@ -1,0 +1,20 @@
+{
+  "jobName": "AccountBalanceSnapshotV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "accounts",
+      "outputDirectory": "Output/double_secret_curated/account_balance_snapshot/",
+      "numParts": 2,
+      "writeMode": "Append"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-02T00:30:50Z",
+    "proofmark_version": "0.1.0",
+    "comparison_target": "card_spending_by_merchant",
+    "config_path": "/workspace/MockEtlFramework/POC3/proofmark_configs/card_spending_by_merchant.yaml"
+  },
+  "config": {
+    "comparison_target": "card_spending_by_merchant",
+    "reader": "parquet",
+    "threshold": 100.0
+  },
+  "column_classifications": [],
+  "summary": {
+    "row_count_lhs": 17,
+    "row_count_rhs": 17,
+    "match_count": 0,
+    "mismatch_count": 0,
+    "match_percentage": 0.0,
+    "result": "FAIL",
+    "threshold": 100.0
+  },
+  "header_comparison": null,
+  "trailer_comparison": null,
+  "mismatches": {
+    "schema_mismatches": [
+      "Column \"txn_count\" type mismatch: int32 vs int64",
+      "Column \"total_spending\" type mismatch: decimal128(38, 18) vs double",
+      "Column \"as_of\" type mismatch: date32[day] vs string"
+    ],
+    "hash_groups": [],
+    "correlation": {
+      "correlated_pairs": [],
+      "uncorrelated_lhs": [],
+      "uncorrelated_rhs": []
+    }
+  },
+  "attestation": "Output equivalence certifies equivalence to the original, NOT correctness in an absolute sense. If the original has a bug and the rewrite faithfully reproduces it, Proofmark reports PASS."
+}

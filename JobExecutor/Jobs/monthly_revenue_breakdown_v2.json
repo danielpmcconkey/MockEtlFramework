@@ -1,0 +1,39 @@
+{
+  "jobName": "MonthlyRevenueBreakdownV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "overdraft_events",
+      "schema": "datalake",
+      "table": "overdraft_events",
+      "columns": ["fee_amount", "fee_waived"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["txn_type", "amount"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "revenue_aggregates",
+      "sql": "SELECT o.overdraft_revenue, o.overdraft_count, c.credit_revenue, c.credit_count FROM (SELECT COALESCE(SUM(CASE WHEN fee_waived = 0 THEN fee_amount ELSE 0 END), 0) AS overdraft_revenue, COALESCE(SUM(CASE WHEN fee_waived = 0 THEN 1 ELSE 0 END), 0) AS overdraft_count FROM overdraft_events) o CROSS JOIN (SELECT COALESCE(SUM(CASE WHEN txn_type = 'Credit' THEN amount ELSE 0 END), 0) AS credit_revenue, COALESCE(SUM(CASE WHEN txn_type = 'Credit' THEN 1 ELSE 0 END), 0) AS credit_count FROM transactions) c"
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.MonthlyRevenueBreakdownV2Processor"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/monthly_revenue_breakdown.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

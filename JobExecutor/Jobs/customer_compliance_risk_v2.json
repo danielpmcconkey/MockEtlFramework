@@ -1,0 +1,40 @@
+{
+  "jobName": "CustomerComplianceRiskV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "compliance_events",
+      "schema": "datalake",
+      "table": "compliance_events",
+      "columns": ["customer_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "wire_transfers",
+      "schema": "datalake",
+      "table": "wire_transfers",
+      "columns": ["customer_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT CAST(c.id AS INTEGER) AS customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, COALESCE(ce.event_count, 0) AS compliance_events, COALESCE(wt.wire_count, 0) AS wire_count, 0 AS high_txn_count, ROUND((COALESCE(ce.event_count, 0) * 30.0) + (COALESCE(wt.wire_count, 0) * 20.0) + (0 * 10.0), 2) AS risk_score, c.as_of FROM customers c LEFT JOIN (SELECT customer_id, COUNT(*) AS event_count FROM compliance_events GROUP BY customer_id) ce ON c.id = ce.customer_id LEFT JOIN (SELECT customer_id, COUNT(*) AS wire_count FROM wire_transfers GROUP BY customer_id) wt ON c.id = wt.customer_id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/customer_compliance_risk.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

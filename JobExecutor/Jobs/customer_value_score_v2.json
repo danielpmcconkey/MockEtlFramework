@@ -1,0 +1,47 @@
+{
+  "jobName": "CustomerValueScoreV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "customer_id", "current_balance"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["account_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branch_visits",
+      "schema": "datalake",
+      "table": "branch_visits",
+      "columns": ["customer_id"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT c.id AS customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, ROUND(MIN(COALESCE(tc.txn_count, 0) * 10.0, 1000.0), 0) AS transaction_score, ROUND(MIN(COALESCE(ab.total_balance, 0.0) / 1000.0, 1000.0), 0) AS balance_score, ROUND(MIN(COALESCE(vc.visit_count, 0) * 50.0, 1000.0), 0) AS visit_score, ROUND(MIN(COALESCE(tc.txn_count, 0) * 10.0, 1000.0) * 0.4 + MIN(COALESCE(ab.total_balance, 0.0) / 1000.0, 1000.0) * 0.35 + MIN(COALESCE(vc.visit_count, 0) * 50.0, 1000.0) * 0.25, 0) AS composite_score, c.as_of FROM customers c LEFT JOIN (SELECT a.customer_id, COUNT(t.account_id) AS txn_count FROM transactions t INNER JOIN accounts a ON t.account_id = a.account_id GROUP BY a.customer_id) tc ON c.id = tc.customer_id LEFT JOIN (SELECT customer_id, SUM(current_balance) AS total_balance FROM accounts GROUP BY customer_id) ab ON c.id = ab.customer_id LEFT JOIN (SELECT customer_id, COUNT(*) AS visit_count FROM branch_visits GROUP BY customer_id) vc ON c.id = vc.customer_id GROUP BY c.id, c.first_name, c.last_name, c.as_of ORDER BY c.id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/customer_value_score.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # CardFraudFlags — Business Requirements Document
 
 ## Overview
-Identifies card transactions that are flagged as potentially fraudulent based on two criteria: the transaction's merchant category is classified as "High" risk AND the transaction amount exceeds $750. Outputs a detail-level record for each flagged transaction.
+Identifies card transactions that are flagged as potentially fraudulent based on two criteria: the transaction's merchant category is classified as "High" risk AND the transaction amount exceeds $500. Outputs a detail-level record for each flagged transaction.
 
 ## Output Type
 CsvFileWriter
@@ -17,7 +17,7 @@ CsvFileWriter
 
 | Table | Columns Used | Filters | Evidence |
 |-------|-------------|---------|----------|
-| datalake.card_transactions | card_txn_id, card_id, customer_id, merchant_name, merchant_category_code, amount, txn_timestamp | Effective date range via DataSourcing; then filtered in External by risk_level='High' AND amount > 750 | [card_fraud_flags.json:8-11], [CardFraudFlagsProcessor.cs:43-50] |
+| datalake.card_transactions | card_txn_id, card_id, customer_id, merchant_name, merchant_category_code, amount, txn_timestamp | Effective date range via DataSourcing; then filtered in External by risk_level='High' AND amount > 500 | [card_fraud_flags.json:8-11], [CardFraudFlagsProcessor.cs:43-50] |
 | datalake.merchant_categories | mcc_code, mcc_description, risk_level | Effective date range via DataSourcing; used for risk level lookup | [card_fraud_flags.json:14-17], [CardFraudFlagsProcessor.cs:30-39] |
 
 ## Business Rules
@@ -26,13 +26,13 @@ BR-1: Each transaction's merchant_category_code is looked up against the merchan
 - Confidence: HIGH
 - Evidence: [CardFraudFlagsProcessor.cs:30-39] riskLookup dictionary keyed by mcc_code
 
-BR-2: A transaction is flagged (included in output) only if BOTH conditions are met: risk_level == "High" AND amount > $750 (strictly greater than, not >=).
+BR-2: A transaction is flagged (included in output) only if BOTH conditions are met: risk_level == "High" AND amount > $500 (strictly greater than, not >=).
 - Confidence: HIGH
-- Evidence: [CardFraudFlagsProcessor.cs:50] `if (riskLevel == "High" && amount > 750m)`
+- Evidence: [CardFraudFlagsProcessor.cs:50] `if (riskLevel == "High" && amount > 500m)`
 
-BR-3: The $750 threshold is a hardcoded magic value.
+BR-3: The $500 threshold is a hardcoded magic value.
 - Confidence: HIGH
-- Evidence: [CardFraudFlagsProcessor.cs:49] comment `// AP7: Magic value — hardcoded $750 threshold`; [CardFraudFlagsProcessor.cs:50] literal `750m`
+- Evidence: [CardFraudFlagsProcessor.cs:49] comment `// AP7: Magic value — hardcoded $500 threshold`; [CardFraudFlagsProcessor.cs:50] literal `500m`
 
 BR-4: Transaction amounts are rounded using Banker's rounding (MidpointRounding.ToEven) to 2 decimal places before comparison and output.
 - Confidence: HIGH
@@ -86,7 +86,7 @@ None identified. All fields are deterministic given the same input data.
 
 ## Edge Cases
 
-1. **Banker's rounding at $750 boundary**: A transaction with raw amount of $750.005 would round to $750.00 (Banker's rounding rounds 0.005 to 0.00 since 0 is even). This $750.00 would NOT pass the `> 750m` check. A raw amount of $750.015 would round to $750.02, passing the check.
+1. **Banker's rounding at $500 boundary**: A transaction with raw amount of $500.005 would round to $500.00 (Banker's rounding rounds 0.005 to 0.00 since 0 is even). This $500.00 would NOT pass the `> 500m` check. A raw amount of $500.015 would round to $500.02, passing the check.
    - Confidence: HIGH
    - Evidence: [CardFraudFlagsProcessor.cs:47,50] rounding before comparison
 

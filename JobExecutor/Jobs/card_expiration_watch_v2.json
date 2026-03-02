@@ -1,0 +1,37 @@
+{
+  "jobName": "CardExpirationWatchV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "cards",
+      "schema": "datalake",
+      "table": "cards",
+      "columns": ["card_id", "customer_id", "card_type", "expiration_date"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id", "first_name", "last_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output_raw",
+      "sql": "WITH target AS (SELECT CASE WHEN CAST(strftime('%w', MAX(as_of)) AS INTEGER) = 6 THEN date(MAX(as_of), '-1 day') WHEN CAST(strftime('%w', MAX(as_of)) AS INTEGER) = 0 THEN date(MAX(as_of), '-2 days') ELSE MAX(as_of) END AS target_date FROM cards), deduped_customers AS (SELECT c1.id, c1.first_name, c1.last_name FROM customers c1 INNER JOIN (SELECT id, MAX(as_of) AS max_as_of FROM customers GROUP BY id) c2 ON c1.id = c2.id AND c1.as_of = c2.max_as_of) SELECT c.card_id, CAST(c.customer_id AS INTEGER) AS customer_id, COALESCE(cu.first_name, '') AS first_name, COALESCE(cu.last_name, '') AS last_name, c.card_type, c.expiration_date, CAST(julianday(c.expiration_date) - julianday(t.target_date) AS INTEGER) AS days_until_expiry, t.target_date AS as_of FROM cards c CROSS JOIN target t LEFT JOIN deduped_customers cu ON CAST(c.customer_id AS INTEGER) = CAST(cu.id AS INTEGER) WHERE CAST(julianday(c.expiration_date) - julianday(t.target_date) AS INTEGER) >= 0 AND CAST(julianday(c.expiration_date) - julianday(t.target_date) AS INTEGER) <= 90"
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CardExpirationWatchV2Processor"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/card_expiration_watch/",
+      "numParts": 1,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "jobName": "MonthlyTransactionTrendV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["amount"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "monthly_trend",
+      "sql": "SELECT as_of, COUNT(*) AS daily_transactions, ROUND(SUM(amount), 2) AS daily_amount, ROUND(AVG(amount), 2) AS avg_transaction_amount FROM transactions GROUP BY as_of ORDER BY as_of"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "monthly_trend",
+      "outputFile": "Output/double_secret_curated/monthly_transaction_trend.csv",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF"
+    }
+  ]
+}

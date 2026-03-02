@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-02T00:31:12Z",
+    "proofmark_version": "0.1.0",
+    "comparison_target": "customer_360_snapshot",
+    "config_path": "/workspace/MockEtlFramework/POC3/proofmark_configs/customer_360_snapshot.yaml"
+  },
+  "config": {
+    "comparison_target": "customer_360_snapshot",
+    "reader": "parquet",
+    "threshold": 100.0
+  },
+  "column_classifications": [],
+  "summary": {
+    "row_count_lhs": 2230,
+    "row_count_rhs": 2230,
+    "match_count": 0,
+    "mismatch_count": 0,
+    "match_percentage": 0.0,
+    "result": "FAIL",
+    "threshold": 100.0
+  },
+  "header_comparison": null,
+  "trailer_comparison": null,
+  "mismatches": {
+    "schema_mismatches": [
+      "Column \"customer_id\" type mismatch: int32 vs int64",
+      "Column \"account_count\" type mismatch: int32 vs int64",
+      "Column \"total_balance\" type mismatch: decimal128(38, 18) vs double",
+      "Column \"card_count\" type mismatch: int32 vs int64",
+      "Column \"investment_count\" type mismatch: int32 vs int64",
+      "Column \"total_investment_value\" type mismatch: decimal128(38, 18) vs double",
+      "Column \"as_of\" type mismatch: date32[day] vs string"
+    ],
+    "hash_groups": [],
+    "correlation": {
+      "correlated_pairs": [],
+      "uncorrelated_lhs": [],
+      "uncorrelated_rhs": []
+    }
+  },
+  "attestation": "Output equivalence certifies equivalence to the original, NOT correctness in an absolute sense. If the original has a bug and the rewrite faithfully reproduces it, Proofmark reports PASS."
+}

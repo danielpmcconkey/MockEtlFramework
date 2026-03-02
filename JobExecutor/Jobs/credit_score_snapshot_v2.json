@@ -1,0 +1,26 @@
+{
+  "jobName": "CreditScoreSnapshotV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "credit_scores",
+      "schema": "datalake",
+      "table": "credit_scores",
+      "columns": ["credit_score_id", "customer_id", "bureau", "score"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT credit_score_id, customer_id, bureau, score, SUBSTR(as_of, 6, 2) || '/' || SUBSTR(as_of, 9, 2) || '/' || SUBSTR(as_of, 1, 4) AS as_of FROM credit_scores"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/credit_score_snapshot.csv",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "CRLF"
+    }
+  ]
+}

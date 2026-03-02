@@ -1,0 +1,25 @@
+{
+  "jobName": "CardStatusSnapshotV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "cards",
+      "schema": "datalake",
+      "table": "cards",
+      "columns": ["card_status"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT c.card_status, COUNT(*) AS card_count, c.as_of FROM cards c GROUP BY c.card_status, c.as_of"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/card_status_snapshot/",
+      "numParts": 50,
+      "writeMode": "Overwrite"
+    }
+  ]
+}

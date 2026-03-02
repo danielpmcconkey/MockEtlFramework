@@ -1,0 +1,27 @@
+{
+  "jobName": "DailyTransactionVolumeV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["amount"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "daily_vol",
+      "sql": "SELECT as_of, COUNT(*) AS total_transactions, ROUND(SUM(amount), 2) AS total_amount, ROUND(AVG(amount), 2) AS avg_amount FROM transactions GROUP BY as_of ORDER BY as_of"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "daily_vol",
+      "outputFile": "Output/double_secret_curated/daily_transaction_volume.csv",
+      "includeHeader": true,
+      "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
+      "writeMode": "Append",
+      "lineEnding": "CRLF"
+    }
+  ]
+}

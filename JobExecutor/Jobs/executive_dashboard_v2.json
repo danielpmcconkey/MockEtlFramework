@@ -1,0 +1,55 @@
+{
+  "jobName": "ExecutiveDashboardV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": ["transaction_id", "account_id", "amount"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": ["account_id", "current_balance"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": ["id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "loan_accounts",
+      "schema": "datalake",
+      "table": "loan_accounts",
+      "columns": ["loan_id", "current_balance"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branch_visits",
+      "schema": "datalake",
+      "table": "branch_visits",
+      "columns": ["visit_id"]
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.ExecutiveDashboardV2Processor"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/executive_dashboard.csv",
+      "includeHeader": true,
+      "trailerFormat": "SUMMARY|{row_count}|{date}|{timestamp}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

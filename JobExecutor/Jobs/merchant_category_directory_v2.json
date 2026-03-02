@@ -1,0 +1,26 @@
+{
+  "jobName": "MerchantCategoryDirectoryV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "merchant_categories",
+      "schema": "datalake",
+      "table": "merchant_categories",
+      "columns": ["mcc_code", "mcc_description", "risk_level"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "SELECT mc.mcc_code, mc.mcc_description, mc.risk_level, mc.as_of FROM merchant_categories mc"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/merchant_category_directory.csv",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF"
+    }
+  ]
+}

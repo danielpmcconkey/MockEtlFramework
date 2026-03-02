@@ -1,0 +1,1546 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-02T00:30:50Z",
+    "proofmark_version": "0.1.0",
+    "comparison_target": "branch_directory",
+    "config_path": "/workspace/MockEtlFramework/POC3/proofmark_configs/branch_directory.yaml"
+  },
+  "config": {
+    "comparison_target": "branch_directory",
+    "reader": "csv",
+    "threshold": 100.0,
+    "csv": {
+      "header_rows": 1,
+      "trailer_rows": 0
+    }
+  },
+  "column_classifications": [
+    {
+      "name": "branch_id",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "branch_name",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "address_line1",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "city",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "state_province",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "postal_code",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "country",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "as_of",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    }
+  ],
+  "summary": {
+    "row_count_lhs": 40,
+    "row_count_rhs": 40,
+    "match_count": 0,
+    "mismatch_count": 40,
+    "match_percentage": 0.0,
+    "result": "FAIL",
+    "threshold": 100.0,
+    "line_break_mismatch": false
+  },
+  "header_comparison": [
+    {
+      "position": 0,
+      "lhs": "branch_id,branch_name,address_line1,city,state_province,postal_code,country,as_of",
+      "rhs": "branch_id,branch_name,address_line1,city,state_province,postal_code,country,as_of",
+      "match": true
+    }
+  ],
+  "trailer_comparison": [],
+  "mismatches": {
+    "schema_mismatches": null,
+    "hash_groups": [
+      {
+        "hash_value": "030aca1ff285467b417566ed7a2bca21",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "17|Las Vegas NV Branch|1 Las Vegas Blvd S|Las Vegas|NV|89101|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "05c4e6b261d6c35d0b220bfaee40cd25",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "24|Oklahoma City OK Branch|1 N Broadway Ave|Oklahoma City|OK|73101|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "0e10c3c6c52ea8a871e114a5a617d10d",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "37|Calgary AB Branch|400 3rd Ave SW|Calgary|AB|T2P 1J9|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "10af7d238a8b51e5b5fc652c9f5cd688",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "9|Phoenix AZ Branch|1 N Central Ave|Phoenix|AZ|85004|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "11d8b7291f6165553fd6a3ef03a9a6e0",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "30|Vancouver BC Branch|200 Granville St|Vancouver|BC|V6C 1S4|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "12dd4a6618fd2fddd4f1905c1d182c19",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "8|New York NY Branch|1 Park Ave S|New York|NY|10003|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "12ec3e2456a0070b38eff082d40a2f04",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "32|Halifax NS Branch|1505 Barrington St|Halifax|NS|B3J 1Z4|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "165e6db4496ba707df6a6ba392655cc8",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "4|San Francisco CA Branch|1 Market St|San Francisco|CA|94105|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "175625abb1288f0d04c4cbe26abfd555",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "10|San Diego CA Branch|1 Harbor Dr|San Diego|CA|92101|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "1c4ff67f8a1a21652a3493bd4fd8732f",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "13|Boston MA Branch|1 State St|Boston|MA|02101|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "23b06772cf38de55bf9e9383261d5c43",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "31|Winnipeg MB Branch|18 Portage Ave|Winnipeg|MB|R3C 0B1|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "249f4c9d608a4b1650134e79cd7798fe",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "4|San Francisco CA Branch|1 Market St|San Francisco|CA|94105|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "314d20035261b3cb487b23084dfa0046",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "26|Montreal QC Branch|1200 Rue McGill|Montreal|QC|H3B 1K9|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "34b69f4d93beeed623762575684f7461",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "18|Nashville TN Branch|1 Broadway|Nashville|TN|37201|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "35b8461926bd5fadac6bb76996e07150",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "20|Detroit MI Branch|1 Woodward Ave|Detroit|MI|48201|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "371a4c6438f0b32942f48da680b45545",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "19|Charlotte NC Branch|1 Trade St|Charlotte|NC|28201|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "380be75e74016ea3e0c4b28ca84cbbc1",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "2|Chicago IL Branch|200 N Michigan Ave|Chicago|IL|60601|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "391472f304d3c41f23fa3ab72fe3783b",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "25|Ottawa ON Branch|250 Rideau St|Ottawa|ON|K1N 5Y1|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "417274cabc92016077102168548cb0bd",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "20|Detroit MI Branch|1 Woodward Ave|Detroit|MI|48201|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "46ee224a19a42fd45ee220d7b602a304",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "12|Kansas City MO Branch|1 Main St|Kansas City|MO|64105|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "482e62df2b04bff41732ed14c4347d0c",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "5|Seattle WA Branch|1 Westlake Ave N|Seattle|WA|98101|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "4bc19b804097c618e525b7f4a3e5d685",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "7|Denver CO Branch|1 Colfax Ave|Denver|CO|80202|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "4e654a8dc7f014303a68a2fcb2a09178",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "40|Saskatoon SK Branch|244 1st Ave N|Saskatoon|SK|S7K 1J5|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "515fe9c35a152996d0123027e3eec81a",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "11|Atlanta GA Branch|1 Peachtree St NE|Atlanta|GA|30303|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "5302e1d0a2ea5ce3d6f6eb1603318283",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "3|Springfield IL Branch|100 E Capitol Ave|Springfield|IL|62704|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "55e0323c3c85bd4175a6924b5efbed50",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "13|Boston MA Branch|1 State St|Boston|MA|02101|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "58ad0d7f6619daec4651da7262eeb44e",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "31|Winnipeg MB Branch|18 Portage Ave|Winnipeg|MB|R3C 0B1|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "5dcf6d1dde1a78f2b9ef7ebbb8c9231d",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "10|San Diego CA Branch|1 Harbor Dr|San Diego|CA|92101|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "6054495a4731123fa5d8affeadad04cc",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "40|Saskatoon SK Branch|244 1st Ave N|Saskatoon|SK|S7K 1J5|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "65425884da3531b24123c2c35711e6e5",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "35|Regina SK Branch|300 Victoria Ave|Regina|SK|S4P 0S4|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "67095772d9709f9249624b3eab57563f",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "22|Memphis TN Branch|1 Beale St|Memphis|TN|38101|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "670bb1e2b56a487ab0dd5d43fc3add75",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "24|Oklahoma City OK Branch|1 N Broadway Ave|Oklahoma City|OK|73101|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "6ca564e392200aaf0f91fc331b34242e",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "16|Portland OR Branch|1 SW Broadway|Portland|OR|97201|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "70b55707d9d481c0cf4acd9b1535da47",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "28|Toronto ON (M5G) Branch|200 College St|Toronto|ON|M5G 1L4|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "71e3f7307f08b5387e46710d13824a27",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "29|Edmonton AB Branch|10055 Jasper Ave|Edmonton|AB|T5J 3R7|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "77452c6c79084337f90f464d6ce7775c",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "37|Calgary AB Branch|400 3rd Ave SW|Calgary|AB|T2P 1J9|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "799c779933a9c86f424ba215b43a9df0",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "19|Charlotte NC Branch|1 Trade St|Charlotte|NC|28201|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "7a6a1d6e99b8e4e3ed20a449c85907c1",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "38|Quebec City QC Branch|900 Rene-Levesque Blvd|Quebec City|QC|G1R 1Z3|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "7acf199fe0e4e3a57f76a7ae69cd9b1a",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "18|Nashville TN Branch|1 Broadway|Nashville|TN|37201|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "7ad1dfd83e468aad99ee43b014531bea",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "21|Indianapolis IN Branch|1 Monument Circle|Indianapolis|IN|46201|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "7ad2cc0e9d4b94713be36265659a2c18",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "28|Toronto ON (M5G) Branch|200 College St|Toronto|ON|M5G 1L4|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "7b5238c402409d823b0f50df1846bf67",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "15|Minneapolis MN Branch|1 Nicollet Mall|Minneapolis|MN|55401|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "7d544251d126bbc8d560d0e6c5269941",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "25|Ottawa ON Branch|250 Rideau St|Ottawa|ON|K1N 5Y1|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "82b949346ef5e81770a6f12126c8c936",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "34|St Johns NL Branch|55 Water St|St. Johns|NL|A1C 1A1|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "85fafaca2b5123ebad2d7594f62865c5",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "36|Whitehorse YT Branch|15 2nd Ave|Whitehorse|YT|Y1A 1B2|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "88bacc78e8d5ffd7950e4b33ffe9b6d8",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "6|Austin TX Branch|1 Congress Ave|Austin|TX|73301|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "8d3c42bfbcc38472db71702a72259ea3",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "38|Quebec City QC Branch|900 Rene-Levesque Blvd|Quebec City|QC|G1R 1Z3|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "8f766d6d5ed7a8f911ac40c9dd07c5c0",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "29|Edmonton AB Branch|10055 Jasper Ave|Edmonton|AB|T5J 3R7|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "956ed7c8d59d46488ef2f9e33aa3a50b",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "35|Regina SK Branch|300 Victoria Ave|Regina|SK|S4P 0S4|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "9abc525a0e81bd87295f8241f05696d4",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "22|Memphis TN Branch|1 Beale St|Memphis|TN|38101|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "9b334b299d7849ea74c4a5fd5475cf02",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "21|Indianapolis IN Branch|1 Monument Circle|Indianapolis|IN|46201|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "9c2b856d9ecdd657fc260e0e95870def",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "36|Whitehorse YT Branch|15 2nd Ave|Whitehorse|YT|Y1A 1B2|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "9ddd5db187fada1c93d7447a5c9aee3f",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "1|Columbus OH Branch|100 E Broad St|Columbus|OH|43215|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "a596538db249d0d0ddd5e48d7a3c8a55",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "12|Kansas City MO Branch|1 Main St|Kansas City|MO|64105|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "a6832d3b29feac808998d030e657e173",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "11|Atlanta GA Branch|1 Peachtree St NE|Atlanta|GA|30303|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "a96427bf77be4fc6149fb1855561d8e9",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "23|Baltimore MD Branch|1 Charles St|Baltimore|MD|21201|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "ad7b7bffe3995469fa5ae61c87dbe17e",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "34|St Johns NL Branch|55 Water St|St. Johns|NL|A1C 1A1|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "b1380c8c4e86028678e5070c40110c55",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "39|Victoria BC Branch|1 Government St|Victoria|BC|V8W 1M1|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "bb11a4ed98bdf59328fae04fc0497964",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "6|Austin TX Branch|1 Congress Ave|Austin|TX|73301|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "bba6322183483a3f1b09aa8a58ef59b6",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "7|Denver CO Branch|1 Colfax Ave|Denver|CO|80202|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "be82a6b8a7f113e796f571669d864216",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "14|Miami FL Branch|1 Biscayne Blvd|Miami|FL|33101|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "c139776965827df5d470110713d6bf65",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "30|Vancouver BC Branch|200 Granville St|Vancouver|BC|V6C 1S4|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "c30b56e7918f4be8b45638fe992975b0",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "32|Halifax NS Branch|1505 Barrington St|Halifax|NS|B3J 1Z4|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "c6d2fdd363cadfa8949e59ed2bd44cc0",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "16|Portland OR Branch|1 SW Broadway|Portland|OR|97201|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "c70e285a6ec10e94b61738ab60f248b7",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "33|Fredericton NB Branch|10 Queen Square|Fredericton|NB|E3B 1B2|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "c937b62fee5659ceadf6d24db720b242",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "39|Victoria BC Branch|1 Government St|Victoria|BC|V8W 1M1|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "cae2d2f494f278dbafa9b2d2bc2be0b4",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "2|Chicago IL Branch|200 N Michigan Ave|Chicago|IL|60601|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "cc7f6858175e686a55794c74153c573a",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "1|Columbus OH Branch|100 E Broad St|Columbus|OH|43215|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "ccc55c7e1d9212b65ddc4d2e0e3a57e2",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "27|Toronto ON (M5H) Branch|100 King St W|Toronto|ON|M5H 1J9|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "d28e0a107fcf284f58ebc6259200d279",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "3|Springfield IL Branch|100 E Capitol Ave|Springfield|IL|62704|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "d38e8521d52dd919249d7abc4cd3d835",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "5|Seattle WA Branch|1 Westlake Ave N|Seattle|WA|98101|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "d9965f19dd69aeed0883359f5aad323f",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "15|Minneapolis MN Branch|1 Nicollet Mall|Minneapolis|MN|55401|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "e9fe8b177dad2d7d5207576c70a6a00b",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "8|New York NY Branch|1 Park Ave S|New York|NY|10003|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "ed778386a79a279b4e6c21a36681701c",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "9|Phoenix AZ Branch|1 N Central Ave|Phoenix|AZ|85004|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "ee759f70887f5e42ea32a6fc18a467ab",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "33|Fredericton NB Branch|10 Queen Square|Fredericton|NB|E3B 1B2|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f40791b93dc13d66970bacda7dc72ffe",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "26|Montreal QC Branch|1200 Rue McGill|Montreal|QC|H3B 1K9|CA|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f7b7319c3f98d286d1b9126b2072dd26",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "27|Toronto ON (M5H) Branch|100 King St W|Toronto|ON|M5H 1J9|CA|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f80319ba5a99477b4eb58dc7213fc75b",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "17|Las Vegas NV Branch|1 Las Vegas Blvd S|Las Vegas|NV|89101|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f988d40653a55d0af6f3e79c0548fb9a",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "14|Miami FL Branch|1 Biscayne Blvd|Miami|FL|33101|US|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "fb55db7f86af9534bf00859feeafe860",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "23|Baltimore MD Branch|1 Charles St|Baltimore|MD|21201|US|2024-12-31"
+          }
+        ],
+        "fuzzy_failures": []
+      }
+    ],
+    "correlation": {
+      "correlated_pairs": [
+        {
+          "lhs_row": "10|San Diego CA Branch|1 Harbor Dr|San Diego|CA|92101|US|2024-12-31",
+          "rhs_row": "10|San Diego CA Branch|1 Harbor Dr|San Diego|CA|92101|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "11|Atlanta GA Branch|1 Peachtree St NE|Atlanta|GA|30303|US|2024-12-31",
+          "rhs_row": "11|Atlanta GA Branch|1 Peachtree St NE|Atlanta|GA|30303|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "12|Kansas City MO Branch|1 Main St|Kansas City|MO|64105|US|2024-12-31",
+          "rhs_row": "12|Kansas City MO Branch|1 Main St|Kansas City|MO|64105|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "13|Boston MA Branch|1 State St|Boston|MA|02101|US|2024-12-31",
+          "rhs_row": "13|Boston MA Branch|1 State St|Boston|MA|02101|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "14|Miami FL Branch|1 Biscayne Blvd|Miami|FL|33101|US|2024-12-31",
+          "rhs_row": "14|Miami FL Branch|1 Biscayne Blvd|Miami|FL|33101|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "15|Minneapolis MN Branch|1 Nicollet Mall|Minneapolis|MN|55401|US|2024-12-31",
+          "rhs_row": "15|Minneapolis MN Branch|1 Nicollet Mall|Minneapolis|MN|55401|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "16|Portland OR Branch|1 SW Broadway|Portland|OR|97201|US|2024-12-31",
+          "rhs_row": "16|Portland OR Branch|1 SW Broadway|Portland|OR|97201|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "17|Las Vegas NV Branch|1 Las Vegas Blvd S|Las Vegas|NV|89101|US|2024-12-31",
+          "rhs_row": "17|Las Vegas NV Branch|1 Las Vegas Blvd S|Las Vegas|NV|89101|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "18|Nashville TN Branch|1 Broadway|Nashville|TN|37201|US|2024-12-31",
+          "rhs_row": "18|Nashville TN Branch|1 Broadway|Nashville|TN|37201|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "19|Charlotte NC Branch|1 Trade St|Charlotte|NC|28201|US|2024-12-31",
+          "rhs_row": "19|Charlotte NC Branch|1 Trade St|Charlotte|NC|28201|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "1|Columbus OH Branch|100 E Broad St|Columbus|OH|43215|US|2024-12-31",
+          "rhs_row": "1|Columbus OH Branch|100 E Broad St|Columbus|OH|43215|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "20|Detroit MI Branch|1 Woodward Ave|Detroit|MI|48201|US|2024-12-31",
+          "rhs_row": "20|Detroit MI Branch|1 Woodward Ave|Detroit|MI|48201|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "21|Indianapolis IN Branch|1 Monument Circle|Indianapolis|IN|46201|US|2024-12-31",
+          "rhs_row": "21|Indianapolis IN Branch|1 Monument Circle|Indianapolis|IN|46201|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "22|Memphis TN Branch|1 Beale St|Memphis|TN|38101|US|2024-12-31",
+          "rhs_row": "22|Memphis TN Branch|1 Beale St|Memphis|TN|38101|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "23|Baltimore MD Branch|1 Charles St|Baltimore|MD|21201|US|2024-12-31",
+          "rhs_row": "23|Baltimore MD Branch|1 Charles St|Baltimore|MD|21201|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "24|Oklahoma City OK Branch|1 N Broadway Ave|Oklahoma City|OK|73101|US|2024-12-31",
+          "rhs_row": "24|Oklahoma City OK Branch|1 N Broadway Ave|Oklahoma City|OK|73101|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "25|Ottawa ON Branch|250 Rideau St|Ottawa|ON|K1N 5Y1|CA|2024-12-31",
+          "rhs_row": "25|Ottawa ON Branch|250 Rideau St|Ottawa|ON|K1N 5Y1|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "26|Montreal QC Branch|1200 Rue McGill|Montreal|QC|H3B 1K9|CA|2024-12-31",
+          "rhs_row": "26|Montreal QC Branch|1200 Rue McGill|Montreal|QC|H3B 1K9|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "27|Toronto ON (M5H) Branch|100 King St W|Toronto|ON|M5H 1J9|CA|2024-12-31",
+          "rhs_row": "27|Toronto ON (M5H) Branch|100 King St W|Toronto|ON|M5H 1J9|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "28|Toronto ON (M5G) Branch|200 College St|Toronto|ON|M5G 1L4|CA|2024-12-31",
+          "rhs_row": "28|Toronto ON (M5G) Branch|200 College St|Toronto|ON|M5G 1L4|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "29|Edmonton AB Branch|10055 Jasper Ave|Edmonton|AB|T5J 3R7|CA|2024-12-31",
+          "rhs_row": "29|Edmonton AB Branch|10055 Jasper Ave|Edmonton|AB|T5J 3R7|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "2|Chicago IL Branch|200 N Michigan Ave|Chicago|IL|60601|US|2024-12-31",
+          "rhs_row": "2|Chicago IL Branch|200 N Michigan Ave|Chicago|IL|60601|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "30|Vancouver BC Branch|200 Granville St|Vancouver|BC|V6C 1S4|CA|2024-12-31",
+          "rhs_row": "30|Vancouver BC Branch|200 Granville St|Vancouver|BC|V6C 1S4|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "31|Winnipeg MB Branch|18 Portage Ave|Winnipeg|MB|R3C 0B1|CA|2024-12-31",
+          "rhs_row": "31|Winnipeg MB Branch|18 Portage Ave|Winnipeg|MB|R3C 0B1|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "32|Halifax NS Branch|1505 Barrington St|Halifax|NS|B3J 1Z4|CA|2024-12-31",
+          "rhs_row": "32|Halifax NS Branch|1505 Barrington St|Halifax|NS|B3J 1Z4|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "33|Fredericton NB Branch|10 Queen Square|Fredericton|NB|E3B 1B2|CA|2024-12-31",
+          "rhs_row": "33|Fredericton NB Branch|10 Queen Square|Fredericton|NB|E3B 1B2|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "34|St Johns NL Branch|55 Water St|St. Johns|NL|A1C 1A1|CA|2024-12-31",
+          "rhs_row": "34|St Johns NL Branch|55 Water St|St. Johns|NL|A1C 1A1|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "35|Regina SK Branch|300 Victoria Ave|Regina|SK|S4P 0S4|CA|2024-12-31",
+          "rhs_row": "35|Regina SK Branch|300 Victoria Ave|Regina|SK|S4P 0S4|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "36|Whitehorse YT Branch|15 2nd Ave|Whitehorse|YT|Y1A 1B2|CA|2024-12-31",
+          "rhs_row": "36|Whitehorse YT Branch|15 2nd Ave|Whitehorse|YT|Y1A 1B2|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "37|Calgary AB Branch|400 3rd Ave SW|Calgary|AB|T2P 1J9|CA|2024-12-31",
+          "rhs_row": "37|Calgary AB Branch|400 3rd Ave SW|Calgary|AB|T2P 1J9|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "38|Quebec City QC Branch|900 Rene-Levesque Blvd|Quebec City|QC|G1R 1Z3|CA|2024-12-31",
+          "rhs_row": "38|Quebec City QC Branch|900 Rene-Levesque Blvd|Quebec City|QC|G1R 1Z3|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "39|Victoria BC Branch|1 Government St|Victoria|BC|V8W 1M1|CA|2024-12-31",
+          "rhs_row": "39|Victoria BC Branch|1 Government St|Victoria|BC|V8W 1M1|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "3|Springfield IL Branch|100 E Capitol Ave|Springfield|IL|62704|US|2024-12-31",
+          "rhs_row": "3|Springfield IL Branch|100 E Capitol Ave|Springfield|IL|62704|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "40|Saskatoon SK Branch|244 1st Ave N|Saskatoon|SK|S7K 1J5|CA|2024-12-31",
+          "rhs_row": "40|Saskatoon SK Branch|244 1st Ave N|Saskatoon|SK|S7K 1J5|CA|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "4|San Francisco CA Branch|1 Market St|San Francisco|CA|94105|US|2024-12-31",
+          "rhs_row": "4|San Francisco CA Branch|1 Market St|San Francisco|CA|94105|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "5|Seattle WA Branch|1 Westlake Ave N|Seattle|WA|98101|US|2024-12-31",
+          "rhs_row": "5|Seattle WA Branch|1 Westlake Ave N|Seattle|WA|98101|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "6|Austin TX Branch|1 Congress Ave|Austin|TX|73301|US|2024-12-31",
+          "rhs_row": "6|Austin TX Branch|1 Congress Ave|Austin|TX|73301|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "7|Denver CO Branch|1 Colfax Ave|Denver|CO|80202|US|2024-12-31",
+          "rhs_row": "7|Denver CO Branch|1 Colfax Ave|Denver|CO|80202|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "8|New York NY Branch|1 Park Ave S|New York|NY|10003|US|2024-12-31",
+          "rhs_row": "8|New York NY Branch|1 Park Ave S|New York|NY|10003|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "9|Phoenix AZ Branch|1 N Central Ave|Phoenix|AZ|85004|US|2024-12-31",
+          "rhs_row": "9|Phoenix AZ Branch|1 N Central Ave|Phoenix|AZ|85004|US|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        }
+      ],
+      "uncorrelated_lhs": [],
+      "uncorrelated_rhs": []
+    }
+  },
+  "attestation": "Output equivalence certifies equivalence to the original, NOT correctness in an absolute sense. If the original has a bug and the rewrite faithfully reproduces it, Proofmark reports PASS."
+}

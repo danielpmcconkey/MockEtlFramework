@@ -49,9 +49,9 @@ BR-6: Composite score = (transaction_score * 0.40) + (balance_score * 0.35) + (v
 - Confidence: HIGH
 - Evidence: [CustomerValueCalculator.cs:29-31,105-107] -- weights defined as `transactionWeight = 0.4m`, `balanceWeight = 0.35m`, `visitWeight = 0.25m`.
 
-BR-7: All individual scores and the composite score are rounded to the nearest whole number (0 decimal places) using `Math.Round`.
+BR-7: All individual scores and the composite score are rounded to 2 decimal places using `Math.Round`.
 - Confidence: HIGH
-- Evidence: [CustomerValueCalculator.cs:114-117] -- `Math.Round(..., 0)` applied to all four score fields.
+- Evidence: [CustomerValueCalculator.cs:114-117] -- `Math.Round(..., 2)` applied to all four score fields.
 
 BR-8: Customers with no transactions get transaction_score = 0 (via `GetValueOrDefault(customerId, 0)`).
 - Confidence: HIGH
@@ -80,10 +80,10 @@ BR-12: Iteration is customer-driven. Every customer in the customers DataFrame p
 | customer_id | customers.id | Cast to int via Convert.ToInt32 | [CustomerValueCalculator.cs:88] |
 | first_name | customers.first_name | ToString with null coalesce to "" | [CustomerValueCalculator.cs:89] |
 | last_name | customers.last_name | ToString with null coalesce to "" | [CustomerValueCalculator.cs:90] |
-| transaction_score | Computed | txn_count * 10, capped at 1000, rounded to nearest whole number | [CustomerValueCalculator.cs:94,114] |
-| balance_score | Computed | total_balance / 1000, capped at 1000, rounded to nearest whole number | [CustomerValueCalculator.cs:98,115] |
-| visit_score | Computed | visit_count * 50, capped at 1000, rounded to nearest whole number | [CustomerValueCalculator.cs:102,116] |
-| composite_score | Computed | Weighted sum: 0.4 * txn + 0.35 * bal + 0.25 * visit, rounded to nearest whole number | [CustomerValueCalculator.cs:105-107,117] |
+| transaction_score | Computed | txn_count * 10, capped at 1000, rounded to 2 decimal places | [CustomerValueCalculator.cs:94,114] |
+| balance_score | Computed | total_balance / 1000, capped at 1000, rounded to 2 decimal places | [CustomerValueCalculator.cs:98,115] |
+| visit_score | Computed | visit_count * 50, capped at 1000, rounded to 2 decimal places | [CustomerValueCalculator.cs:102,116] |
+| composite_score | Computed | Weighted sum: 0.4 * txn + 0.35 * bal + 0.25 * visit, rounded to 2 decimal places | [CustomerValueCalculator.cs:105-107,117] |
 | as_of | customers.as_of | Pass-through | [CustomerValueCalculator.cs:118] |
 
 ## Non-Deterministic Fields
@@ -109,7 +109,7 @@ None identified.
 | Balance score formula | [CustomerValueCalculator.cs:98] |
 | Visit score formula | [CustomerValueCalculator.cs:102] |
 | Composite score weights | [CustomerValueCalculator.cs:29-31,105-107] |
-| Rounding to nearest whole number | [CustomerValueCalculator.cs:114-117] |
+| Rounding to 2 decimal places | [CustomerValueCalculator.cs:114-117] |
 | Orphan transaction skip | [CustomerValueCalculator.cs:49] |
 | LF line endings | [customer_value_score.json:44] |
 | Overwrite mode | [customer_value_score.json:43] |

@@ -1,0 +1,27 @@
+{
+  "jobName": "OverdraftRecoveryRateV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "overdraft_events",
+      "schema": "datalake",
+      "table": "overdraft_events",
+      "columns": ["fee_waived"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "output",
+      "sql": "CREATE TABLE IF NOT EXISTS \"overdraft_events\" (\"fee_waived\" INTEGER, \"as_of\" TEXT); SELECT COUNT(*) AS total_events, SUM(CASE WHEN fee_waived = 0 THEN 1 ELSE 0 END) AS charged_count, SUM(CASE WHEN fee_waived = 1 THEN 1 ELSE 0 END) AS waived_count, CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(CASE WHEN fee_waived = 0 THEN 1 ELSE 0 END) / COUNT(*) END AS recovery_rate, MAX(as_of) AS as_of FROM overdraft_events"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "output",
+      "outputFile": "Output/double_secret_curated/overdraft_recovery_rate.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Overwrite",
+      "lineEnding": "LF"
+    }
+  ]
+}

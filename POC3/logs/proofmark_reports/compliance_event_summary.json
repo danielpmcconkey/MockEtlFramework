@@ -1,0 +1,625 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-02T00:30:51Z",
+    "proofmark_version": "0.1.0",
+    "comparison_target": "compliance_event_summary",
+    "config_path": "/workspace/MockEtlFramework/POC3/proofmark_configs/compliance_event_summary.yaml"
+  },
+  "config": {
+    "comparison_target": "compliance_event_summary",
+    "reader": "csv",
+    "threshold": 100.0,
+    "csv": {
+      "header_rows": 1,
+      "trailer_rows": 1
+    }
+  },
+  "column_classifications": [
+    {
+      "name": "event_type",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "status",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "event_count",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    },
+    {
+      "name": "as_of",
+      "classification": "STRICT",
+      "reason": null,
+      "tolerance": null,
+      "tolerance_type": null
+    }
+  ],
+  "summary": {
+    "row_count_lhs": 15,
+    "row_count_rhs": 15,
+    "match_count": 0,
+    "mismatch_count": 15,
+    "match_percentage": 0.0,
+    "result": "FAIL",
+    "threshold": 100.0,
+    "line_break_mismatch": false
+  },
+  "header_comparison": [
+    {
+      "position": 0,
+      "lhs": "event_type,status,event_count,as_of",
+      "rhs": "event_type,status,event_count,as_of",
+      "match": true
+    }
+  ],
+  "trailer_comparison": [
+    {
+      "position": 0,
+      "lhs": "TRAILER|15|2024-12-31",
+      "rhs": "TRAILER|15|2024-10-01",
+      "match": false
+    }
+  ],
+  "mismatches": {
+    "schema_mismatches": null,
+    "hash_groups": [
+      {
+        "hash_value": "0811e9569cfed979dc29f24943630b95",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "AML_FLAG|Cleared|12|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "28134033d25efe803077d0fcf1bb707f",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "ID_VERIFICATION|Open|7|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "295a892c0850be29fa742b8aed9f8f02",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "AML_FLAG|Open|5|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "2f071fc80b940e6626ce949d20268ad2",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "PEP_CHECK|Cleared|17|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "37932429c933525ce44b4425ca9d74ea",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "SANCTIONS_SCREEN|Cleared|14|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "3fa0fd2abd65826f98606e981781b0a8",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "KYC_REVIEW|Escalated|1|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "46f472dbdb0201ca0bcee6169943158f",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "PEP_CHECK|Cleared|17|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "4d4d8782e0263efca75a4bfcff063c1d",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "SANCTIONS_SCREEN|Escalated|2|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "55552b53dddaecc66f0651c8146025fa",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "KYC_REVIEW|Cleared|13|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "626856ecebf460a12475be27b243a2a4",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "KYC_REVIEW|Escalated|1|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "63201e544a592c95aa319644e60e70c9",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "SANCTIONS_SCREEN|Cleared|14|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "67b6dfc6dc5bc11d794a875c1a88c419",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "KYC_REVIEW|Open|8|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "6ae556fc8165678f2611f6a95ca2d4cd",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "ID_VERIFICATION|Cleared|14|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "7c1694dcc2bf993f671c0a9fc7ebb8ea",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "PEP_CHECK|Escalated|3|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "803342e208bf44b10baa3220bf90c182",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "AML_FLAG|Open|5|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "87b7fc70a2bc307b5a6d9a161a4124f2",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "KYC_REVIEW|Cleared|13|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "8a4b3477411f4b9b2af44cd23de550be",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "KYC_REVIEW|Open|8|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "9deb9c60efb2e5f4b1e29b5edd2ef830",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "ID_VERIFICATION|Escalated|4|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "a1b727d2f06b862dc906be40894caeb7",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "ID_VERIFICATION|Cleared|14|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "b2781ba9048e18d86bf236638d6b7d9d",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "ID_VERIFICATION|Escalated|4|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "b755adfabe8f2989c09c4a80c9d4ed96",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "SANCTIONS_SCREEN|Open|4|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "b899f7f35fcac70ef3e87863c954c678",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "AML_FLAG|Escalated|4|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "bb63171e14681f5aebb1b88a752bfd4b",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "AML_FLAG|Escalated|4|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "c6463128225b916e522629a9207468f2",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "PEP_CHECK|Open|7|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "cd821f55f6fe353156c4d933831523a2",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "SANCTIONS_SCREEN|Escalated|2|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "e71658d38d60cf39e09cca6b5e43ba40",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "ID_VERIFICATION|Open|7|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "e7712c25951470dd9cc5ee738bb70168",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "PEP_CHECK|Escalated|3|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f0553f7269113be2342856306f174c3b",
+        "lhs_count": 0,
+        "rhs_count": 1,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "rhs",
+            "content": "PEP_CHECK|Open|7|2024-10-01"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "f980b4b0000734e4ca4d393b7f3b522a",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "AML_FLAG|Cleared|12|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      },
+      {
+        "hash_value": "fbd1a4e910a8bf93a4f716cd6861fd5b",
+        "lhs_count": 1,
+        "rhs_count": 0,
+        "status": "COUNT_MISMATCH",
+        "matched_count": 0,
+        "surplus_rows": [
+          {
+            "side": "lhs",
+            "content": "SANCTIONS_SCREEN|Open|4|12/31/2024"
+          }
+        ],
+        "fuzzy_failures": []
+      }
+    ],
+    "correlation": {
+      "correlated_pairs": [
+        {
+          "lhs_row": "AML_FLAG|Cleared|12|12/31/2024",
+          "rhs_row": "AML_FLAG|Cleared|12|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "AML_FLAG|Escalated|4|12/31/2024",
+          "rhs_row": "AML_FLAG|Escalated|4|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "AML_FLAG|Open|5|12/31/2024",
+          "rhs_row": "AML_FLAG|Open|5|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "ID_VERIFICATION|Cleared|14|12/31/2024",
+          "rhs_row": "ID_VERIFICATION|Cleared|14|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "ID_VERIFICATION|Escalated|4|12/31/2024",
+          "rhs_row": "ID_VERIFICATION|Escalated|4|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "ID_VERIFICATION|Open|7|12/31/2024",
+          "rhs_row": "ID_VERIFICATION|Open|7|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "KYC_REVIEW|Cleared|13|12/31/2024",
+          "rhs_row": "KYC_REVIEW|Cleared|13|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "KYC_REVIEW|Escalated|1|12/31/2024",
+          "rhs_row": "KYC_REVIEW|Escalated|1|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "KYC_REVIEW|Open|8|12/31/2024",
+          "rhs_row": "KYC_REVIEW|Open|8|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "PEP_CHECK|Cleared|17|12/31/2024",
+          "rhs_row": "PEP_CHECK|Cleared|17|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "PEP_CHECK|Escalated|3|12/31/2024",
+          "rhs_row": "PEP_CHECK|Escalated|3|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "PEP_CHECK|Open|7|12/31/2024",
+          "rhs_row": "PEP_CHECK|Open|7|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "SANCTIONS_SCREEN|Cleared|14|12/31/2024",
+          "rhs_row": "SANCTIONS_SCREEN|Cleared|14|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "SANCTIONS_SCREEN|Escalated|2|12/31/2024",
+          "rhs_row": "SANCTIONS_SCREEN|Escalated|2|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        },
+        {
+          "lhs_row": "SANCTIONS_SCREEN|Open|4|12/31/2024",
+          "rhs_row": "SANCTIONS_SCREEN|Open|4|2024-10-01",
+          "confidence": "high",
+          "differing_columns": [
+            "as_of"
+          ]
+        }
+      ],
+      "uncorrelated_lhs": [],
+      "uncorrelated_rhs": []
+    }
+  },
+  "attestation": "Output equivalence certifies equivalence to the original, NOT correctness in an absolute sense. If the original has a bug and the rewrite faithfully reproduces it, Proofmark reports PASS."
+}

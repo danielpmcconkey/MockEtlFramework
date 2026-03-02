@@ -1,0 +1,18 @@
+{
+  "jobName": "CustomerAddressDeltasV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CustomerAddressDeltasV2Processor"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/customer_address_deltas/",
+      "numParts": 1,
+      "writeMode": "Append"
+    }
+  ]
+}

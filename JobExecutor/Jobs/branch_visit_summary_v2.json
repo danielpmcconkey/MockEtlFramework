@@ -1,0 +1,34 @@
+{
+  "jobName": "BranchVisitSummaryV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "branch_visits",
+      "schema": "datalake",
+      "table": "branch_visits",
+      "columns": ["branch_id"]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "branches",
+      "schema": "datalake",
+      "table": "branches",
+      "columns": ["branch_id", "branch_name"]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "visit_summary",
+      "sql": "SELECT bv.branch_id, b.branch_name, bv.as_of, COUNT(*) AS visit_count FROM branch_visits bv LEFT JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of GROUP BY bv.branch_id, b.branch_name, bv.as_of ORDER BY bv.as_of, bv.branch_id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "visit_summary",
+      "outputFile": "Output/double_secret_curated/branch_visit_summary.csv",
+      "includeHeader": true,
+      "trailerFormat": "TRAILER|{row_count}|{date}",
+      "writeMode": "Append",
+      "lineEnding": "LF"
+    }
+  ]
+}

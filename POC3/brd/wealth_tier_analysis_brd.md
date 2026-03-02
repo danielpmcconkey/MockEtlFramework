@@ -29,12 +29,12 @@ BR-1: Total wealth per customer is computed by summing all account balances (cur
 - Evidence: [WealthTierAnalyzer.cs:30-47] -- two loops accumulate `wealthByCustomer[custId]` from accounts and investments.
 
 BR-2: Wealth tier thresholds are:
-- Bronze: wealth < $25,000
-- Silver: $25,000 <= wealth < $100,000
+- Bronze: wealth < $10,000
+- Silver: $10,000 <= wealth < $100,000
 - Gold: $100,000 <= wealth < $500,000
 - Platinum: wealth >= $500,000
 - Confidence: HIGH
-- Evidence: [WealthTierAnalyzer.cs:59-65] -- explicit if/else chain with 25000m, 100000m, 500000m boundaries.
+- Evidence: [WealthTierAnalyzer.cs:59-65] -- explicit if/else chain with 10000m, 100000m, 500000m boundaries.
 
 BR-3: Only customers who have at least one account or investment record appear in the wealth calculation. Customers with neither are not represented.
 - Confidence: HIGH
@@ -48,9 +48,9 @@ BR-5: Output tier order is fixed: Bronze, Silver, Gold, Platinum.
 - Confidence: HIGH
 - Evidence: [WealthTierAnalyzer.cs:74] -- `foreach (var tier in new[] { "Bronze", "Silver", "Gold", "Platinum" })`.
 
-BR-6: `pct_of_customers` uses standard rounding (MidpointRounding.AwayFromZero) to 2 decimal places. The percentage is `(count / totalCustomers) * 100`.
+BR-6: `pct_of_customers` uses banker's rounding (MidpointRounding.ToEven) to 2 decimal places. The percentage is `(count / totalCustomers) * 100`.
 - Confidence: HIGH
-- Evidence: [WealthTierAnalyzer.cs:79-80] -- `Math.Round((decimal)count / totalCustomers * 100m, 2, MidpointRounding.AwayFromZero)`.
+- Evidence: [WealthTierAnalyzer.cs:79-80] -- `Math.Round((decimal)count / totalCustomers * 100m, 2, MidpointRounding.ToEven)`.
 
 BR-7: `total_wealth` and `avg_wealth` also use banker's rounding (MidpointRounding.ToEven) to 2 decimal places.
 - Confidence: HIGH
@@ -98,7 +98,7 @@ None identified.
 - **Customer with negative balances**: Could reduce total wealth, potentially shifting tier assignment. No floor is applied.
 - **Customer with accounts but no investments (or vice versa)**: Their wealth is based on whichever data exists.
 - **Customers table for guard only**: The empty guard checks customers, but the wealth calculation is driven entirely by accounts and investments. A customer with no accounts or investments would pass the guard but not appear in wealth calculations.
-- **Standard rounding for pct_of_customers**: MidpointRounding.AwayFromZero means 0.5 rounds to 1, 1.5 rounds to 2, etc. Banker's rounding (ToEven) is used only for total_wealth and avg_wealth.
+- **Banker's rounding for all fields**: MidpointRounding.ToEven is used consistently for pct_of_customers, total_wealth, and avg_wealth. With banker's rounding, 0.5 rounds to 0, 1.5 rounds to 2 (rounds to even).
 - **Trailer line**: Contains row_count (always 4 in normal execution) and date (from __maxEffectiveDate).
 
 ## Traceability Matrix

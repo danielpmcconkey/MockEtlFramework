@@ -1,0 +1,18 @@
+{
+  "jobName": "CoveredTransactionsV2",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "External",
+      "assemblyPath": "ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.CoveredTransactionsV2Processor"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "output",
+      "outputDirectory": "Output/double_secret_curated/covered_transactions/",
+      "numParts": 4,
+      "writeMode": "Append"
+    }
+  ]
+}
