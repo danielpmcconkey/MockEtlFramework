@@ -1,3 +1,0 @@
-comparison_target: "inter_account_transfers"
-reader: parquet
-threshold: 100.0

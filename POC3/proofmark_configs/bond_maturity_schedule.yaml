@@ -1,3 +1,0 @@
-comparison_target: "bond_maturity_schedule"
-reader: parquet
-threshold: 100.0

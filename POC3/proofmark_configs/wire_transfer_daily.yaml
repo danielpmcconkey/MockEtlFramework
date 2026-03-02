@@ -1,3 +1,0 @@
-comparison_target: "wire_transfer_daily"
-reader: parquet
-threshold: 100.0

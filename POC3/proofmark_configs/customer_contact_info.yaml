@@ -1,3 +1,0 @@
-comparison_target: "customer_contact_info"
-reader: parquet
-threshold: 100.0

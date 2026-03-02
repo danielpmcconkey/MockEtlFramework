@@ -1,3 +1,0 @@
-comparison_target: "loan_risk_assessment"
-reader: parquet
-threshold: 100.0

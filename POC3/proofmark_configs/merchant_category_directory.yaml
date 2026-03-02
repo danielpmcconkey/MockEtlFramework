@@ -1,6 +1,0 @@
-comparison_target: "merchant_category_directory"
-reader: csv
-threshold: 100.0
-csv:
-  header_rows: 1
-  trailer_rows: 0

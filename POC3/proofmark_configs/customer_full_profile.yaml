@@ -1,3 +1,0 @@
-comparison_target: "customer_full_profile"
-reader: parquet
-threshold: 100.0

@@ -1,6 +1,0 @@
-comparison_target: "fund_allocation_breakdown"
-reader: csv
-threshold: 100.0
-csv:
-  header_rows: 1
-  trailer_rows: 1

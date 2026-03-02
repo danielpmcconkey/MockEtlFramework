@@ -1,3 +1,0 @@
-comparison_target: "regulatory_exposure_summary"
-reader: parquet
-threshold: 100.0

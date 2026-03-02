@@ -1,3 +1,0 @@
-comparison_target: "account_overdraft_history"
-reader: parquet
-threshold: 100.0

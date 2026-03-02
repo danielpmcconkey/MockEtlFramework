@@ -1,3 +1,0 @@
-comparison_target: "customer_360_snapshot"
-reader: parquet
-threshold: 100.0

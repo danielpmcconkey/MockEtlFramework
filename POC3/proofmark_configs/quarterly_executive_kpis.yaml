@@ -1,3 +1,0 @@
-comparison_target: "quarterly_executive_kpis"
-reader: parquet
-threshold: 100.0

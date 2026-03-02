@@ -1,6 +1,0 @@
-comparison_target: "overdraft_fee_summary"
-reader: csv
-threshold: 100.0
-csv:
-  header_rows: 1
-  trailer_rows: 0

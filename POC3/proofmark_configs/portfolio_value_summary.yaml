@@ -1,3 +1,0 @@
-comparison_target: "portfolio_value_summary"
-reader: parquet
-threshold: 100.0

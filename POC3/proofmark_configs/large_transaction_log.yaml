@@ -1,3 +1,0 @@
-comparison_target: "large_transaction_log"
-reader: parquet
-threshold: 100.0

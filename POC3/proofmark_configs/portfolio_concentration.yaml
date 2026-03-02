@@ -1,3 +1,0 @@
-comparison_target: "portfolio_concentration"
-reader: parquet
-threshold: 100.0

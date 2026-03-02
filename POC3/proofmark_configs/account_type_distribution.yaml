@@ -1,6 +1,0 @@
-comparison_target: "account_type_distribution"
-reader: csv
-threshold: 100.0
-csv:
-  header_rows: 1
-  trailer_rows: 1

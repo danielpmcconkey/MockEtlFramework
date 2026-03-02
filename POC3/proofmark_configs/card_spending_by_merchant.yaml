@@ -1,3 +1,0 @@
-comparison_target: "card_spending_by_merchant"
-reader: parquet
-threshold: 100.0

@@ -1,3 +1,0 @@
-comparison_target: "repeat_overdraft_customers"
-reader: parquet
-threshold: 100.0

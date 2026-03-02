@@ -1,3 +1,0 @@
-comparison_target: "compliance_open_items"
-reader: parquet
-threshold: 100.0

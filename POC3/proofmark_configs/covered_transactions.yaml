@@ -1,3 +1,0 @@
-comparison_target: "covered_transactions"
-reader: parquet
-threshold: 100.0

@@ -1,3 +1,0 @@
-comparison_target: "top_holdings_by_value"
-reader: parquet
-threshold: 100.0

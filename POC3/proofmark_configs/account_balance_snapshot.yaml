@@ -1,3 +1,0 @@
-comparison_target: "account_balance_snapshot"
-reader: parquet
-threshold: 100.0

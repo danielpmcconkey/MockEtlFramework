@@ -1,3 +1,0 @@
-comparison_target: "email_opt_in_rate"
-reader: parquet
-threshold: 100.0

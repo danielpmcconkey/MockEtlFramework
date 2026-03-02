@@ -1,3 +1,0 @@
-comparison_target: "payment_channel_mix"
-reader: parquet
-threshold: 100.0

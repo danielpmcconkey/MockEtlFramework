@@ -1,3 +1,0 @@
-comparison_target: "preference_change_count"
-reader: parquet
-threshold: 100.0

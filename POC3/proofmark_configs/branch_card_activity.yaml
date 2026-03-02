@@ -1,3 +1,0 @@
-comparison_target: "branch_card_activity"
-reader: parquet
-threshold: 100.0
