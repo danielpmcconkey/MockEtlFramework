@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Lib.Control;
 
 namespace JobExecutor;
@@ -38,6 +39,9 @@ class Program
         }
 
         var service = new JobExecutorService();
+        var sw = Stopwatch.StartNew();
         service.Run(effectiveDate, jobName);
+        sw.Stop();
+        Console.WriteLine($"Job execution completed in {sw.ElapsedMilliseconds}ms.");
     }
 }
