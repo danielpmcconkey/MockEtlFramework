@@ -5,6 +5,7 @@ namespace JobExecutor;
 
 /// <summary>
 /// Usage:
+///   JobExecutor --service                 — long-running queue executor (polls control.task_queue)
 ///   JobExecutor                           — auto-advance all active jobs
 ///   JobExecutor &lt;job_name&gt;               — auto-advance one specific job
 ///   JobExecutor &lt;effective_date&gt;          — run exactly that date, all jobs  (backfill)
@@ -18,6 +19,17 @@ class Program
 {
     static void Main(string[] args)
     {
+        // --service mode: long-running queue executor
+        if (args.Length >= 1 && args[0] == "--service")
+        {
+            var queueService = new TaskQueueService();
+            var sw = Stopwatch.StartNew();
+            queueService.Run();
+            sw.Stop();
+            Console.WriteLine($"Queue execution completed in {sw.ElapsedMilliseconds}ms.");
+            return;
+        }
+
         DateOnly? effectiveDate = null;
         string?   jobName      = null;
 
@@ -39,9 +51,9 @@ class Program
         }
 
         var service = new JobExecutorService();
-        var sw = Stopwatch.StartNew();
+        var sw2 = Stopwatch.StartNew();
         service.Run(effectiveDate, jobName);
-        sw.Stop();
-        Console.WriteLine($"Job execution completed in {sw.ElapsedMilliseconds}ms.");
+        sw2.Stop();
+        Console.WriteLine($"Job execution completed in {sw2.ElapsedMilliseconds}ms.");
     }
 }

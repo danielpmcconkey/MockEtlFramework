@@ -92,8 +92,10 @@ Orchestration layer that sits above `JobRunner`. Reads job registrations and dep
 | `JobRegistration` | Model for a `control.jobs` row — job ID, name, description, conf path, and active flag. |
 | `JobDependency` | Model for a `control.job_dependencies` row — downstream job ID, upstream job ID, and dependency type (`SameDay` or `Latest`). |
 | `ControlDb` | Internal static data-access layer for the control schema. Reads: `GetActiveJobs`, `GetAllDependencies`, `GetSucceededJobIds`, `GetEverSucceededJobIds`, `GetLastSucceededMaxEffectiveDate`, `GetNextAttemptNumber` (keyed by effective date range). Writes: `InsertRun` (records `run_date`, `min_effective_date`, `max_effective_date`), `MarkRunning`, `MarkSucceeded`, `MarkFailed`, `MarkSkipped`. |
-| `ExecutionPlan` | Internal static class that applies Kahn's topological sort to produce an ordered run list. Only unsatisfied dependency edges are counted: a `SameDay` edge is satisfied if the upstream job already succeeded for this `run_date`; a `Latest` edge is satisfied if the upstream job has ever succeeded. Jobs that already succeeded today are excluded from the plan. Throws `InvalidOperationException` on cycle detection. |
+| `ExecutionPlan` | Internal static class that applies Kahn's topological sort to produce an ordered run list. Only unsatisfied dependency edges are counted: `SameDay` edges are always treated as unsatisfied (checked at execution time); a `Latest` edge is satisfied if the upstream job has ever succeeded. Throws `InvalidOperationException` on cycle detection. |
 | `JobExecutorService` | Public orchestrator. Loads jobs and dependencies, builds the execution plan, then for each job computes the pending effective date sequence (gap-fill from last succeeded `max_effective_date` + 1 day to today, using `firstEffectiveDate` from the job conf on first run). Injects dates into shared state and runs each pipeline through `JobRunner`. Records `Pending → Running → Succeeded / Failed` in `control.job_runs` per effective date. Failed jobs stop their own gap-fill sequence; their `SameDay` dependents are recorded as `Skipped`. Accepts an optional `effectiveDateOverride` (single-date backfill/rerun) and `specificJobName`. |
+| `TaskQueueService` | Long-running queue-based executor. Polls `control.task_queue` for pending tasks and executes them across 5 threads (4 parallel + 1 serial). Each thread has its own DB connection. Task claim uses `FOR UPDATE SKIP LOCKED` to prevent races. Exits when all threads find an empty queue. No SIGINT handler — on kill, `try/finally` marks in-flight tasks as Failed. |
+| `TaskQueueItem` | Internal model for a claimed task from the queue — task ID, job name, effective date, execution mode. |
 
 **Dependency types:**
 
@@ -106,16 +108,44 @@ Orchestration layer that sits above `JobRunner`. Reads job registrations and dep
 
 ### `JobExecutor` (Console Application)
 
-Entry point for running jobs from the command line. Delegates to `JobExecutorService`.
+Entry point for running jobs from the command line.
 
 ```
+JobExecutor --service                    # long-running queue executor (polls control.task_queue)
 JobExecutor                              # auto-advance all active jobs
 JobExecutor <job_name>                   # auto-advance one specific job
 JobExecutor <effective_date>             # backfill a specific date, all jobs
 JobExecutor <effective_date> <job_name>  # backfill a specific date, one job
 ```
 
-If the first argument parses as `yyyy-MM-dd` it is treated as an effective date override; otherwise it is treated as a job name and auto-advance mode is used. `run_date` is always set to today internally and is never a CLI argument.
+**`--service` mode** delegates to `TaskQueueService`. All other modes delegate to `JobExecutorService`. If the first argument parses as `yyyy-MM-dd` it is treated as an effective date override; otherwise it is treated as a job name and auto-advance mode is used. `run_date` is always set to today internally and is never a CLI argument.
+
+#### Queue Executor (`--service`)
+
+The queue executor is a long-running process that polls `control.task_queue` for pending tasks. It eliminates dotnet startup overhead by paying the JIT cost once, and parallelizes work across 5 threads.
+
+**Threading model:**
+- 4 threads poll for `execution_mode = 'parallel'` tasks
+- 1 thread polls for `execution_mode = 'serial'` tasks
+- Each thread has its own DB connection (Npgsql is not thread-safe)
+- Task claim uses `FOR UPDATE SKIP LOCKED` (Postgres row-level locking)
+
+**Lifecycle:** Start the executor, populate the queue via SQL, executor picks up work automatically. When all threads find an empty queue, the service exits.
+
+**Queue population example:**
+```sql
+INSERT INTO control.task_queue (job_name, effective_date, execution_mode)
+SELECT j.job_name, d.dt::date, 'parallel'
+FROM control.jobs j
+CROSS JOIN generate_series('2024-10-01'::date, '2024-12-31'::date, '1 day') d(dt)
+WHERE j.is_active = true
+ORDER BY d.dt, j.job_name;
+```
+
+**Monitoring:**
+```sql
+SELECT status, COUNT(*) FROM control.task_queue GROUP BY status;
+```
 
 **Sample job configuration** (`JobExecutor/Jobs/customer_account_summary.json`, registered in `control.jobs`):
 ```json

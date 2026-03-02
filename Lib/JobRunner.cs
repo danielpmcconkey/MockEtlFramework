@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json;
 
 namespace Lib;
@@ -29,12 +28,10 @@ public class JobRunner
         {
             var type = moduleElement.GetProperty("type").GetString();
 
-            var sw = Stopwatch.StartNew();
             var module = ModuleFactory.Create(moduleElement);
             sharedState = module.Execute(sharedState);
-            sw.Stop();
 
-            Console.WriteLine($"[JobRunner]   {type}: {sw.ElapsedMilliseconds}ms");
+            Console.WriteLine($"[JobRunner]   {type}");
         }
 
         Console.WriteLine($"[JobRunner] Job complete: {jobConf.JobName}");

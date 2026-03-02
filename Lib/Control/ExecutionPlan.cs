@@ -1,16 +1,15 @@
 namespace Lib.Control;
 
 /// <summary>
-/// Builds a topologically sorted execution plan for a set of jobs, excluding
-/// any job that has already succeeded for the given run_date.
+/// Builds a topologically sorted execution plan for a set of jobs.
 /// </summary>
 internal static class ExecutionPlan
 {
     /// <summary>
-    /// Returns jobs that still need to run, in an order that respects unsatisfied dependencies.
+    /// Returns jobs in an order that respects unsatisfied dependencies.
     ///
     /// A dependency is satisfied (and therefore ignored for ordering) when:
-    ///   SameDay — the upstream job already succeeded for this run_date (it's in succeededSameDayIds).
+    ///   SameDay — always treated as unsatisfied (will be checked at execution time).
     ///   Latest  — the upstream job has ever succeeded for any run_date (it's in everSucceededIds).
     ///
     /// Throws InvalidOperationException if a dependency cycle is detected among unsatisfied edges.
@@ -18,12 +17,10 @@ internal static class ExecutionPlan
     internal static List<JobRegistration> Build(
         List<JobRegistration> jobs,
         List<JobDependency>   deps,
-        HashSet<int>          succeededSameDayIds,
         HashSet<int>          everSucceededIds)
     {
-        // Jobs that still need to run this invocation.
+        // All requested jobs participate in the plan.
         var toRunById = jobs
-            .Where(j => !succeededSameDayIds.Contains(j.JobId))
             .ToDictionary(j => j.JobId);
 
         // Build adjacency list and in-degree map over only the ordering-relevant edges.
@@ -41,7 +38,7 @@ internal static class ExecutionPlan
 
             // Check if the upstream has already satisfied this dependency.
             bool satisfied = dep.DependencyType == "SameDay"
-                ? succeededSameDayIds.Contains(upstreamId)
+                ? false  // SameDay deps are checked at execution time, not plan time
                 : everSucceededIds.Contains(upstreamId);
 
             if (satisfied) continue;

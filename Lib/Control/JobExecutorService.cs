@@ -34,7 +34,6 @@ public class JobExecutorService
 
         var allJobs       = ControlDb.GetActiveJobs();
         var allDeps       = ControlDb.GetAllDependencies();
-        var succeededToday = ControlDb.GetSucceededJobIds(runDate);
         var everSucceeded  = ControlDb.GetEverSucceededJobIds();
 
         List<JobRegistration> jobsToConsider;
@@ -51,7 +50,7 @@ public class JobExecutorService
             jobsToConsider = allJobs;
         }
 
-        var plan = ExecutionPlan.Build(jobsToConsider, allDeps, succeededToday, everSucceeded);
+        var plan = ExecutionPlan.Build(jobsToConsider, allDeps, everSucceeded);
 
         if (plan.Count == 0)
         {
