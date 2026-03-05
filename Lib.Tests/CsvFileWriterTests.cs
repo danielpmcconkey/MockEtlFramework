@@ -275,4 +275,46 @@ public class CsvFileWriterTests : IDisposable
         Assert.Same(state, result);
         Assert.Equal("keep me", result["other"]);
     }
+
+    [Fact]
+    public void Execute_AppendMode_WithTrailer_StripsTrailerFromPriorPartition()
+    {
+        // Create a prior partition with 2 data rows + a trailer
+        var priorDir = Path.Combine(_tempDir, "testjob", "2024-11-14");
+        Directory.CreateDirectory(priorDir);
+        File.WriteAllText(Path.Combine(priorDir, "output.csv"),
+            "Id,Name,City,etl_effective_date\n1,Alice,New York,2024-11-14\n2,Bob,London,2024-11-14\nTRAILER|2|2024-11-14\n");
+
+        // New data has 1 row, append mode with trailer
+        var newDf = DataFrame.FromObjects(new[] { new { Id = 3, Name = "Charlie", City = "Paris" } });
+        MakeWriter(writeMode: WriteMode.Append, trailerFormat: "TRAILER|{row_count}|{date}")
+            .Execute(MakeState(newDf));
+
+        var lines = ReadLines();
+        // header + 2 prior + 1 new + 1 trailer = 5
+        Assert.Equal(5, lines.Length);
+        // Only the last line should be a trailer
+        Assert.StartsWith("TRAILER|", lines[4]);
+        Assert.Equal($"TRAILER|3|{TestDateStr}", lines[4]);
+        // No prior trailer in the data rows
+        Assert.All(lines.Skip(1).Take(3), line => Assert.DoesNotContain("TRAILER", line));
+    }
+
+    [Fact]
+    public void Execute_AppendMode_WithoutTrailer_DoesNotStripLastRow()
+    {
+        // Create a prior partition with 2 data rows, no trailer
+        var priorDir = Path.Combine(_tempDir, "testjob", "2024-11-14");
+        Directory.CreateDirectory(priorDir);
+        File.WriteAllText(Path.Combine(priorDir, "output.csv"),
+            "Id,Name,City,etl_effective_date\n1,Alice,New York,2024-11-14\n2,Bob,London,2024-11-14\n");
+
+        // New data has 1 row, append mode WITHOUT trailer
+        var newDf = DataFrame.FromObjects(new[] { new { Id = 3, Name = "Charlie", City = "Paris" } });
+        MakeWriter(writeMode: WriteMode.Append).Execute(MakeState(newDf));
+
+        var lines = ReadLines();
+        // header + 2 prior + 1 new = 4 (nothing stripped)
+        Assert.Equal(4, lines.Length);
+    }
 }

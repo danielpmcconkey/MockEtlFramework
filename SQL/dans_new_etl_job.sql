@@ -34,4 +34,5 @@ left join datalake.customers c on
 	and s1.customer_id = c.id
 where s1.ordinal = 1
 and s1.score <> s2.score
+and s1.customer_id IN (2252, 2581, 2632)
 order by s1.customer_id, s1.bureau

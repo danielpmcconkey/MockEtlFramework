@@ -11,8 +11,9 @@ namespace Lib.Modules;
 /// Effective dates may be supplied in several ways (mutually exclusive):
 ///   1. Directly in the module config (minEffectiveDate / maxEffectiveDate fields in the job conf JSON).
 ///   2. lookbackDays: pulls T-N through T-0 (N calendar days before __etlEffectiveDate).
-///   3. mostRecentPrior: queries the datalake for the latest date before __etlEffectiveDate.
-///   4. Via a reserved shared-state key injected by the executor before the pipeline runs:
+///   3. mostRecentPrior: queries the datalake for the latest date strictly before __etlEffectiveDate.
+///   4. mostRecent: queries the datalake for the latest date on or before __etlEffectiveDate.
+///   5. Via a reserved shared-state key injected by the executor before the pipeline runs:
 ///        "__etlEffectiveDate" (DateOnly).
 /// If neither is present, Execute throws InvalidOperationException.
 /// </summary>
@@ -30,6 +31,7 @@ public class DataSourcing : IModule
     private readonly string    _additionalFilter;
     private readonly int?      _lookbackDays;
     private readonly bool      _mostRecentPrior;
+    private readonly bool      _mostRecent;
 
     public DataSourcing(
         string    resultingDataFrameName,
@@ -40,7 +42,8 @@ public class DataSourcing : IModule
         DateOnly? maxEffectiveDate = null,
         string    additionalFilter = "",
         int?      lookbackDays = null,
-        bool      mostRecentPrior = false)
+        bool      mostRecentPrior = false,
+        bool      mostRecent = false)
     {
         _resultingDataFrameName = resultingDataFrameName ?? throw new ArgumentNullException(nameof(resultingDataFrameName));
         _schema                 = schema                ?? throw new ArgumentNullException(nameof(schema));
@@ -51,6 +54,7 @@ public class DataSourcing : IModule
         _additionalFilter       = additionalFilter      ?? "";
         _lookbackDays           = lookbackDays;
         _mostRecentPrior        = mostRecentPrior;
+        _mostRecent             = mostRecent;
 
         ValidateDateModes();
     }
@@ -59,14 +63,16 @@ public class DataSourcing : IModule
     {
         var hasStaticDates = _minEffectiveDate.HasValue || _maxEffectiveDate.HasValue;
         var hasLookback = _lookbackDays.HasValue;
-        var hasMostRecent = _mostRecentPrior;
+        var hasMostRecentPrior = _mostRecentPrior;
+        var hasMostRecent = _mostRecent;
 
-        var modeCount = (hasStaticDates ? 1 : 0) + (hasLookback ? 1 : 0) + (hasMostRecent ? 1 : 0);
+        var modeCount = (hasStaticDates ? 1 : 0) + (hasLookback ? 1 : 0)
+                      + (hasMostRecentPrior ? 1 : 0) + (hasMostRecent ? 1 : 0);
 
         if (modeCount > 1)
             throw new ArgumentException(
                 "DataSourcing date modes are mutually exclusive. " +
-                "Specify only one of: static dates (minEffectiveDate/maxEffectiveDate), lookbackDays, or mostRecentPrior.");
+                "Specify only one of: static dates (minEffectiveDate/maxEffectiveDate), lookbackDays, mostRecentPrior, or mostRecent.");
 
         if (_lookbackDays.HasValue && _lookbackDays.Value < 0)
             throw new ArgumentOutOfRangeException(nameof(_lookbackDays), "lookbackDays must be >= 0.");
@@ -74,22 +80,44 @@ public class DataSourcing : IModule
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        var (minDate, maxDate) = ResolveDateRange(sharedState);
-        sharedState[_resultingDataFrameName] = FetchData(minDate, maxDate);
+        var dateRange = ResolveDateRange(sharedState);
+
+        if (dateRange is null)
+        {
+            // No matching date found (mostRecentPrior/mostRecent with no data) — empty DataFrame
+            var columns = _columnNames.Contains("ifw_effective_date", StringComparer.OrdinalIgnoreCase)
+                ? _columnNames
+                : _columnNames.Append("ifw_effective_date").ToArray();
+            sharedState[_resultingDataFrameName] = new DataFrame(columns);
+        }
+        else
+        {
+            var (minDate, maxDate) = dateRange.Value;
+            sharedState[_resultingDataFrameName] = FetchData(minDate, maxDate);
+        }
+
         return sharedState;
     }
 
     /// <summary>
     /// Resolves the effective min/max date range based on the configured mode.
+    /// Returns null when mostRecentPrior/mostRecent finds no matching date.
     /// Internal for testability.
     /// </summary>
-    internal (DateOnly min, DateOnly max) ResolveDateRange(Dictionary<string, object> sharedState)
+    internal (DateOnly min, DateOnly max)? ResolveDateRange(Dictionary<string, object> sharedState)
     {
         if (_mostRecentPrior)
         {
             var t0 = GetEtlEffectiveDate(sharedState);
-            var priorDate = QueryMostRecentPriorDate(t0);
-            return (priorDate, priorDate);
+            var priorDate = QueryMostRecentDate(t0, strict: true);
+            return priorDate.HasValue ? (priorDate.Value, priorDate.Value) : null;
+        }
+
+        if (_mostRecent)
+        {
+            var t0 = GetEtlEffectiveDate(sharedState);
+            var recentDate = QueryMostRecentDate(t0, strict: false);
+            return recentDate.HasValue ? (recentDate.Value, recentDate.Value) : null;
         }
 
         if (_lookbackDays.HasValue)
@@ -116,27 +144,27 @@ public class DataSourcing : IModule
     }
 
     /// <summary>
-    /// Queries the datalake for the most recent ifw_effective_date strictly before the given date.
+    /// Queries the datalake for the most recent ifw_effective_date.
+    /// When strict is true, uses &lt; (strictly before). When false, uses &lt;= (on or before).
     /// </summary>
-    private DateOnly QueryMostRecentPriorDate(DateOnly beforeDate)
+    private DateOnly? QueryMostRecentDate(DateOnly asOfDate, bool strict)
     {
+        var op = strict ? "<" : "<=";
         var query = $@"
             SELECT MAX(ifw_effective_date)
             FROM ""{_schema}"".""{_tableName}""
-            WHERE ifw_effective_date < @date";
+            WHERE ifw_effective_date {op} @date";
 
         using var connection = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
         connection.Open();
 
         using var command = new NpgsqlCommand(query, connection);
-        command.Parameters.AddWithValue("@date", beforeDate.ToDateTime(TimeOnly.MinValue));
+        command.Parameters.AddWithValue("@date", asOfDate.ToDateTime(TimeOnly.MinValue));
 
         var result = command.ExecuteScalar();
 
         if (result is null or DBNull)
-            throw new InvalidOperationException(
-                $"DataSourcing '{_resultingDataFrameName}': no prior date found in " +
-                $"\"{_schema}\".\"{_tableName}\" before {beforeDate:yyyy-MM-dd}.");
+            return null;
 
         return DateOnly.FromDateTime((DateTime)result);
     }

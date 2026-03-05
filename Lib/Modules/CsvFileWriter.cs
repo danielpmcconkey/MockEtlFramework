@@ -57,7 +57,12 @@ public class CsvFileWriter : IModule
                 var priorPath = Path.Combine(jobDir, priorDate, _fileName);
                 if (File.Exists(priorPath))
                 {
-                    var priorDf = DataFrame.FromCsv(priorPath);
+                    var lines = File.ReadAllLines(priorPath);
+                    if (_trailerFormat != null && lines.Length > 1)
+                    {
+                        lines = lines[..^1];
+                    }
+                    var priorDf = DataFrame.FromCsvLines(lines);
                     priorDf = priorDf.Drop("etl_effective_date");
                     df = priorDf.Union(df);
                 }

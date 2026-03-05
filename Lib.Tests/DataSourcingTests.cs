@@ -6,9 +6,10 @@ public class DataSourcingTests
 {
     private static DataSourcing MakeModule(
         DateOnly? minDate = null, DateOnly? maxDate = null,
-        int? lookbackDays = null, bool mostRecentPrior = false) => new(
+        int? lookbackDays = null, bool mostRecentPrior = false,
+        bool mostRecent = false) => new(
         "test_result", "datalake", "test_table", new[] { "id", "name" },
-        minDate, maxDate, "", lookbackDays, mostRecentPrior);
+        minDate, maxDate, "", lookbackDays, mostRecentPrior, mostRecent);
 
     // --- Validation: mutually exclusive modes ---
 
@@ -65,7 +66,7 @@ public class DataSourcingTests
             [DataSourcing.EtlEffectiveDateKey] = new DateOnly(2024, 10, 15)
         };
 
-        var (min, max) = module.ResolveDateRange(state);
+        var (min, max) = module.ResolveDateRange(state)!.Value;
 
         Assert.Equal(new DateOnly(2024, 10, 12), min);
         Assert.Equal(new DateOnly(2024, 10, 15), max);
@@ -80,7 +81,7 @@ public class DataSourcingTests
             [DataSourcing.EtlEffectiveDateKey] = new DateOnly(2024, 10, 15)
         };
 
-        var (min, max) = module.ResolveDateRange(state);
+        var (min, max) = module.ResolveDateRange(state)!.Value;
 
         Assert.Equal(new DateOnly(2024, 10, 15), min);
         Assert.Equal(new DateOnly(2024, 10, 15), max);
@@ -97,7 +98,7 @@ public class DataSourcingTests
             [DataSourcing.EtlEffectiveDateKey] = new DateOnly(2024, 10, 15)
         };
 
-        var (min, max) = module.ResolveDateRange(state);
+        var (min, max) = module.ResolveDateRange(state)!.Value;
 
         Assert.Equal(new DateOnly(2024, 10, 15), min);
         Assert.Equal(new DateOnly(2024, 10, 15), max);
@@ -114,7 +115,7 @@ public class DataSourcingTests
             [DataSourcing.EtlEffectiveDateKey] = new DateOnly(2024, 10, 15)
         };
 
-        var (min, max) = module.ResolveDateRange(state);
+        var (min, max) = module.ResolveDateRange(state)!.Value;
 
         Assert.Equal(new DateOnly(2024, 1, 1), min);
         Assert.Equal(new DateOnly(2024, 1, 31), max);
@@ -143,6 +144,45 @@ public class DataSourcingTests
     {
         // mostRecentPrior also needs __etlEffectiveDate to know what "prior" means
         var module = MakeModule(mostRecentPrior: true);
+        var state = new Dictionary<string, object>();
+
+        Assert.Throws<InvalidOperationException>(() => module.ResolveDateRange(state));
+    }
+
+    // --- mostRecent mode: constructor validation ---
+
+    [Fact]
+    public void Constructor_MostRecentOnly_DoesNotThrow()
+    {
+        var module = MakeModule(mostRecent: true);
+        Assert.NotNull(module);
+    }
+
+    [Fact]
+    public void Constructor_MostRecentAndStaticDates_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            MakeModule(minDate: new DateOnly(2024, 1, 1), mostRecent: true));
+    }
+
+    [Fact]
+    public void Constructor_MostRecentAndLookback_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            MakeModule(lookbackDays: 3, mostRecent: true));
+    }
+
+    [Fact]
+    public void Constructor_MostRecentAndMostRecentPrior_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            MakeModule(mostRecentPrior: true, mostRecent: true));
+    }
+
+    [Fact]
+    public void ResolveDateRange_MostRecent_MissingEtlDate_Throws()
+    {
+        var module = MakeModule(mostRecent: true);
         var state = new Dictionary<string, object>();
 
         Assert.Throws<InvalidOperationException>(() => module.ResolveDateRange(state));

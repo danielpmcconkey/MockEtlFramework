@@ -34,7 +34,8 @@ public static class ModuleFactory
         el.TryGetProperty("maxEffectiveDate", out var maxEl) ? DateOnly.Parse(maxEl.GetString()!) : null,
         el.TryGetProperty("additionalFilter", out var af)    ? af.GetString() ?? ""                : "",
         el.TryGetProperty("lookbackDays", out var lb)        ? lb.GetInt32()                       : null,
-        el.TryGetProperty("mostRecentPrior", out var mrp) && mrp.GetBoolean()
+        el.TryGetProperty("mostRecentPrior", out var mrp) && mrp.GetBoolean(),
+        el.TryGetProperty("mostRecent", out var mr) && mr.GetBoolean()
     );
 
     private static Transformation CreateTransformation(JsonElement el) => new(

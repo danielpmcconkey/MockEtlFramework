@@ -43,7 +43,7 @@ public class Transformation : IModule
 
     private static void RegisterTable(SqliteConnection connection, string tableName, DataFrame df)
     {
-        if (!df.Rows.Any()) return;
+        if (!df.Columns.Any()) return;
 
         var columnTypes = df.Columns.ToDictionary(
             col => col,
@@ -54,6 +54,8 @@ public class Transformation : IModule
         using var createCmd = connection.CreateCommand();
         createCmd.CommandText = $"CREATE TABLE \"{tableName}\" ({string.Join(", ", columnDefs)})";
         createCmd.ExecuteNonQuery();
+
+        if (!df.Rows.Any()) return;
 
         var colNames = string.Join(", ", df.Columns.Select(c => $"\"{c}\""));
         var paramNames = string.Join(", ", df.Columns.Select((_, i) => $"@p{i}"));

@@ -15,6 +15,15 @@ public class DataFrame
         _columns = columns.ToList();
     }
 
+    /// <summary>
+    /// Creates an empty DataFrame with the specified column schema.
+    /// </summary>
+    public DataFrame(IEnumerable<string> columns)
+    {
+        _rows = new List<Row>();
+        _columns = columns.ToList();
+    }
+
     public DataFrame(IEnumerable<Dictionary<string, object?>> data)
     {
         var dataList = data.ToList();
@@ -334,12 +343,20 @@ public class DataFrame
     public static DataFrame FromCsv(string filePath, bool header = true, string separator = ",")
     {
         var lines = File.ReadAllLines(filePath);
+        return FromCsvLines(lines, header, separator);
+    }
+
+    /// <summary>
+    /// Create DataFrame from pre-read CSV lines (allows caller to strip trailers, etc.)
+    /// </summary>
+    public static DataFrame FromCsvLines(string[] lines, bool header = true, string separator = ",")
+    {
         if (!lines.Any())
         {
             return new DataFrame(new List<Row>(), new List<string>());
         }
 
-        var columns = header 
+        var columns = header
             ? lines[0].Split(separator)
             : Enumerable.Range(0, lines[0].Split(separator).Length).Select(i => $"col_{i}").ToArray();
 

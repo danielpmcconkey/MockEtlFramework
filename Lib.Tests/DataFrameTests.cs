@@ -172,4 +172,60 @@ public class DataFrameTests
         var nyRow = df.Rows.First(r => r["City"]!.ToString() == "New York");
         Assert.Equal(2, (int)nyRow["count"]!);
     }
+
+    // --- Empty DataFrame with column schema ---
+
+    [Fact]
+    public void Constructor_ColumnsOnly_CreatesEmptyFrameWithSchema()
+    {
+        var df = new DataFrame(new[] { "id", "name", "score" });
+        Assert.Equal(0, df.Count);
+        Assert.Equal(new[] { "id", "name", "score" }, df.Columns);
+    }
+
+    [Fact]
+    public void Constructor_ColumnsOnly_EmptyColumns_CreatesEmptyFrame()
+    {
+        var df = new DataFrame(Array.Empty<string>());
+        Assert.Equal(0, df.Count);
+        Assert.Empty(df.Columns);
+    }
+
+    [Fact]
+    public void Constructor_ColumnsOnly_UnionWithPopulatedFrame_Works()
+    {
+        var empty = new DataFrame(new[] { "Name", "Age", "City" });
+        var populated = MakePeopleFrame();
+        var combined = empty.Union(populated);
+        Assert.Equal(3, combined.Count);
+    }
+
+    // --- FromCsvLines ---
+
+    [Fact]
+    public void FromCsvLines_ParsesHeaderAndData()
+    {
+        var lines = new[] { "Id,Name,City", "1,Alice,New York", "2,Bob,London" };
+        var df = DataFrame.FromCsvLines(lines);
+        Assert.Equal(new[] { "Id", "Name", "City" }, df.Columns);
+        Assert.Equal(2, df.Count);
+        Assert.Equal("Alice", df.Rows[0]["Name"]);
+    }
+
+    [Fact]
+    public void FromCsvLines_EmptyArray_ReturnsEmptyFrame()
+    {
+        var df = DataFrame.FromCsvLines(Array.Empty<string>());
+        Assert.Equal(0, df.Count);
+        Assert.Empty(df.Columns);
+    }
+
+    [Fact]
+    public void FromCsvLines_HeaderOnly_ReturnsEmptyFrameWithSchema()
+    {
+        var lines = new[] { "Id,Name,City" };
+        var df = DataFrame.FromCsvLines(lines);
+        Assert.Equal(new[] { "Id", "Name", "City" }, df.Columns);
+        Assert.Equal(0, df.Count);
+    }
 }

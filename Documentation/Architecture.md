@@ -56,7 +56,7 @@ The core framework library. Referenced by both the job executor and the test pro
 
 | Class | Purpose |
 |---|---|
-| `DataFrame` | Immutable, in-memory tabular data structure with a PySpark-inspired fluent API. Constructed via `DataFrame.FromObjects<T>()` or from raw column/row data. |
+| `DataFrame` | Immutable, in-memory tabular data structure with a PySpark-inspired fluent API. Constructed via `DataFrame.FromObjects<T>()`, from raw column/row data, or from files via static factories: `FromCsv(filePath)` (reads a CSV file), `FromCsvLines(string[] lines)` (parses pre-read CSV lines — used when callers need to strip trailers before parsing), and `FromParquet(directoryPath)` (reads all `*.parquet` files in a directory). An empty DataFrame can be created with schema only via `new DataFrame(IEnumerable<string> columns)`. |
 | `Row` | Dictionary-backed row abstraction used by `DataFrame`. Values are `object?`, accessed by column name. |
 | `GroupedDataFrame` | Intermediate result of `DataFrame.GroupBy(...)`. Supports aggregation operations (`Count()`, with room to add `Sum`, `Avg`, etc.). |
 
@@ -65,12 +65,12 @@ The core framework library. Referenced by both the job executor and the test pro
 | Class | Purpose |
 |---|---|
 | `IModule` | Core module interface: `Execute(Dictionary<string, object> sharedState) → Dictionary<string, object>`. All modules implement this contract. |
-| `DataSourcing` | Queries a PostgreSQL data lake schema for a specified table, column list, and effective date range. Returns a single flat `DataFrame` with `ifw_effective_date` appended as a column (skipped if the caller already includes it). Supports an optional `additionalFilter` clause. Date resolution supports four mutually exclusive modes (validated at construction): (1) static dates via `minEffectiveDate`/`maxEffectiveDate` in config, (2) `lookbackDays: N` — pulls T-N through T-0 relative to `__etlEffectiveDate`, (3) `mostRecentPrior: true` — queries the datalake for the latest `ifw_effective_date` before T-0 (handles weekends/gaps), (4) no date fields — both min and max fall back to `__etlEffectiveDate`. |
-| `Transformation` | Opens an in-memory SQLite connection, registers every `DataFrame` in the current shared state as a SQLite table, executes user-supplied free-form SQL, and stores the result `DataFrame` back into shared state under a caller-specified result name. |
+| `DataSourcing` | Queries a PostgreSQL data lake schema for a specified table, column list, and effective date range. Returns a single flat `DataFrame` with `ifw_effective_date` appended as a column (skipped if the caller already includes it). Supports an optional `additionalFilter` clause. Date resolution supports five mutually exclusive modes (validated at construction): (1) static dates via `minEffectiveDate`/`maxEffectiveDate` in config, (2) `lookbackDays: N` — pulls T-N through T-0 relative to `__etlEffectiveDate`, (3) `mostRecentPrior: true` — queries the datalake for the latest `ifw_effective_date` strictly before T-0 (handles weekends/gaps), (4) `mostRecent: true` — queries the datalake for the latest `ifw_effective_date` on or before T-0 (inclusive), (5) no date fields — both min and max fall back to `__etlEffectiveDate`. For modes 3 and 4, if the datalake query finds no matching date, `Execute` returns an empty `DataFrame` with the correct column schema (including `ifw_effective_date`) instead of throwing. |
+| `Transformation` | Opens an in-memory SQLite connection, registers every `DataFrame` in the current shared state as a SQLite table, executes user-supplied free-form SQL, and stores the result `DataFrame` back into shared state under a caller-specified result name. Empty DataFrames (those with columns but zero rows) are registered as schema-only SQLite tables — the `CREATE TABLE` runs but no inserts are performed, so downstream SQL can still reference them in joins/subqueries without error. |
 | `DataFrameWriter` | Writes a named `DataFrame` from shared state to a PostgreSQL curation schema. Auto-creates the target table if it does not exist (type inference from sample values). Supports `Overwrite` mode (truncate then insert) and `Append` mode (insert only). All writes are transaction-wrapped. |
 | `External` | Loads a user-supplied .NET assembly from disk via reflection, locates a named type that implements `IExternalStep`, instantiates it, and delegates `Execute`. Allows teams to inject arbitrary C# logic into any job pipeline without modifying the framework. |
 | `ParquetFileWriter` | Writes a named `DataFrame` from shared state to a directory of Parquet files (`part-00000.parquet`, `part-00001.parquet`, etc.). Supports configurable part count and `Overwrite`/`Append` write modes. Uses Parquet.Net (pure managed C#). Output paths are relative to the solution root. |
-| `CsvFileWriter` | Writes a named `DataFrame` from shared state to a single CSV file. UTF-8 (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting. Supports optional trailer lines with token substitution (`{row_count}`, `{date}`, `{timestamp}`). Output paths are relative to the solution root. |
+| `CsvFileWriter` | Writes a named `DataFrame` from shared state to a date-partitioned CSV file. Output path: `{outputDirectory}/{jobDirName}/{etl_effective_date}/{fileName}`. Injects an `etl_effective_date` column (the current effective date string) into every row before writing. UTF-8 (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting. Supports optional trailer lines with token substitution (`{row_count}`, `{date}`, `{timestamp}`). In **Append** mode, the writer reads the prior partition's CSV (located via `DatePartitionHelper`), strips the trailing record when `trailerFormat` is set (using `File.ReadAllLines` + `lines[..^1]` + `DataFrame.FromCsvLines` instead of `DataFrame.FromCsv` to prevent the prior trailer from being parsed as a data row), drops the prior `etl_effective_date` column, and unions the prior data with the current DataFrame before writing. Output paths are relative to the solution root. |
 | `IExternalStep` | Interface that external assemblies must implement to be callable via the `External` module. |
 | `ModuleFactory` | Static factory. Reads the `type` discriminator field from a `JsonElement` and instantiates the appropriate `IModule` implementation. Throws `InvalidOperationException` on unknown types and propagates `KeyNotFoundException` if the `type` field is absent. |
 
@@ -189,11 +189,14 @@ Note that no date fields appear in the `DataSourcing` modules above — the exec
 // Lookback: pull T-3 through T-0 (4 days inclusive)
 { "type": "DataSourcing", "lookbackDays": 3, ... }
 
-// Most recent prior: query datalake for latest date before T-0
+// Most recent prior: query datalake for latest date strictly before T-0
 { "type": "DataSourcing", "mostRecentPrior": true, ... }
+
+// Most recent: query datalake for latest date on or before T-0
+{ "type": "DataSourcing", "mostRecent": true, ... }
 ```
 
-Date modes are mutually exclusive — mixing `lookbackDays`, `mostRecentPrior`, or static dates throws at construction time.
+Date modes are mutually exclusive — mixing `lookbackDays`, `mostRecentPrior`, `mostRecent`, or static dates throws at construction time. For `mostRecentPrior` and `mostRecent`, if no matching date exists in the datalake, the module stores an empty DataFrame with the correct column schema rather than throwing.
 
 ---
 
@@ -268,13 +271,15 @@ Writes a DataFrame to one or more Parquet part files in a directory. Uses Parque
 
 ### CsvFileWriter
 
-Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting rules.
+Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirectory}/{jobDirName}/{etl_effective_date}/{fileName}`. Injects an `etl_effective_date` column into every row. UTF-8 encoding (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting rules.
 
 | JSON Property | Required | Default | Description |
 |---|---|---|---|
 | `type` | Yes | — | `"CsvFileWriter"` |
 | `source` | Yes | — | Name of the DataFrame in shared state |
-| `outputFile` | Yes | — | File path (relative to solution root) |
+| `outputDirectory` | Yes | — | Base directory (relative to solution root) |
+| `jobDirName` | Yes | — | Subdirectory name under the base directory |
+| `fileName` | Yes | — | Name of the CSV file within the date partition |
 | `includeHeader` | No | `true` | Whether to write a header row |
 | `trailerFormat` | No | `null` | Trailer line format string (see below) |
 | `writeMode` | Yes | — | `"Overwrite"` or `"Append"` |
@@ -282,12 +287,16 @@ Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), configurable l
 
 **Trailer tokens:** `{row_count}` (data rows, excluding header/trailer), `{date}` (effective date from `__etlEffectiveDate` in shared state), `{timestamp}` (UTC now, ISO 8601).
 
+**Append mode trailer stripping:** When `writeMode` is `Append` and `trailerFormat` is set, the writer reads the prior partition's CSV as raw lines (`File.ReadAllLines`), strips the last line (the prior trailer) via `lines[..^1]`, and parses the remaining lines with `DataFrame.FromCsvLines` instead of `DataFrame.FromCsv`. This prevents the prior trailer from being carried forward as a data row. The prior partition's `etl_effective_date` column is dropped before unioning with the current DataFrame (since the column is re-injected with the current date).
+
 **Vanilla CSV example:**
 ```json
 {
   "type": "CsvFileWriter",
   "source": "output",
-  "outputFile": "Output/curated/customer_contact_info.csv",
+  "outputDirectory": "Output/curated",
+  "jobDirName": "customer_contact_info",
+  "fileName": "customer_contact_info.csv",
   "writeMode": "Overwrite"
 }
 ```
@@ -297,7 +306,9 @@ Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), configurable l
 {
   "type": "CsvFileWriter",
   "source": "output",
-  "outputFile": "Output/curated/daily_txn_summary.csv",
+  "outputDirectory": "Output/curated",
+  "jobDirName": "daily_txn_summary",
+  "fileName": "daily_txn_summary.csv",
   "trailerFormat": "TRAILER|{row_count}|{date}",
   "writeMode": "Overwrite"
 }

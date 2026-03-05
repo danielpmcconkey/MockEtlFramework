@@ -90,4 +90,54 @@ public class TransformationTests
         var result = new Transformation("out", "SELECT * FROM people").Execute(state);
         Assert.Equal(3, ((DataFrame)result["out"]).Count);
     }
+
+    // --- Empty DataFrame registration ---
+
+    [Fact]
+    public void Execute_EmptyDataFrame_RegistersTableWithSchema()
+    {
+        var empty = new DataFrame(new[] { "id", "name" });
+        var state = new Dictionary<string, object> { ["empty_table"] = empty };
+        var result = new Transformation("out", "SELECT * FROM empty_table").Execute(state);
+        var df = (DataFrame)result["out"];
+        Assert.Equal(0, df.Count);
+    }
+
+    [Fact]
+    public void Execute_LeftJoinEmptyDataFrame_ReturnsLeftRowsWithNulls()
+    {
+        var scores = DataFrame.FromObjects(new[]
+        {
+            new { customer_id = 1, bureau = "Equifax", score = 750 },
+            new { customer_id = 2, bureau = "Equifax", score = 680 }
+        });
+        var prior = new DataFrame(new[] { "customer_id", "bureau", "score" });
+        var state = new Dictionary<string, object>
+        {
+            ["current"] = scores,
+            ["prior"] = prior
+        };
+        var result = new Transformation("out",
+            "SELECT c.customer_id, c.bureau, c.score AS current_score, p.score AS prior_score " +
+            "FROM current c LEFT JOIN prior p ON c.customer_id = p.customer_id AND c.bureau = p.bureau")
+            .Execute(state);
+        var df = (DataFrame)result["out"];
+        Assert.Equal(2, df.Count);
+        Assert.All(df.Rows, row => Assert.Null(row["prior_score"]));
+    }
+
+    [Fact]
+    public void Execute_EmptyDataFrame_NoColumns_SkipsRegistration()
+    {
+        // A DataFrame with no columns at all should be skipped, not crash
+        var empty = new DataFrame(new List<Dictionary<string, object?>>());
+        var people = MakePeopleFrame();
+        var state = new Dictionary<string, object>
+        {
+            ["people"] = people,
+            ["empty"] = empty
+        };
+        var result = new Transformation("out", "SELECT * FROM people").Execute(state);
+        Assert.Equal(3, ((DataFrame)result["out"]).Count);
+    }
 }

@@ -1,0 +1,59 @@
+{
+  "jobName": "CreditScoreDeltaCsvAppend",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "todays_scores",
+      "schema": "datalake",
+      "table": "credit_scores",
+      "columns": [
+        "customer_id",
+        "bureau",
+        "score",
+        "ifw_effective_date"
+      ],
+      "additionalFilter": "customer_id IN (2252, 2581, 2632)"
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "prior_scores",
+      "schema": "datalake",
+      "table": "credit_scores",
+      "columns": [
+        "customer_id",
+        "bureau",
+        "score",
+        "ifw_effective_date"
+      ],
+      "mostRecentPrior": true,
+      "additionalFilter": "customer_id IN (2252, 2581, 2632)"
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": [
+        "id",
+        "sort_name"
+      ],
+      "mostRecent": true
+    },
+    {
+      "type": "Transformation",
+      "resultName": "credit_score_deltas",
+      "sql": "SELECT t.customer_id, c.sort_name, t.bureau, t.score AS current_score, p.score AS past_score, t.ifw_effective_date, p.ifw_effective_date AS past_ifw_effective_date FROM todays_scores t LEFT JOIN prior_scores p ON t.customer_id = p.customer_id AND t.bureau = p.bureau LEFT JOIN customers c ON t.customer_id = c.id WHERE p.score IS NULL OR t.score <> p.score ORDER BY t.customer_id, t.bureau"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "credit_score_deltas",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "credit_score_delta_csv_append",
+      "fileName": "credit_score_delta.csv"
+    }
+  ]
+}

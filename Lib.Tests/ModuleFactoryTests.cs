@@ -205,6 +205,50 @@ public class ModuleFactoryTests
     }
 
     [Fact]
+    public void Create_DataSourcing_WithMostRecent_ReturnsCorrectType()
+    {
+        var el = Parse(@"{
+            ""type"": ""DataSourcing"",
+            ""resultName"": ""customers"",
+            ""schema"": ""datalake"",
+            ""table"": ""customers"",
+            ""columns"": [""id"", ""first_name""],
+            ""mostRecent"": true
+        }");
+        Assert.IsType<DataSourcing>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_DataSourcing_MostRecentAndMostRecentPrior_Throws()
+    {
+        var el = Parse(@"{
+            ""type"": ""DataSourcing"",
+            ""resultName"": ""customers"",
+            ""schema"": ""datalake"",
+            ""table"": ""customers"",
+            ""columns"": [""id"", ""first_name""],
+            ""mostRecent"": true,
+            ""mostRecentPrior"": true
+        }");
+        Assert.Throws<ArgumentException>(() => ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_DataSourcing_MostRecentAndLookback_Throws()
+    {
+        var el = Parse(@"{
+            ""type"": ""DataSourcing"",
+            ""resultName"": ""customers"",
+            ""schema"": ""datalake"",
+            ""table"": ""customers"",
+            ""columns"": [""id"", ""first_name""],
+            ""mostRecent"": true,
+            ""lookbackDays"": 3
+        }");
+        Assert.Throws<ArgumentException>(() => ModuleFactory.Create(el));
+    }
+
+    [Fact]
     public void Create_UnknownType_ThrowsInvalidOperationException()
     {
         var el = Parse(@"{""type"": ""UnknownModule""}");
