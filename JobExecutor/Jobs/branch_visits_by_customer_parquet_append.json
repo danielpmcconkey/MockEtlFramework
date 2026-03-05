@@ -1,0 +1,45 @@
+{
+  "jobName": "BranchVisitsByCustomerParquetAppend",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "visits",
+      "schema": "datalake",
+      "table": "branch_visits",
+      "columns": [
+        "visit_id",
+        "customer_id",
+        "branch_id",
+        "visit_timestamp",
+        "visit_purpose"
+      ],
+      "additionalFilter": "customer_id < 1500"
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": [
+        "id",
+        "sort_name"
+      ],
+      "mostRecent": true
+    },
+    {
+      "type": "Transformation",
+      "resultName": "branch_visits_by_customer",
+      "sql": "SELECT v.visit_id, v.customer_id, c.sort_name, v.branch_id, v.visit_timestamp, v.visit_purpose FROM visits v LEFT JOIN customers c ON v.customer_id = c.id ORDER BY v.customer_id, v.visit_timestamp"
+    },
+    {
+      "type": "ParquetFileWriter",
+      "source": "branch_visits_by_customer",
+      "writeMode": "Append",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "branch_visits_by_customer_parquet_append",
+      "fileName": "branch_visits_by_customer.parquet",
+      "numParts": 1
+    }
+  ]
+}
