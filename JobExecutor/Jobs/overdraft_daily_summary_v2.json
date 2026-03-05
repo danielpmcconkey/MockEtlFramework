@@ -7,21 +7,26 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["overdraft_amount", "fee_amount"]
+      "columns": [
+        "overdraft_amount",
+        "fee_amount"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT as_of AS event_date, COUNT(*) AS overdraft_count, SUM(overdraft_amount) AS total_overdraft_amount, SUM(fee_amount) AS total_fees, as_of FROM overdraft_events GROUP BY as_of UNION ALL SELECT 'WEEKLY_TOTAL' AS event_date, COUNT(*) AS overdraft_count, SUM(overdraft_amount) AS total_overdraft_amount, SUM(fee_amount) AS total_fees, MAX(as_of) AS as_of FROM overdraft_events WHERE (SELECT strftime('%w', MAX(as_of)) FROM overdraft_events) = '0'"
+      "sql": "SELECT ifw_effective_date AS event_date, COUNT(*) AS overdraft_count, SUM(overdraft_amount) AS total_overdraft_amount, SUM(fee_amount) AS total_fees, ifw_effective_date FROM overdraft_events GROUP BY ifw_effective_date UNION ALL SELECT 'WEEKLY_TOTAL' AS event_date, COUNT(*) AS overdraft_count, SUM(overdraft_amount) AS total_overdraft_amount, SUM(fee_amount) AS total_fees, MAX(ifw_effective_date) AS ifw_effective_date FROM overdraft_events WHERE (SELECT strftime('%w', MAX(ifw_effective_date)) FROM overdraft_events) = '0'"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/overdraft_daily_summary.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "overdraft_daily_summary",
+      "fileName": "overdraft_daily_summary.csv"
     }
   ]
 }

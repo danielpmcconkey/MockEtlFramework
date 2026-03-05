@@ -9,7 +9,7 @@ public class AccountDistributionCalculator : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "account_type", "account_count", "total_accounts", "percentage", "as_of"
+            "account_type", "account_count", "total_accounts", "percentage", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -20,8 +20,8 @@ public class AccountDistributionCalculator : IExternalStep
             return sharedState;
         }
 
-        // Get as_of from first account row
-        var asOf = accounts.Rows[0]["as_of"];
+        // Get ifw_effective_date from first account row
+        var asOf = accounts.Rows[0]["ifw_effective_date"];
         var totalAccounts = accounts.Count;
 
         // Count accounts by type
@@ -46,7 +46,7 @@ public class AccountDistributionCalculator : IExternalStep
                 ["account_count"] = typeCount,
                 ["total_accounts"] = totalAccounts,
                 ["percentage"] = percentage,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

@@ -12,7 +12,7 @@
     {
       "type": "Transformation",
       "resultName": "wire_direction_summary",
-      "sql": "SELECT direction, COUNT(*) AS wire_count, ROUND(SUM(amount), 2) AS total_amount, ROUND(SUM(amount) * 1.0 / COUNT(*), 2) AS avg_amount, as_of FROM wire_transfers GROUP BY direction ORDER BY direction"
+      "sql": "SELECT direction, COUNT(*) AS wire_count, ROUND(SUM(amount), 2) AS total_amount, ROUND(SUM(amount) * 1.0 / COUNT(*), 2) AS avg_amount, ifw_effective_date FROM wire_transfers GROUP BY direction ORDER BY direction"
     },
     {
       "type": "External",

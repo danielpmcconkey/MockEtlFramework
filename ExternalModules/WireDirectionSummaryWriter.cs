@@ -9,7 +9,7 @@ public class WireDirectionSummaryWriter : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "direction", "wire_count", "total_amount", "avg_amount", "as_of"
+            "direction", "wire_count", "total_amount", "avg_amount", "ifw_effective_date"
         };
 
         var wireTransfers = sharedState.ContainsKey("wire_transfers") ? sharedState["wire_transfers"] as DataFrame : null;
@@ -40,7 +40,7 @@ public class WireDirectionSummaryWriter : IExternalStep
             groups[direction] = (current.count + 1, current.total + amount);
         }
 
-        var asOf = wireTransfers.Rows[0]["as_of"];
+        var asOf = wireTransfers.Rows[0]["ifw_effective_date"];
         var outputRows = new List<Row>();
         foreach (var kvp in groups)
         {
@@ -54,7 +54,7 @@ public class WireDirectionSummaryWriter : IExternalStep
                 ["wire_count"] = wireCount,
                 ["total_amount"] = Math.Round(totalAmount, 2),
                 ["avg_amount"] = avgAmount,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 
@@ -85,7 +85,7 @@ public class WireDirectionSummaryWriter : IExternalStep
         if (!Directory.Exists(outputDir))
             Directory.CreateDirectory(outputDir);
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate") ? (DateOnly)sharedState["__maxEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate") ? (DateOnly)sharedState["__etlEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         using var writer = new StreamWriter(outputPath, append: false);

@@ -9,11 +9,11 @@ public class DoNotContactProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "customer_id", "first_name", "last_name", "as_of"
+            "customer_id", "first_name", "last_name", "ifw_effective_date"
         };
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W1: Sunday skip — return empty DataFrame on Sundays
@@ -61,7 +61,7 @@ public class DoNotContactProcessor : IExternalStep
                 customerPrefs[custId] = (current.total + 1, current.optedOut);
         }
 
-        var asOf = prefs.Rows[0]["as_of"];
+        var asOf = prefs.Rows[0]["ifw_effective_date"];
 
         var outputRows = new List<Row>();
         foreach (var kvp in customerPrefs)
@@ -75,7 +75,7 @@ public class DoNotContactProcessor : IExternalStep
                     ["customer_id"] = kvp.Key,
                     ["first_name"] = firstName,
                     ["last_name"] = lastName,
-                    ["as_of"] = asOf
+                    ["ifw_effective_date"] = asOf
                 }));
             }
         }

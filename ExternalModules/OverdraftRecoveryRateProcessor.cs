@@ -9,15 +9,15 @@ public class OverdraftRecoveryRateProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "total_events", "charged_count", "waived_count", "recovery_rate", "as_of"
+            "total_events", "charged_count", "waived_count", "recovery_rate", "ifw_effective_date"
         };
 
         var overdraftEvents = sharedState.ContainsKey("overdraft_events")
             ? sharedState["overdraft_events"] as DataFrame
             : null;
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         if (overdraftEvents == null || overdraftEvents.Count == 0)
@@ -53,7 +53,7 @@ public class OverdraftRecoveryRateProcessor : IExternalStep
             ["charged_count"] = chargedCount,
             ["waived_count"] = waivedCount,
             ["recovery_rate"] = recoveryRate,
-            ["as_of"] = maxDate.ToString("yyyy-MM-dd")
+            ["ifw_effective_date"] = maxDate.ToString("yyyy-MM-dd")
         }));
 
         sharedState["output"] = new DataFrame(outputRows, outputColumns);

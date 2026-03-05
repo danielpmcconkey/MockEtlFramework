@@ -27,11 +27,11 @@ public class CardTransactionDailyV2Processor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "card_type", "txn_count", "total_amount", "avg_amount", "as_of"
+            "card_type", "txn_count", "total_amount", "avg_amount", "ifw_effective_date"
         };
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         var enrichedTxns = sharedState.ContainsKey("enriched_txns")
@@ -45,8 +45,8 @@ public class CardTransactionDailyV2Processor : IExternalStep
             return sharedState;
         }
 
-        // BR-10: Capture as_of from first row of enriched transactions
-        var asOf = enrichedTxns.Rows[0]["as_of"];
+        // BR-10: Capture ifw_effective_date from first row of enriched transactions
+        var asOf = enrichedTxns.Rows[0]["ifw_effective_date"];
 
         // Group by card_type with decimal accumulation for exact monetary arithmetic
         var groups = new Dictionary<string, (int count, decimal total)>();
@@ -79,7 +79,7 @@ public class CardTransactionDailyV2Processor : IExternalStep
                 ["txn_count"] = kvp.Value.count,
                 ["total_amount"] = kvp.Value.total,
                 ["avg_amount"] = avgAmount,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 
@@ -101,7 +101,7 @@ public class CardTransactionDailyV2Processor : IExternalStep
                 ["txn_count"] = totalCount,
                 ["total_amount"] = totalAmount,
                 ["avg_amount"] = avgAmount,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

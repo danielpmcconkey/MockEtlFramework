@@ -7,28 +7,39 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "segments",
       "schema": "datalake",
       "table": "segments",
-      "columns": ["segment_id", "segment_name", "segment_code"]
+      "columns": [
+        "segment_id",
+        "segment_name",
+        "segment_code"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "txn_cat_summary",
-      "sql": "WITH txn_stats AS (SELECT txn_type, as_of, amount, ROW_NUMBER() OVER (PARTITION BY txn_type, as_of ORDER BY transaction_id) AS rn, COUNT(*) OVER (PARTITION BY txn_type, as_of) AS type_count FROM transactions) SELECT txn_type, as_of, ROUND(SUM(amount), 2) AS total_amount, COUNT(*) AS transaction_count, ROUND(AVG(amount), 2) AS avg_amount FROM txn_stats GROUP BY txn_type, as_of ORDER BY as_of, txn_type"
+      "sql": "WITH txn_stats AS (SELECT txn_type, ifw_effective_date, amount, ROW_NUMBER() OVER (PARTITION BY txn_type, ifw_effective_date ORDER BY transaction_id) AS rn, COUNT(*) OVER (PARTITION BY txn_type, ifw_effective_date) AS type_count FROM transactions) SELECT txn_type, ifw_effective_date, ROUND(SUM(amount), 2) AS total_amount, COUNT(*) AS transaction_count, ROUND(AVG(amount), 2) AS avg_amount FROM txn_stats GROUP BY txn_type, ifw_effective_date ORDER BY ifw_effective_date, txn_type"
     },
     {
       "type": "CsvFileWriter",
       "source": "txn_cat_summary",
-      "outputFile": "Output/curated/transaction_category_summary.csv",
       "includeHeader": true,
       "trailerFormat": "END|{row_count}",
       "writeMode": "Append",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "transaction_category_summary",
+      "fileName": "transaction_category_summary.csv"
     }
   ]
 }

@@ -7,12 +7,18 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_timestamp", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_timestamp",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "candidates",
-      "sql": "SELECT d.transaction_id AS debit_txn_id, d.account_id AS debit_account_id, d.amount AS amount, d.txn_timestamp AS debit_timestamp, d.as_of AS debit_as_of, c.transaction_id AS credit_txn_id, c.account_id AS credit_account_id FROM transactions d JOIN transactions c ON d.txn_type = 'Debit' AND c.txn_type = 'Credit' AND d.amount = c.amount AND CAST(d.txn_timestamp AS TEXT) = CAST(c.txn_timestamp AS TEXT) AND d.account_id != c.account_id ORDER BY d.transaction_id, c.transaction_id"
+      "sql": "SELECT d.transaction_id AS debit_txn_id, d.account_id AS debit_account_id, d.amount AS amount, d.txn_timestamp AS debit_timestamp, d.ifw_effective_date AS debit_ifw_effective_date, c.transaction_id AS credit_txn_id, c.account_id AS credit_account_id FROM transactions d JOIN transactions c ON d.txn_type = 'Debit' AND c.txn_type = 'Credit' AND d.amount = c.amount AND CAST(d.txn_timestamp AS TEXT) = CAST(c.txn_timestamp AS TEXT) AND d.account_id != c.account_id ORDER BY d.transaction_id, c.transaction_id"
     },
     {
       "type": "External",
@@ -22,9 +28,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/inter_account_transfers/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "inter_account_transfers",
+      "fileName": "inter_account_transfers"
     }
   ]
 }

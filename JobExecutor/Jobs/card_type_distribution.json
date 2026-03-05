@@ -7,14 +7,23 @@
       "resultName": "cards",
       "schema": "datalake",
       "table": "cards",
-      "columns": ["card_id", "customer_id", "card_type", "card_status"]
+      "columns": [
+        "card_id",
+        "customer_id",
+        "card_type",
+        "card_status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["card_txn_id", "card_id", "amount"]
+      "columns": [
+        "card_txn_id",
+        "card_id",
+        "amount"
+      ]
     },
     {
       "type": "External",
@@ -24,11 +33,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/card_type_distribution.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "card_type_distribution",
+      "fileName": "card_type_distribution.csv"
     }
   ]
 }

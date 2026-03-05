@@ -10,7 +10,7 @@ namespace ExternalModules;
 ///
 /// This module exists solely because the Transformation module's SQLite backend
 /// stores DateOnly as TEXT strings and returns integers as long (Int64).
-/// The V1 Parquet output has DateOnly-typed columns (expiration_date, as_of)
+/// The V1 Parquet output has DateOnly-typed columns (expiration_date, ifw_effective_date)
 /// and int-typed columns (customer_id, days_until_expiry). Byte-identical
 /// Parquet output requires matching these CLR types exactly.
 ///
@@ -27,7 +27,7 @@ public class CardExpirationWatchV2Processor : IExternalStep
     private static readonly List<string> OutputColumns = new()
     {
         "card_id", "customer_id", "first_name", "last_name", "card_type",
-        "expiration_date", "days_until_expiry", "as_of"
+        "expiration_date", "days_until_expiry", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -51,7 +51,7 @@ public class CardExpirationWatchV2Processor : IExternalStep
                 ["card_type"] = row["card_type"],
                 ["expiration_date"] = DateOnly.Parse(row["expiration_date"]!.ToString()!),
                 ["days_until_expiry"] = Convert.ToInt32(row["days_until_expiry"]),
-                ["as_of"] = DateOnly.Parse(row["as_of"]!.ToString()!)
+                ["ifw_effective_date"] = DateOnly.Parse(row["ifw_effective_date"]!.ToString()!)
             }));
         }
 

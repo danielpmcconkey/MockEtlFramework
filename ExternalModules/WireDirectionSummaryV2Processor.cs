@@ -31,7 +31,7 @@ public class WireDirectionSummaryV2Processor : IExternalStep
 
     private static readonly List<string> OutputColumns = new()
     {
-        "direction", "wire_count", "total_amount", "avg_amount", "as_of"
+        "direction", "wire_count", "total_amount", "avg_amount", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -51,10 +51,10 @@ public class WireDirectionSummaryV2Processor : IExternalStep
         // direction groups exist. [WireDirectionSummaryWriter.cs:26, 104]
         int inputCount = wireTransfers?.Count ?? 0;
 
-        // BR-9: Trailer date from __maxEffectiveDate with fallback to DateTime.Today
+        // BR-9: Trailer date from __etlEffectiveDate with fallback to DateTime.Today
         // [WireDirectionSummaryWriter.cs:88-89]
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 

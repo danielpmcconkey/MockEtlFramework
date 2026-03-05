@@ -10,15 +10,15 @@ public class InvestmentAccountOverviewBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "investment_id", "customer_id", "first_name", "last_name",
-            "account_type", "current_value", "risk_profile", "as_of"
+            "account_type", "current_value", "risk_profile", "ifw_effective_date"
         };
 
         var investments = sharedState.ContainsKey("investments") ? sharedState["investments"] as DataFrame : null;
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
 
         // W1: Sunday skip — return empty DataFrame on Sundays
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         if (maxDate.DayOfWeek == DayOfWeek.Sunday)
@@ -61,7 +61,7 @@ public class InvestmentAccountOverviewBuilder : IExternalStep
                 ["account_type"] = row["account_type"]?.ToString() ?? "",
                 ["current_value"] = Convert.ToDecimal(row["current_value"]),
                 ["risk_profile"] = row["risk_profile"]?.ToString() ?? "",
-                ["as_of"] = row["as_of"]
+                ["ifw_effective_date"] = row["ifw_effective_date"]
             }));
         }
 

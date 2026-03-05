@@ -23,7 +23,7 @@ public class AccountTypeDistributionV2Processor : IExternalStep
     // Output columns match V1 exactly (AccountDistributionCalculator.cs:10-13)
     private static readonly List<string> OutputColumns = new()
     {
-        "account_type", "account_count", "total_accounts", "percentage", "as_of"
+        "account_type", "account_count", "total_accounts", "percentage", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -42,9 +42,9 @@ public class AccountTypeDistributionV2Processor : IExternalStep
             return sharedState;
         }
 
-        // BR-5: as_of from first accounts row, applied to all output rows.
+        // BR-5: ifw_effective_date from first accounts row, applied to all output rows.
         // Preserved as DateOnly for correct CsvFileWriter formatting (MM/dd/yyyy).
-        var asOf = accounts.Rows[0]["as_of"];
+        var asOf = accounts.Rows[0]["ifw_effective_date"];
         var totalAccounts = accounts.Count;
 
         // BR-1, BR-2, BR-3: Group by account_type, compute count and percentage.
@@ -59,7 +59,7 @@ public class AccountTypeDistributionV2Processor : IExternalStep
                 // V1 uses (double)typeCount / totalAccounts * 100.0
                 // (AccountDistributionCalculator.cs:41) — replicated exactly
                 ["percentage"] = (double)group.Count() / totalAccounts * 100.0,
-                ["as_of"] = asOf // Preserved as DateOnly for correct CsvFileWriter formatting
+                ["ifw_effective_date"] = asOf // Preserved as DateOnly for correct CsvFileWriter formatting
             }))
             .ToList();
 

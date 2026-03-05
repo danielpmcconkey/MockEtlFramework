@@ -20,15 +20,15 @@ public class OverdraftAmountDistributionProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "amount_bucket", "event_count", "total_amount", "as_of"
+            "amount_bucket", "event_count", "total_amount", "ifw_effective_date"
         };
 
         var overdraftEvents = sharedState.ContainsKey("overdraft_events")
             ? sharedState["overdraft_events"] as DataFrame
             : null;
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W7: Count INPUT rows before bucketing for inflated trailer count
@@ -40,7 +40,7 @@ public class OverdraftAmountDistributionProcessor : IExternalStep
             return sharedState;
         }
 
-        var asOf = overdraftEvents.Rows[0]["as_of"]?.ToString() ?? maxDate.ToString("yyyy-MM-dd");
+        var asOf = overdraftEvents.Rows[0]["ifw_effective_date"]?.ToString() ?? maxDate.ToString("yyyy-MM-dd");
 
         // Bucket overdraft amounts into ranges
         var buckets = new Dictionary<string, (int count, decimal total)>
@@ -100,7 +100,7 @@ public class OverdraftAmountDistributionProcessor : IExternalStep
                 ["amount_bucket"] = kvp.Key,
                 ["event_count"] = kvp.Value.count,
                 ["total_amount"] = kvp.Value.total,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

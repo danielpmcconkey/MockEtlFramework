@@ -10,7 +10,7 @@ public class HighRiskMerchantActivityProcessor : IExternalStep
         var outputColumns = new List<string>
         {
             "card_txn_id", "merchant_name", "mcc_code", "mcc_description", "amount",
-            "txn_timestamp", "as_of"
+            "txn_timestamp", "ifw_effective_date"
         };
 
         var cardTransactions = sharedState.ContainsKey("card_transactions")
@@ -59,7 +59,7 @@ public class HighRiskMerchantActivityProcessor : IExternalStep
                     ["mcc_description"] = mccInfo.description,
                     ["amount"] = txn["amount"],
                     ["txn_timestamp"] = txn["txn_timestamp"],
-                    ["as_of"] = txn["as_of"]
+                    ["ifw_effective_date"] = txn["ifw_effective_date"]
                 }));
             }
         }

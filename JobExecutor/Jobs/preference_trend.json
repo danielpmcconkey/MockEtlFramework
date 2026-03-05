@@ -7,20 +7,27 @@
       "resultName": "customer_preferences",
       "schema": "datalake",
       "table": "customer_preferences",
-      "columns": ["preference_id", "customer_id", "preference_type", "opted_in"]
+      "columns": [
+        "preference_id",
+        "customer_id",
+        "preference_type",
+        "opted_in"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "pref_trend",
-      "sql": "SELECT cp.preference_type, SUM(CASE WHEN cp.opted_in = 1 THEN 1 ELSE 0 END) AS opted_in_count, SUM(CASE WHEN cp.opted_in = 0 THEN 1 ELSE 0 END) AS opted_out_count, cp.as_of FROM customer_preferences cp GROUP BY cp.preference_type, cp.as_of"
+      "sql": "SELECT cp.preference_type, SUM(CASE WHEN cp.opted_in = 1 THEN 1 ELSE 0 END) AS opted_in_count, SUM(CASE WHEN cp.opted_in = 0 THEN 1 ELSE 0 END) AS opted_out_count, cp.ifw_effective_date FROM customer_preferences cp GROUP BY cp.preference_type, cp.ifw_effective_date"
     },
     {
       "type": "CsvFileWriter",
       "source": "pref_trend",
-      "outputFile": "Output/curated/preference_trend.csv",
       "includeHeader": true,
       "writeMode": "Append",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "preference_trend",
+      "fileName": "preference_trend.csv"
     }
   ]
 }

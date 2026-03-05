@@ -13,7 +13,7 @@ namespace ExternalModules;
 /// Responsibilities:
 ///   1. Empty-input guard (BR-6): empty output when loan_accounts or credit_scores is null/empty
 ///   2. Decimal type cast for avg_credit_score (BR-9): double (SQLite) -> decimal (V1 Parquet schema)
-///   3. DateOnly reconstruction for as_of (BR-8): string (SQLite) -> DateOnly (V1 Parquet schema)
+///   3. DateOnly reconstruction for ifw_effective_date (BR-8): string (SQLite) -> DateOnly (V1 Parquet schema)
 ///   4. Decimal restoration for current_balance and interest_rate: double (SQLite) -> decimal
 ///   5. Int32 restoration for loan_id and customer_id: int64 (SQLite) -> int32
 ///
@@ -29,7 +29,7 @@ public class LoanRiskAssessmentV2Processor : IExternalStep
     private static readonly List<string> OutputColumns = new()
     {
         "loan_id", "customer_id", "loan_type", "current_balance",
-        "interest_rate", "loan_status", "avg_credit_score", "risk_tier", "as_of"
+        "interest_rate", "loan_status", "avg_credit_score", "risk_tier", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -65,7 +65,7 @@ public class LoanRiskAssessmentV2Processor : IExternalStep
                 : Convert.ToDecimal(rawAvg);
 
             // BR-8: Reconstruct DateOnly from SQLite text [LoanRiskCalculator.cs:82]
-            var asOf = DateOnly.Parse(row["as_of"]?.ToString() ?? "");
+            var asOf = DateOnly.Parse(row["ifw_effective_date"]?.ToString() ?? "");
 
             // Restore decimal types for monetary fields (SQLite REAL -> decimal)
             var currentBalance = Convert.ToDecimal(row["current_balance"]);
@@ -81,7 +81,7 @@ public class LoanRiskAssessmentV2Processor : IExternalStep
                 ["loan_status"] = row["loan_status"]?.ToString(),
                 ["avg_credit_score"] = avgCreditScore,
                 ["risk_tier"] = row["risk_tier"]?.ToString(),
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

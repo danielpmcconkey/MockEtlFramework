@@ -7,19 +7,29 @@
       "resultName": "loan_accounts",
       "schema": "datalake",
       "table": "loan_accounts",
-      "columns": ["loan_id", "customer_id", "loan_type", "original_amount", "current_balance", "interest_rate", "loan_status"]
+      "columns": [
+        "loan_id",
+        "customer_id",
+        "loan_type",
+        "original_amount",
+        "current_balance",
+        "interest_rate",
+        "loan_status"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT loan_id, customer_id, loan_type, original_amount, current_balance, interest_rate, loan_status, as_of FROM loan_accounts"
+      "sql": "SELECT loan_id, customer_id, loan_type, original_amount, current_balance, interest_rate, loan_status, ifw_effective_date FROM loan_accounts"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/loan_portfolio_snapshot/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "loan_portfolio_snapshot",
+      "fileName": "loan_portfolio_snapshot"
     }
   ]
 }

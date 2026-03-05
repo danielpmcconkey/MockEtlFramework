@@ -7,7 +7,7 @@ public class PreferenceBySegmentWriter : IExternalStep
 {
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        var outputColumns = new List<string> { "segment_name", "preference_type", "opt_in_rate", "as_of" };
+        var outputColumns = new List<string> { "segment_name", "preference_type", "opt_in_rate", "ifw_effective_date" };
 
         var prefs = sharedState.ContainsKey("customer_preferences")
             ? sharedState["customer_preferences"] as DataFrame
@@ -28,7 +28,7 @@ public class PreferenceBySegmentWriter : IExternalStep
         // W7: Count INPUT rows before any grouping (inflated count for trailer)
         var inputCount = prefs.Count;
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Build segment_id -> segment_name lookup

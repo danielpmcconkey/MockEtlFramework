@@ -10,7 +10,7 @@ public class BranchVisitEnricher : IExternalStep
         var outputColumns = new List<string>
         {
             "visit_id", "customer_id", "first_name", "last_name",
-            "branch_id", "branch_name", "visit_timestamp", "visit_purpose", "as_of"
+            "branch_id", "branch_name", "visit_timestamp", "visit_purpose", "ifw_effective_date"
         };
 
         var branchVisits = sharedState.ContainsKey("branch_visits") ? sharedState["branch_visits"] as DataFrame : null;
@@ -72,7 +72,7 @@ public class BranchVisitEnricher : IExternalStep
                 ["branch_name"] = branchName,
                 ["visit_timestamp"] = visitRow["visit_timestamp"],
                 ["visit_purpose"] = visitRow["visit_purpose"],
-                ["as_of"] = visitRow["as_of"]
+                ["ifw_effective_date"] = visitRow["ifw_effective_date"]
             }));
         }
 

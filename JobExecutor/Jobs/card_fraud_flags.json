@@ -7,14 +7,26 @@
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["card_txn_id", "card_id", "customer_id", "merchant_name", "merchant_category_code", "amount", "txn_timestamp"]
+      "columns": [
+        "card_txn_id",
+        "card_id",
+        "customer_id",
+        "merchant_name",
+        "merchant_category_code",
+        "amount",
+        "txn_timestamp"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "merchant_categories",
       "schema": "datalake",
       "table": "merchant_categories",
-      "columns": ["mcc_code", "mcc_description", "risk_level"]
+      "columns": [
+        "mcc_code",
+        "mcc_description",
+        "risk_level"
+      ]
     },
     {
       "type": "External",
@@ -24,10 +36,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/card_fraud_flags.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "card_fraud_flags",
+      "fileName": "card_fraud_flags.csv"
     }
   ]
 }

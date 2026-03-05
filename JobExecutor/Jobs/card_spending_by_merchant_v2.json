@@ -7,26 +7,34 @@
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["merchant_category_code", "amount"]
+      "columns": [
+        "merchant_category_code",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "merchant_categories",
       "schema": "datalake",
       "table": "merchant_categories",
-      "columns": ["mcc_code", "mcc_description"]
+      "columns": [
+        "mcc_code",
+        "mcc_description"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT ct.merchant_category_code AS mcc_code, COALESCE(mc.mcc_description, '') AS mcc_description, COUNT(*) AS txn_count, SUM(ct.amount) AS total_spending, (SELECT as_of FROM card_transactions LIMIT 1) AS as_of FROM card_transactions ct LEFT JOIN (SELECT mcc_code, mcc_description FROM merchant_categories GROUP BY mcc_code) mc ON ct.merchant_category_code = mc.mcc_code GROUP BY ct.merchant_category_code ORDER BY ct.merchant_category_code"
+      "sql": "SELECT ct.merchant_category_code AS mcc_code, COALESCE(mc.mcc_description, '') AS mcc_description, COUNT(*) AS txn_count, SUM(ct.amount) AS total_spending, (SELECT ifw_effective_date FROM card_transactions LIMIT 1) AS ifw_effective_date FROM card_transactions ct LEFT JOIN (SELECT mcc_code, mcc_description FROM merchant_categories GROUP BY mcc_code) mc ON ct.merchant_category_code = mc.mcc_code GROUP BY ct.merchant_category_code ORDER BY ct.merchant_category_code"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/card_spending_by_merchant/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "card_spending_by_merchant",
+      "fileName": "card_spending_by_merchant"
     }
   ]
 }

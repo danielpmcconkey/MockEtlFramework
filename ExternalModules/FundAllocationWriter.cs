@@ -9,7 +9,7 @@ public class FundAllocationWriter : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "security_type", "holding_count", "total_value", "avg_value", "as_of"
+            "security_type", "holding_count", "total_value", "avg_value", "ifw_effective_date"
         };
 
         var holdings = sharedState.ContainsKey("holdings") ? sharedState["holdings"] as DataFrame : null;
@@ -21,7 +21,7 @@ public class FundAllocationWriter : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Build security_id -> security_type lookup

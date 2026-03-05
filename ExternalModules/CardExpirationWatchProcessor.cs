@@ -10,10 +10,10 @@ public class CardExpirationWatchProcessor : IExternalStep
         var outputColumns = new List<string>
         {
             "card_id", "customer_id", "first_name", "last_name", "card_type",
-            "expiration_date", "days_until_expiry", "as_of"
+            "expiration_date", "days_until_expiry", "ifw_effective_date"
         };
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // W2: Weekend fallback — use Friday's date on Sat/Sun
         DateOnly targetDate = maxDate;
@@ -69,7 +69,7 @@ public class CardExpirationWatchProcessor : IExternalStep
                     ["card_type"] = card["card_type"],
                     ["expiration_date"] = expirationDate,
                     ["days_until_expiry"] = daysUntilExpiry,
-                    ["as_of"] = targetDate
+                    ["ifw_effective_date"] = targetDate
                 }));
             }
         }

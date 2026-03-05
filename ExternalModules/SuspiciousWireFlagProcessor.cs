@@ -10,7 +10,7 @@ public class SuspiciousWireFlagProcessor : IExternalStep
         var outputColumns = new List<string>
         {
             "wire_id", "customer_id", "direction", "amount",
-            "counterparty_name", "status", "flag_reason", "as_of"
+            "counterparty_name", "status", "flag_reason", "ifw_effective_date"
         };
 
         var wireTransfers = sharedState.ContainsKey("wire_transfers") ? sharedState["wire_transfers"] as DataFrame : null;
@@ -52,7 +52,7 @@ public class SuspiciousWireFlagProcessor : IExternalStep
                     ["counterparty_name"] = counterpartyName,
                     ["status"] = row["status"],
                     ["flag_reason"] = flagReason,
-                    ["as_of"] = row["as_of"]
+                    ["ifw_effective_date"] = row["ifw_effective_date"]
                 }));
             }
         }

@@ -7,26 +7,35 @@
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["customer_id", "amount"]
+      "columns": [
+        "customer_id",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "WITH target AS (SELECT CASE strftime('%w', MAX(as_of)) WHEN '6' THEN date(MAX(as_of), '-1 day') WHEN '0' THEN date(MAX(as_of), '-2 days') ELSE MAX(as_of) END AS target_date FROM card_transactions), customer_latest AS (SELECT c.id, c.first_name, c.last_name FROM customers c INNER JOIN (SELECT id, MAX(as_of) AS max_as_of FROM customers GROUP BY id) latest ON c.id = latest.id AND c.as_of = latest.max_as_of) SELECT ct.customer_id, COALESCE(cl.first_name, '') AS first_name, COALESCE(cl.last_name, '') AS last_name, CAST(COUNT(*) AS INTEGER) AS txn_count, SUM(ct.amount) AS total_spending, t.target_date AS as_of FROM card_transactions ct CROSS JOIN target t LEFT JOIN customer_latest cl ON ct.customer_id = cl.id WHERE ct.as_of = t.target_date GROUP BY ct.customer_id, cl.first_name, cl.last_name, t.target_date"
+      "sql": "WITH target AS (SELECT CASE strftime('%w', MAX(ifw_effective_date)) WHEN '6' THEN date(MAX(ifw_effective_date), '-1 day') WHEN '0' THEN date(MAX(ifw_effective_date), '-2 days') ELSE MAX(ifw_effective_date) END AS target_date FROM card_transactions), customer_latest AS (SELECT c.id, c.first_name, c.last_name FROM customers c INNER JOIN (SELECT id, MAX(ifw_effective_date) AS max_ifw_effective_date FROM customers GROUP BY id) latest ON c.id = latest.id AND c.ifw_effective_date = latest.max_ifw_effective_date) SELECT ct.customer_id, COALESCE(cl.first_name, '') AS first_name, COALESCE(cl.last_name, '') AS last_name, CAST(COUNT(*) AS INTEGER) AS txn_count, SUM(ct.amount) AS total_spending, t.target_date AS ifw_effective_date FROM card_transactions ct CROSS JOIN target t LEFT JOIN customer_latest cl ON ct.customer_id = cl.id WHERE ct.ifw_effective_date = t.target_date GROUP BY ct.customer_id, cl.first_name, cl.last_name, t.target_date"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/card_customer_spending/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "card_customer_spending",
+      "fileName": "card_customer_spending"
     }
   ]
 }

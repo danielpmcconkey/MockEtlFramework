@@ -7,14 +7,24 @@
       "resultName": "credit_scores",
       "schema": "datalake",
       "table": "credit_scores",
-      "columns": ["credit_score_id", "customer_id", "bureau", "score"]
+      "columns": [
+        "credit_score_id",
+        "customer_id",
+        "bureau",
+        "score"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name", "city", "state_province"]
+      "columns": [
+        "branch_id",
+        "branch_name",
+        "city",
+        "state_province"
+      ]
     },
     {
       "type": "External",
@@ -24,10 +34,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/credit_score_snapshot.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "CRLF"
+      "lineEnding": "CRLF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "credit_score_snapshot",
+      "fileName": "credit_score_snapshot.csv"
     }
   ]
 }

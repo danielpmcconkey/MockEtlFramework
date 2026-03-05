@@ -9,7 +9,7 @@ public class CustomerTxnActivityBuilder : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "customer_id", "as_of", "transaction_count", "total_amount", "debit_count", "credit_count"
+            "customer_id", "ifw_effective_date", "transaction_count", "total_amount", "debit_count", "credit_count"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
@@ -57,8 +57,8 @@ public class CustomerTxnActivityBuilder : IExternalStep
             customerTxns[customerId] = (current.count + 1, current.totalAmount + amount, current.debits + isDebit, current.credits + isCredit);
         }
 
-        // Get as_of from first transaction row
-        var asOf = transactions.Rows[0]["as_of"];
+        // Get ifw_effective_date from first transaction row
+        var asOf = transactions.Rows[0]["ifw_effective_date"];
 
         // Build output rows
         var outputRows = new List<Row>();
@@ -69,7 +69,7 @@ public class CustomerTxnActivityBuilder : IExternalStep
             outputRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["customer_id"] = kvp.Key,
-                ["as_of"] = asOf,
+                ["ifw_effective_date"] = asOf,
                 ["transaction_count"] = count,
                 ["total_amount"] = totalAmount,
                 ["debit_count"] = debits,

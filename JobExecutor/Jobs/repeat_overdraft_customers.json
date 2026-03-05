@@ -7,14 +7,26 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["overdraft_id", "account_id", "customer_id", "overdraft_amount", "fee_amount", "fee_waived", "event_timestamp"]
+      "columns": [
+        "overdraft_id",
+        "account_id",
+        "customer_id",
+        "overdraft_amount",
+        "fee_amount",
+        "fee_waived",
+        "event_timestamp"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +36,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/repeat_overdraft_customers/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "repeat_overdraft_customers",
+      "fileName": "repeat_overdraft_customers"
     }
   ]
 }

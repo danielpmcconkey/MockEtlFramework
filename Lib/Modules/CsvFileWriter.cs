@@ -4,25 +4,32 @@ using Lib.DataFrames;
 namespace Lib.Modules;
 
 /// <summary>
-/// Writes a named DataFrame from shared state to a CSV file.
+/// Writes a named DataFrame from shared state to a date-partitioned CSV file.
+/// Output path: {outputDirectory}/{jobDirName}/{etl_effective_date}/{fileName}
+/// Injects an etl_effective_date column into every row before writing.
 /// Supports optional trailer lines with token substitution.
 /// Uses UTF-8 (no BOM), configurable line endings (LF or CRLF), and RFC 4180 quoting.
 /// </summary>
 public class CsvFileWriter : IModule
 {
     private readonly string _sourceDataFrameName;
-    private readonly string _outputFilePath;
+    private readonly string _outputDirectory;
+    private readonly string _jobDirName;
+    private readonly string _fileName;
     private readonly bool _includeHeader;
     private readonly string? _trailerFormat;
     private readonly WriteMode _writeMode;
     private readonly string _lineEnding;
 
-    public CsvFileWriter(string sourceDataFrameName, string outputFilePath,
+    public CsvFileWriter(string sourceDataFrameName, string outputDirectory,
+        string jobDirName, string fileName,
         bool includeHeader = true, string? trailerFormat = null,
         WriteMode writeMode = WriteMode.Overwrite, string lineEnding = "\n")
     {
         _sourceDataFrameName = sourceDataFrameName ?? throw new ArgumentNullException(nameof(sourceDataFrameName));
-        _outputFilePath = outputFilePath ?? throw new ArgumentNullException(nameof(outputFilePath));
+        _outputDirectory = outputDirectory ?? throw new ArgumentNullException(nameof(outputDirectory));
+        _jobDirName = jobDirName ?? throw new ArgumentNullException(nameof(jobDirName));
+        _fileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
         _includeHeader = includeHeader;
         _trailerFormat = trailerFormat;
         _writeMode = writeMode;
@@ -34,17 +41,41 @@ public class CsvFileWriter : IModule
         if (!sharedState.TryGetValue(_sourceDataFrameName, out var value) || value is not DataFrame df)
             throw new KeyNotFoundException($"DataFrame '{_sourceDataFrameName}' not found in shared state.");
 
-        var resolvedPath = PathHelper.Resolve(_outputFilePath);
-        var parentDir = Path.GetDirectoryName(resolvedPath);
-        if (parentDir != null)
-            Directory.CreateDirectory(parentDir);
+        if (!sharedState.TryGetValue(DataSourcing.EtlEffectiveDateKey, out var dateVal) || dateVal is not DateOnly effectiveDate)
+            throw new InvalidOperationException(
+                $"'{DataSourcing.EtlEffectiveDateKey}' not found or not a DateOnly in shared state.");
 
-        var append = _writeMode == WriteMode.Append && File.Exists(resolvedPath);
-        using var stream = new FileStream(resolvedPath, append ? FileMode.Append : FileMode.Create,
-            FileAccess.Write, FileShare.None);
+        var dateStr = effectiveDate.ToString("yyyy-MM-dd");
+        var jobDir = Path.Combine(PathHelper.Resolve(_outputDirectory), _jobDirName);
+
+        // Append mode: union with prior partition's data
+        if (_writeMode == WriteMode.Append)
+        {
+            var priorDate = DatePartitionHelper.FindLatestPartition(jobDir);
+            if (priorDate != null)
+            {
+                var priorPath = Path.Combine(jobDir, priorDate, _fileName);
+                if (File.Exists(priorPath))
+                {
+                    var priorDf = DataFrame.FromCsv(priorPath);
+                    priorDf = priorDf.Drop("etl_effective_date");
+                    df = priorDf.Union(df);
+                }
+            }
+        }
+
+        // Inject etl_effective_date column
+        df = df.WithColumn("etl_effective_date", _ => dateStr);
+
+        // Build date-partitioned output path
+        var partitionDir = Path.Combine(jobDir, dateStr);
+        Directory.CreateDirectory(partitionDir);
+        var outputPath = Path.Combine(partitionDir, _fileName);
+
+        using var stream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
         using var writer = new StreamWriter(stream, new UTF8Encoding(false)) { NewLine = _lineEnding };
 
-        if (_includeHeader && !append)
+        if (_includeHeader)
         {
             writer.WriteLine(string.Join(",", df.Columns));
         }
@@ -57,12 +88,9 @@ public class CsvFileWriter : IModule
 
         if (_trailerFormat != null)
         {
-            var effectiveDate = sharedState.TryGetValue("__maxEffectiveDate", out var dateVal) && dateVal is DateOnly d
-                ? d.ToString("yyyy-MM-dd")
-                : "";
             var trailer = _trailerFormat
                 .Replace("{row_count}", df.Count.ToString())
-                .Replace("{date}", effectiveDate)
+                .Replace("{date}", dateStr)
                 .Replace("{timestamp}", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"));
             writer.WriteLine(trailer);
         }

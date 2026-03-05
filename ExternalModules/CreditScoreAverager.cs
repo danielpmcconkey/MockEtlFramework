@@ -10,7 +10,7 @@ public class CreditScoreAverager : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name", "avg_score",
-            "equifax_score", "transunion_score", "experian_score", "as_of"
+            "equifax_score", "transunion_score", "experian_score", "ifw_effective_date"
         };
 
         var creditScores = sharedState.ContainsKey("credit_scores") ? sharedState["credit_scores"] as DataFrame : null;
@@ -36,14 +36,14 @@ public class CreditScoreAverager : IExternalStep
             scoresByCustomer[custId].Add((bureau, score));
         }
 
-        // Build customer_id -> (first_name, last_name, as_of) lookup
+        // Build customer_id -> (first_name, last_name, ifw_effective_date) lookup
         var customerNames = new Dictionary<int, (string firstName, string lastName, object? asOf)>();
         foreach (var custRow in customers.Rows)
         {
             var custId = Convert.ToInt32(custRow["id"]);
             var firstName = custRow["first_name"]?.ToString() ?? "";
             var lastName = custRow["last_name"]?.ToString() ?? "";
-            customerNames[custId] = (firstName, lastName, custRow["as_of"]);
+            customerNames[custId] = (firstName, lastName, custRow["ifw_effective_date"]);
         }
 
         // For each customer with credit scores, compute averages and individual bureau scores
@@ -90,7 +90,7 @@ public class CreditScoreAverager : IExternalStep
                 ["equifax_score"] = equifaxScore,
                 ["transunion_score"] = transunionScore,
                 ["experian_score"] = experianScore,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

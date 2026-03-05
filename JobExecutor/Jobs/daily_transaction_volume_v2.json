@@ -7,21 +7,25 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["amount"]
+      "columns": [
+        "amount"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "daily_vol",
-      "sql": "SELECT as_of, COUNT(*) AS total_transactions, ROUND(SUM(amount), 2) AS total_amount, ROUND(AVG(amount), 2) AS avg_amount FROM transactions GROUP BY as_of ORDER BY as_of"
+      "sql": "SELECT ifw_effective_date, COUNT(*) AS total_transactions, ROUND(SUM(amount), 2) AS total_amount, ROUND(AVG(amount), 2) AS avg_amount FROM transactions GROUP BY ifw_effective_date ORDER BY ifw_effective_date"
     },
     {
       "type": "CsvFileWriter",
       "source": "daily_vol",
-      "outputFile": "Output/double_secret_curated/daily_transaction_volume.csv",
       "includeHeader": true,
       "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
       "writeMode": "Append",
-      "lineEnding": "CRLF"
+      "lineEnding": "CRLF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "daily_transaction_volume",
+      "fileName": "daily_transaction_volume.csv"
     }
   ]
 }

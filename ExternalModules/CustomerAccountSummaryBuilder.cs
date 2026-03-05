@@ -10,7 +10,7 @@ public class CustomerAccountSummaryBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name",
-            "account_count", "total_balance", "active_balance", "as_of"
+            "account_count", "total_balance", "active_balance", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -57,7 +57,7 @@ public class CustomerAccountSummaryBuilder : IExternalStep
                 ["account_count"] = accountCount,
                 ["total_balance"] = totalBalance,
                 ["active_balance"] = activeBalance,
-                ["as_of"] = custRow["as_of"]
+                ["ifw_effective_date"] = custRow["ifw_effective_date"]
             }));
         }
 

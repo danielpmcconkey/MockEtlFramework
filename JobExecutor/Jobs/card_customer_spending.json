@@ -7,21 +7,37 @@
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["card_txn_id", "card_id", "customer_id", "amount", "txn_timestamp"]
+      "columns": [
+        "card_txn_id",
+        "card_id",
+        "customer_id",
+        "amount",
+        "txn_timestamp"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "prefix", "first_name", "last_name", "suffix"]
+      "columns": [
+        "id",
+        "prefix",
+        "first_name",
+        "last_name",
+        "suffix"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type"
+      ]
     },
     {
       "type": "External",
@@ -31,9 +47,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/card_customer_spending/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "card_customer_spending",
+      "fileName": "card_customer_spending"
     }
   ]
 }

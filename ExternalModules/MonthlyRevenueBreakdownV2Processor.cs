@@ -6,7 +6,7 @@ namespace ExternalModules;
 /// <summary>
 /// V2 replacement for MonthlyRevenueBreakdownBuilder.
 /// Reads pre-aggregated revenue_aggregates DataFrame from the Transformation step,
-/// applies banker's rounding (W5), injects as_of from shared state (BR-9),
+/// applies banker's rounding (W5), injects ifw_effective_date from shared state (BR-9),
 /// and conditionally appends Oct 31 quarterly summary rows (W3c).
 ///
 /// Anti-patterns eliminated:
@@ -24,14 +24,14 @@ public class MonthlyRevenueBreakdownV2Processor : IExternalStep
 
     private static readonly List<string> OutputColumns = new()
     {
-        "revenue_source", "total_revenue", "transaction_count", "as_of"
+        "revenue_source", "total_revenue", "transaction_count", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        // BR-9: as_of from __maxEffectiveDate shared state, NOT from data rows
+        // BR-9: ifw_effective_date from __etlEffectiveDate shared state, NOT from data rows
         // [MonthlyRevenueBreakdownBuilder.cs:18]
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // OQ-1: If Transformation failed due to empty source tables (no SQLite table created),
         // revenue_aggregates may not be in shared state. Default to 0/0 per V1 behavior (BR-10).
@@ -75,14 +75,14 @@ public class MonthlyRevenueBreakdownV2Processor : IExternalStep
                 ["revenue_source"] = "overdraft_fees",
                 ["total_revenue"] = roundedOverdraftRevenue,
                 ["transaction_count"] = overdraftCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }),
             new Row(new Dictionary<string, object?>
             {
                 ["revenue_source"] = "credit_interest_proxy",
                 ["total_revenue"] = roundedCreditRevenue,
                 ["transaction_count"] = creditCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             })
         };
 
@@ -96,14 +96,14 @@ public class MonthlyRevenueBreakdownV2Processor : IExternalStep
                 ["revenue_source"] = "QUARTERLY_TOTAL_overdraft_fees",
                 ["total_revenue"] = roundedOverdraftRevenue,
                 ["transaction_count"] = overdraftCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
             outputRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["revenue_source"] = "QUARTERLY_TOTAL_credit_interest_proxy",
                 ["total_revenue"] = roundedCreditRevenue,
                 ["transaction_count"] = creditCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

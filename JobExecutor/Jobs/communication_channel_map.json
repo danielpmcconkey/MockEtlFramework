@@ -7,28 +7,45 @@
       "resultName": "customer_preferences",
       "schema": "datalake",
       "table": "customer_preferences",
-      "columns": ["preference_id", "customer_id", "preference_type", "opted_in"]
+      "columns": [
+        "preference_id",
+        "customer_id",
+        "preference_type",
+        "opted_in"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "email_addresses",
       "schema": "datalake",
       "table": "email_addresses",
-      "columns": ["email_id", "customer_id", "email_address"]
+      "columns": [
+        "email_id",
+        "customer_id",
+        "email_address"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "phone_numbers",
       "schema": "datalake",
       "table": "phone_numbers",
-      "columns": ["phone_id", "customer_id", "phone_number"]
+      "columns": [
+        "phone_id",
+        "customer_id",
+        "phone_number"
+      ]
     },
     {
       "type": "External",
@@ -38,10 +55,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/communication_channel_map.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "communication_channel_map",
+      "fileName": "communication_channel_map.csv"
     }
   ]
 }

@@ -9,11 +9,11 @@ public class CardTransactionDailyProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "card_type", "txn_count", "total_amount", "avg_amount", "as_of"
+            "card_type", "txn_count", "total_amount", "avg_amount", "ifw_effective_date"
         };
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         var cardTransactions = sharedState.ContainsKey("card_transactions")
@@ -42,7 +42,7 @@ public class CardTransactionDailyProcessor : IExternalStep
 
         // Group transactions by card_type — daily rows
         var groups = new Dictionary<string, (int count, decimal total)>();
-        var asOf = cardTransactions.Rows[0]["as_of"];
+        var asOf = cardTransactions.Rows[0]["ifw_effective_date"];
 
         foreach (var txn in cardTransactions.Rows)
         {
@@ -70,7 +70,7 @@ public class CardTransactionDailyProcessor : IExternalStep
                 ["txn_count"] = kvp.Value.count,
                 ["total_amount"] = kvp.Value.total,
                 ["avg_amount"] = avgAmount,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 
@@ -86,7 +86,7 @@ public class CardTransactionDailyProcessor : IExternalStep
                 ["txn_count"] = totalCount,
                 ["total_amount"] = totalAmount,
                 ["avg_amount"] = totalCount > 0 ? Math.Round(totalAmount / totalCount, 2) : 0m,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

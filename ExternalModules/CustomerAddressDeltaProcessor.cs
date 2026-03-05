@@ -17,12 +17,12 @@ public class CustomerAddressDeltaProcessor : IExternalStep
     {
         "change_type", "address_id", "customer_id", "customer_name",
         "address_line1", "city", "state_province", "postal_code",
-        "country", "start_date", "end_date", "as_of", "record_count"
+        "country", "start_date", "end_date", "ifw_effective_date", "record_count"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        var currentDate = (DateOnly)sharedState[DataSourcing.MinDateKey];
+        var currentDate = (DateOnly)sharedState[DataSourcing.EtlEffectiveDateKey];
         var previousDate = currentDate.AddDays(-1);
 
         using var connection = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
@@ -48,7 +48,7 @@ public class CustomerAddressDeltaProcessor : IExternalStep
                 ["country"] = null,
                 ["start_date"] = null,
                 ["end_date"] = null,
-                ["as_of"] = currentDate.ToString("yyyy-MM-dd"),
+                ["ifw_effective_date"] = currentDate.ToString("yyyy-MM-dd"),
                 ["record_count"] = 0
             });
             sharedState["output"] = new DataFrame(new List<Row> { nullRow }, OutputColumns);
@@ -104,7 +104,7 @@ public class CustomerAddressDeltaProcessor : IExternalStep
                 ["country"] = current["country"]?.ToString()?.Trim(),
                 ["start_date"] = FormatDate(current["start_date"]),
                 ["end_date"] = FormatDate(current["end_date"]),
-                ["as_of"] = currentDate.ToString("yyyy-MM-dd"),
+                ["ifw_effective_date"] = currentDate.ToString("yyyy-MM-dd"),
                 ["record_count"] = deltaRows.Count // placeholder, updated below
             }));
         }
@@ -113,7 +113,7 @@ public class CustomerAddressDeltaProcessor : IExternalStep
 
         if (recordCount == 0)
         {
-            // No deltas: single row with nulls except as_of and record_count
+            // No deltas: single row with nulls except ifw_effective_date and record_count
             deltaRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["change_type"] = null,
@@ -127,7 +127,7 @@ public class CustomerAddressDeltaProcessor : IExternalStep
                 ["country"] = null,
                 ["start_date"] = null,
                 ["end_date"] = null,
-                ["as_of"] = currentDate.ToString("yyyy-MM-dd"),
+                ["ifw_effective_date"] = currentDate.ToString("yyyy-MM-dd"),
                 ["record_count"] = 0
             }));
         }
@@ -150,7 +150,7 @@ public class CustomerAddressDeltaProcessor : IExternalStep
             SELECT address_id, customer_id, address_line1, city, state_province,
                    postal_code, country, start_date, end_date
             FROM datalake.addresses
-            WHERE as_of = @date
+            WHERE ifw_effective_date = @date
             ORDER BY address_id";
 
         using var cmd = new NpgsqlCommand(query, connection);
@@ -177,8 +177,8 @@ public class CustomerAddressDeltaProcessor : IExternalStep
         const string query = @"
             SELECT DISTINCT ON (id) id, first_name, last_name
             FROM datalake.customers
-            WHERE as_of <= @date
-            ORDER BY id, as_of DESC";
+            WHERE ifw_effective_date <= @date
+            ORDER BY id, ifw_effective_date DESC";
 
         using var cmd = new NpgsqlCommand(query, connection);
         cmd.Parameters.AddWithValue("@date", asOfDate.ToDateTime(TimeOnly.MinValue));

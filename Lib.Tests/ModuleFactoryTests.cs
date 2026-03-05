@@ -76,36 +76,132 @@ public class ModuleFactoryTests
     [Fact]
     public void Create_ParquetFileWriter_ReturnsCorrectType()
     {
-        var el = Parse(@"{""type"": ""ParquetFileWriter"", ""source"": ""output"", ""outputDirectory"": ""Output/test"", ""numParts"": 2, ""writeMode"": ""Overwrite""}");
+        var el = Parse(@"{
+            ""type"": ""ParquetFileWriter"",
+            ""source"": ""output"",
+            ""outputDirectory"": ""Output/poc4"",
+            ""jobDirName"": ""test_job"",
+            ""fileName"": ""test_output"",
+            ""numParts"": 2,
+            ""writeMode"": ""Overwrite""
+        }");
         Assert.IsType<ParquetFileWriter>(ModuleFactory.Create(el));
     }
 
     [Fact]
     public void Create_ParquetFileWriter_DefaultNumParts_ReturnsCorrectType()
     {
-        var el = Parse(@"{""type"": ""ParquetFileWriter"", ""source"": ""output"", ""outputDirectory"": ""Output/test"", ""writeMode"": ""Overwrite""}");
+        var el = Parse(@"{
+            ""type"": ""ParquetFileWriter"",
+            ""source"": ""output"",
+            ""outputDirectory"": ""Output/poc4"",
+            ""jobDirName"": ""test_job"",
+            ""fileName"": ""test_output"",
+            ""writeMode"": ""Overwrite""
+        }");
         Assert.IsType<ParquetFileWriter>(ModuleFactory.Create(el));
     }
 
     [Fact]
     public void Create_CsvFileWriter_ReturnsCorrectType()
     {
-        var el = Parse(@"{""type"": ""CsvFileWriter"", ""source"": ""output"", ""outputFile"": ""Output/test.csv"", ""writeMode"": ""Overwrite""}");
+        var el = Parse(@"{
+            ""type"": ""CsvFileWriter"",
+            ""source"": ""output"",
+            ""outputDirectory"": ""Output/poc4"",
+            ""jobDirName"": ""test_job"",
+            ""fileName"": ""test.csv"",
+            ""writeMode"": ""Overwrite""
+        }");
         Assert.IsType<CsvFileWriter>(ModuleFactory.Create(el));
     }
 
     [Fact]
     public void Create_CsvFileWriter_WithTrailer_ReturnsCorrectType()
     {
-        var el = Parse(@"{""type"": ""CsvFileWriter"", ""source"": ""output"", ""outputFile"": ""Output/test.csv"", ""trailerFormat"": ""TRAILER|{row_count}"", ""writeMode"": ""Overwrite""}");
+        var el = Parse(@"{
+            ""type"": ""CsvFileWriter"",
+            ""source"": ""output"",
+            ""outputDirectory"": ""Output/poc4"",
+            ""jobDirName"": ""test_job"",
+            ""fileName"": ""test.csv"",
+            ""trailerFormat"": ""TRAILER|{row_count}"",
+            ""writeMode"": ""Overwrite""
+        }");
         Assert.IsType<CsvFileWriter>(ModuleFactory.Create(el));
     }
 
     [Fact]
     public void Create_CsvFileWriter_WithCrlfLineEnding_ReturnsCorrectType()
     {
-        var el = Parse(@"{""type"": ""CsvFileWriter"", ""source"": ""output"", ""outputFile"": ""Output/test.csv"", ""writeMode"": ""Overwrite"", ""lineEnding"": ""CRLF""}");
+        var el = Parse(@"{
+            ""type"": ""CsvFileWriter"",
+            ""source"": ""output"",
+            ""outputDirectory"": ""Output/poc4"",
+            ""jobDirName"": ""test_job"",
+            ""fileName"": ""test.csv"",
+            ""writeMode"": ""Overwrite"",
+            ""lineEnding"": ""CRLF""
+        }");
         Assert.IsType<CsvFileWriter>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_DataSourcing_WithLookbackDays_ReturnsCorrectType()
+    {
+        var el = Parse(@"{
+            ""type"": ""DataSourcing"",
+            ""resultName"": ""customers"",
+            ""schema"": ""datalake"",
+            ""table"": ""customers"",
+            ""columns"": [""id"", ""first_name""],
+            ""lookbackDays"": 3
+        }");
+        Assert.IsType<DataSourcing>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_DataSourcing_WithMostRecentPrior_ReturnsCorrectType()
+    {
+        var el = Parse(@"{
+            ""type"": ""DataSourcing"",
+            ""resultName"": ""customers"",
+            ""schema"": ""datalake"",
+            ""table"": ""customers"",
+            ""columns"": [""id"", ""first_name""],
+            ""mostRecentPrior"": true
+        }");
+        Assert.IsType<DataSourcing>(ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_DataSourcing_LookbackAndMostRecentPrior_Throws()
+    {
+        var el = Parse(@"{
+            ""type"": ""DataSourcing"",
+            ""resultName"": ""customers"",
+            ""schema"": ""datalake"",
+            ""table"": ""customers"",
+            ""columns"": [""id"", ""first_name""],
+            ""lookbackDays"": 3,
+            ""mostRecentPrior"": true
+        }");
+        Assert.Throws<ArgumentException>(() => ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_DataSourcing_LookbackAndStaticDates_Throws()
+    {
+        var el = Parse(@"{
+            ""type"": ""DataSourcing"",
+            ""resultName"": ""customers"",
+            ""schema"": ""datalake"",
+            ""table"": ""customers"",
+            ""columns"": [""id"", ""first_name""],
+            ""lookbackDays"": 3,
+            ""minEffectiveDate"": ""2024-01-01""
+        }");
+        Assert.Throws<ArgumentException>(() => ModuleFactory.Create(el));
     }
 
     [Fact]

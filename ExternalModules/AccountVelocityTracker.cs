@@ -9,7 +9,7 @@ public class AccountVelocityTracker : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "account_id", "customer_id", "txn_date", "txn_count", "total_amount", "as_of"
+            "account_id", "customer_id", "txn_date", "txn_count", "total_amount", "ifw_effective_date"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
@@ -22,7 +22,7 @@ public class AccountVelocityTracker : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Build account_id -> customer_id lookup
@@ -34,12 +34,12 @@ public class AccountVelocityTracker : IExternalStep
             accountToCustomer[accountId] = customerId;
         }
 
-        // Group by account_id and txn_date (as_of)
+        // Group by account_id and txn_date (ifw_effective_date)
         var groups = new Dictionary<(int accountId, string txnDate), (int count, decimal total)>();
         foreach (var row in transactions.Rows)
         {
             var accountId = Convert.ToInt32(row["account_id"]);
-            var txnDate = row["as_of"]?.ToString() ?? dateStr;
+            var txnDate = row["ifw_effective_date"]?.ToString() ?? dateStr;
 
             var key = (accountId, txnDate);
             if (!groups.ContainsKey(key))
@@ -63,7 +63,7 @@ public class AccountVelocityTracker : IExternalStep
                 ["txn_date"] = txnDate,
                 ["txn_count"] = count,
                 ["total_amount"] = Math.Round(total, 2),
-                ["as_of"] = dateStr
+                ["ifw_effective_date"] = dateStr
             }));
         }
 

@@ -7,7 +7,15 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["overdraft_id", "account_id", "customer_id", "overdraft_amount", "fee_amount", "fee_waived", "event_timestamp"],
+      "columns": [
+        "overdraft_id",
+        "account_id",
+        "customer_id",
+        "overdraft_amount",
+        "fee_amount",
+        "fee_waived",
+        "event_timestamp"
+      ],
       "minEffectiveDate": "2024-10-01",
       "maxEffectiveDate": "2024-12-31"
     },
@@ -19,10 +27,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/fee_revenue_daily.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "fee_revenue_daily",
+      "fileName": "fee_revenue_daily.csv"
     }
   ]
 }

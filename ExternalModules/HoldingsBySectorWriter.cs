@@ -7,7 +7,7 @@ public class HoldingsBySectorWriter : IExternalStep
 {
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        var outputColumns = new List<string> { "sector", "holding_count", "total_value", "as_of" };
+        var outputColumns = new List<string> { "sector", "holding_count", "total_value", "ifw_effective_date" };
 
         var holdings = sharedState.ContainsKey("holdings") ? sharedState["holdings"] as DataFrame : null;
         var securities = sharedState.ContainsKey("securities") ? sharedState["securities"] as DataFrame : null;
@@ -21,7 +21,7 @@ public class HoldingsBySectorWriter : IExternalStep
         // W7: Count INPUT rows before any grouping (inflated count for trailer)
         var inputCount = holdings.Count;
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Build security_id -> sector lookup

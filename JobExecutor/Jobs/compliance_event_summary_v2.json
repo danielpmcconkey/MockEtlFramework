@@ -7,21 +7,26 @@
       "resultName": "compliance_events",
       "schema": "datalake",
       "table": "compliance_events",
-      "columns": ["event_type", "status"]
+      "columns": [
+        "event_type",
+        "status"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT COALESCE(event_type, '') AS event_type, COALESCE(status, '') AS status, COUNT(*) AS event_count, as_of FROM compliance_events WHERE strftime('%w', as_of) != '0' GROUP BY COALESCE(event_type, ''), COALESCE(status, ''), as_of ORDER BY event_type, status"
+      "sql": "SELECT COALESCE(event_type, '') AS event_type, COALESCE(status, '') AS status, COUNT(*) AS event_count, ifw_effective_date FROM compliance_events WHERE strftime('%w', ifw_effective_date) != '0' GROUP BY COALESCE(event_type, ''), COALESCE(status, ''), ifw_effective_date ORDER BY event_type, status"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/compliance_event_summary.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "compliance_event_summary",
+      "fileName": "compliance_event_summary.csv"
     }
   ]
 }

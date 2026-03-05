@@ -10,7 +10,7 @@ public class WealthTierAnalyzer : IExternalStep
         var outputColumns = new List<string>
         {
             "wealth_tier", "customer_count", "total_wealth",
-            "avg_wealth", "pct_of_customers", "as_of"
+            "avg_wealth", "pct_of_customers", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -23,7 +23,7 @@ public class WealthTierAnalyzer : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // Compute total wealth per customer (accounts + investments)
         var wealthByCustomer = new Dictionary<int, decimal>();
@@ -87,7 +87,7 @@ public class WealthTierAnalyzer : IExternalStep
                 ["total_wealth"] = Math.Round(totalWealth, 2, MidpointRounding.ToEven),
                 ["avg_wealth"] = Math.Round(avgWealth, 2, MidpointRounding.ToEven),
                 ["pct_of_customers"] = pctOfCustomers,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

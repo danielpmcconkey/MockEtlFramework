@@ -31,7 +31,7 @@ public class PortfolioConcentrationV2Processor : IExternalStep
     private static readonly List<string> OutputColumns = new()
     {
         "customer_id", "investment_id", "sector",
-        "sector_value", "total_value", "sector_pct", "as_of"
+        "sector_value", "total_value", "sector_pct", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -70,8 +70,8 @@ public class PortfolioConcentrationV2Processor : IExternalStep
             int totalInt = (int)totalValue;
             decimal sectorPct = (decimal)(sectorInt / totalInt);
 
-            // as_of: SQLite returns TEXT from strftime; parse back to DateOnly for Parquet DATE
-            DateOnly asOf = DateOnly.Parse(row["as_of"].ToString()!);
+            // ifw_effective_date: SQLite returns TEXT from strftime; parse back to DateOnly for Parquet DATE
+            DateOnly asOf = DateOnly.Parse(row["ifw_effective_date"].ToString()!);
 
             outputRows.Add(new Row(new Dictionary<string, object?>
             {
@@ -81,7 +81,7 @@ public class PortfolioConcentrationV2Processor : IExternalStep
                 ["sector_value"] = sectorValue,
                 ["total_value"] = totalValue,
                 ["sector_pct"] = sectorPct,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

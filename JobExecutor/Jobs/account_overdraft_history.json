@@ -7,26 +7,43 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["overdraft_id", "account_id", "customer_id", "overdraft_amount", "fee_amount", "fee_waived", "event_timestamp"]
+      "columns": [
+        "overdraft_id",
+        "account_id",
+        "customer_id",
+        "overdraft_amount",
+        "fee_amount",
+        "fee_waived",
+        "event_timestamp"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "interest_rate", "credit_limit"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "interest_rate",
+        "credit_limit"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "overdraft_history",
-      "sql": "SELECT oe.overdraft_id, oe.account_id, oe.customer_id, a.account_type, oe.overdraft_amount, oe.fee_amount, oe.fee_waived, oe.as_of FROM overdraft_events oe JOIN accounts a ON oe.account_id = a.account_id AND oe.as_of = a.as_of ORDER BY oe.as_of, oe.overdraft_id"
+      "sql": "SELECT oe.overdraft_id, oe.account_id, oe.customer_id, a.account_type, oe.overdraft_amount, oe.fee_amount, oe.fee_waived, oe.ifw_effective_date FROM overdraft_events oe JOIN accounts a ON oe.account_id = a.account_id AND oe.ifw_effective_date = a.ifw_effective_date ORDER BY oe.ifw_effective_date, oe.overdraft_id"
     },
     {
       "type": "ParquetFileWriter",
       "source": "overdraft_history",
-      "outputDirectory": "Output/curated/account_overdraft_history/",
+      "outputDirectory": "Output/poc4",
       "numParts": 50,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "account_overdraft_history",
+      "fileName": "account_overdraft_history"
     }
   ]
 }

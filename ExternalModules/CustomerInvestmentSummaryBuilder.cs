@@ -10,7 +10,7 @@ public class CustomerInvestmentSummaryBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name",
-            "investment_count", "total_value", "as_of"
+            "investment_count", "total_value", "ifw_effective_date"
         };
 
         var investments = sharedState.ContainsKey("investments") ? sharedState["investments"] as DataFrame : null;
@@ -22,7 +22,7 @@ public class CustomerInvestmentSummaryBuilder : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // Build customer lookup
         var customerLookup = new Dictionary<int, (string firstName, string lastName)>();
@@ -68,7 +68,7 @@ public class CustomerInvestmentSummaryBuilder : IExternalStep
                 ["last_name"] = name.lastName,
                 ["investment_count"] = count,
                 ["total_value"] = roundedValue,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

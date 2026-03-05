@@ -11,7 +11,7 @@ public class CrossSellCandidateFinder : IExternalStep
         {
             "customer_id", "first_name", "last_name",
             "has_checking", "has_savings", "has_credit",
-            "has_card", "has_investment", "missing_products", "as_of"
+            "has_card", "has_investment", "missing_products", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -25,7 +25,7 @@ public class CrossSellCandidateFinder : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // Build per-customer account type sets
         var accountTypesByCustomer = new Dictionary<int, HashSet<string>>();
@@ -97,7 +97,7 @@ public class CrossSellCandidateFinder : IExternalStep
                 ["has_card"] = hasCard ? "Yes" : "No Card",
                 ["has_investment"] = investmentValue,
                 ["missing_products"] = missingProducts,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

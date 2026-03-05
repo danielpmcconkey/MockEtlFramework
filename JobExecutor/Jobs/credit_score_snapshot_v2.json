@@ -7,20 +7,27 @@
       "resultName": "credit_scores",
       "schema": "datalake",
       "table": "credit_scores",
-      "columns": ["credit_score_id", "customer_id", "bureau", "score"]
+      "columns": [
+        "credit_score_id",
+        "customer_id",
+        "bureau",
+        "score"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT credit_score_id, customer_id, bureau, score, SUBSTR(as_of, 6, 2) || '/' || SUBSTR(as_of, 9, 2) || '/' || SUBSTR(as_of, 1, 4) AS as_of FROM credit_scores"
+      "sql": "SELECT credit_score_id, customer_id, bureau, score, SUBSTR(ifw_effective_date, 6, 2) || '/' || SUBSTR(ifw_effective_date, 9, 2) || '/' || SUBSTR(ifw_effective_date, 1, 4) AS ifw_effective_date FROM credit_scores"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/credit_score_snapshot.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "CRLF"
+      "lineEnding": "CRLF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "credit_score_snapshot",
+      "fileName": "credit_score_snapshot.csv"
     }
   ]
 }

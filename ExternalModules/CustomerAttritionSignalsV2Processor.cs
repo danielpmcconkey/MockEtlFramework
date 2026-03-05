@@ -6,7 +6,7 @@ namespace ExternalModules;
 /// <summary>
 /// V2 replacement for CustomerAttritionScorer.
 /// Minimal scoring module: receives pre-aggregated data from SQL Transformation
-/// and computes avg_balance, attrition_score, risk_level, and as_of with proper
+/// and computes avg_balance, attrition_score, risk_level, and ifw_effective_date with proper
 /// C# types for Parquet schema equivalence.
 ///
 /// Anti-patterns eliminated:
@@ -39,7 +39,7 @@ public class CustomerAttritionSignalsV2Processor : IExternalStep
     {
         "customer_id", "first_name", "last_name",
         "account_count", "txn_count", "avg_balance",
-        "attrition_score", "risk_level", "as_of"
+        "attrition_score", "risk_level", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -56,7 +56,7 @@ public class CustomerAttritionSignalsV2Processor : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         var outputRows = new List<Row>();
         foreach (var row in preScored.Rows)
@@ -102,7 +102,7 @@ public class CustomerAttritionSignalsV2Processor : IExternalStep
                 ["avg_balance"] = avgBalance,
                 ["attrition_score"] = attritionScore,
                 ["risk_level"] = riskLevel,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

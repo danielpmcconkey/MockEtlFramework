@@ -7,27 +7,38 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT a.account_id, a.customer_id, a.account_type, a.current_balance, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, a.as_of FROM accounts a LEFT JOIN customers c ON a.customer_id = c.id AND a.as_of = c.as_of WHERE CAST(a.current_balance AS REAL) > 10000"
+      "sql": "SELECT a.account_id, a.customer_id, a.account_type, a.current_balance, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, a.ifw_effective_date FROM accounts a LEFT JOIN customers c ON a.customer_id = c.id AND a.ifw_effective_date = c.ifw_effective_date WHERE CAST(a.current_balance AS REAL) > 10000"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/high_balance_accounts.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "high_balance_accounts",
+      "fileName": "high_balance_accounts.csv"
     }
   ]
 }

@@ -7,41 +7,57 @@
       "resultName": "customer_preferences",
       "schema": "datalake",
       "table": "customer_preferences",
-      "columns": ["customer_id", "preference_type", "opted_in"]
+      "columns": [
+        "customer_id",
+        "preference_type",
+        "opted_in"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "email_addresses",
       "schema": "datalake",
       "table": "email_addresses",
-      "columns": ["customer_id", "email_address"]
+      "columns": [
+        "customer_id",
+        "email_address"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "phone_numbers",
       "schema": "datalake",
       "table": "phone_numbers",
-      "columns": ["customer_id", "phone_number"]
+      "columns": [
+        "customer_id",
+        "phone_number"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT c.id AS customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, CASE WHEN pref.has_email = 1 THEN 'Email' WHEN pref.has_sms = 1 THEN 'SMS' WHEN pref.has_push = 1 THEN 'Push' ELSE 'None' END AS preferred_channel, COALESCE(em.email_address, 'N/A') AS email, COALESCE(ph.phone_number, '') AS phone, c.as_of FROM customers c LEFT JOIN (SELECT customer_id, MAX(CASE WHEN preference_type = 'MARKETING_EMAIL' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_email, MAX(CASE WHEN preference_type = 'MARKETING_SMS' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_sms, MAX(CASE WHEN preference_type = 'PUSH_NOTIFICATIONS' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_push FROM customer_preferences GROUP BY customer_id) pref ON c.id = pref.customer_id LEFT JOIN (SELECT customer_id, email_address FROM email_addresses GROUP BY customer_id HAVING rowid = MAX(rowid)) em ON c.id = em.customer_id LEFT JOIN (SELECT customer_id, phone_number FROM phone_numbers GROUP BY customer_id HAVING rowid = MAX(rowid)) ph ON c.id = ph.customer_id ORDER BY c.id"
+      "sql": "SELECT c.id AS customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, CASE WHEN pref.has_email = 1 THEN 'Email' WHEN pref.has_sms = 1 THEN 'SMS' WHEN pref.has_push = 1 THEN 'Push' ELSE 'None' END AS preferred_channel, COALESCE(em.email_address, 'N/A') AS email, COALESCE(ph.phone_number, '') AS phone, c.ifw_effective_date FROM customers c LEFT JOIN (SELECT customer_id, MAX(CASE WHEN preference_type = 'MARKETING_EMAIL' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_email, MAX(CASE WHEN preference_type = 'MARKETING_SMS' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_sms, MAX(CASE WHEN preference_type = 'PUSH_NOTIFICATIONS' AND opted_in = 1 THEN 1 ELSE 0 END) AS has_push FROM customer_preferences GROUP BY customer_id) pref ON c.id = pref.customer_id LEFT JOIN (SELECT customer_id, email_address FROM email_addresses GROUP BY customer_id HAVING rowid = MAX(rowid)) em ON c.id = em.customer_id LEFT JOIN (SELECT customer_id, phone_number FROM phone_numbers GROUP BY customer_id HAVING rowid = MAX(rowid)) ph ON c.id = ph.customer_id ORDER BY c.id"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/communication_channel_map.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "communication_channel_map",
+      "fileName": "communication_channel_map.csv"
     }
   ]
 }

@@ -7,14 +7,24 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name", "city"]
+      "columns": [
+        "branch_id",
+        "branch_name",
+        "city"
+      ]
     },
     {
       "type": "External",
@@ -24,11 +34,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/account_type_distribution.csv",
       "includeHeader": true,
       "trailerFormat": "END|{row_count}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "account_type_distribution",
+      "fileName": "account_type_distribution.csv"
     }
   ]
 }

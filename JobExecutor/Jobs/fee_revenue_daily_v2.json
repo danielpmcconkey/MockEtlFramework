@@ -7,7 +7,11 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["fee_amount", "fee_waived", "as_of"],
+      "columns": [
+        "fee_amount",
+        "fee_waived",
+        "ifw_effective_date"
+      ],
       "minEffectiveDate": "2024-10-01",
       "maxEffectiveDate": "2024-12-31"
     },
@@ -19,15 +23,17 @@
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT edr.effective_date AS event_date, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) AS charged_fees, SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS waived_fees, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) - SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS net_revenue, edr.effective_date AS as_of FROM overdraft_events oe CROSS JOIN effective_date_ref edr WHERE oe.as_of = edr.effective_date GROUP BY edr.effective_date UNION ALL SELECT 'MONTHLY_TOTAL' AS event_date, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) AS charged_fees, SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS waived_fees, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) - SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS net_revenue, edr.effective_date AS as_of FROM overdraft_events oe CROSS JOIN effective_date_ref edr WHERE edr.effective_date = date(edr.effective_date, 'start of month', '+1 month', '-1 day') AND EXISTS (SELECT 1 FROM overdraft_events oe2 WHERE oe2.as_of = edr.effective_date) GROUP BY edr.effective_date"
+      "sql": "SELECT edr.effective_date AS event_date, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) AS charged_fees, SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS waived_fees, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) - SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS net_revenue, edr.effective_date AS ifw_effective_date FROM overdraft_events oe CROSS JOIN effective_date_ref edr WHERE oe.ifw_effective_date = edr.effective_date GROUP BY edr.effective_date UNION ALL SELECT 'MONTHLY_TOTAL' AS event_date, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) AS charged_fees, SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS waived_fees, SUM(CASE WHEN oe.fee_waived = 0 THEN oe.fee_amount ELSE 0.0 END) - SUM(CASE WHEN oe.fee_waived = 1 THEN oe.fee_amount ELSE 0.0 END) AS net_revenue, edr.effective_date AS ifw_effective_date FROM overdraft_events oe CROSS JOIN effective_date_ref edr WHERE edr.effective_date = date(edr.effective_date, 'start of month', '+1 month', '-1 day') AND EXISTS (SELECT 1 FROM overdraft_events oe2 WHERE oe2.ifw_effective_date = edr.effective_date) GROUP BY edr.effective_date"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/fee_revenue_daily.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "fee_revenue_daily",
+      "fileName": "fee_revenue_daily.csv"
     }
   ]
 }

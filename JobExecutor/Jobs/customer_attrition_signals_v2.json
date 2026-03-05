@@ -7,21 +7,32 @@
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id"]
+      "columns": [
+        "transaction_id",
+        "account_id"
+      ]
     },
     {
       "type": "Transformation",
@@ -36,9 +47,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/customer_attrition_signals/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "customer_attrition_signals",
+      "fileName": "customer_attrition_signals"
     }
   ]
 }

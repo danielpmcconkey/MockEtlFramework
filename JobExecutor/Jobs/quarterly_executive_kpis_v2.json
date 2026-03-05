@@ -7,47 +7,62 @@
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id"]
+      "columns": [
+        "id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "current_balance"]
+      "columns": [
+        "account_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "amount"]
+      "columns": [
+        "transaction_id",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "investments",
       "schema": "datalake",
       "table": "investments",
-      "columns": ["investment_id", "current_value"]
+      "columns": [
+        "investment_id",
+        "current_value"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "compliance_events",
       "schema": "datalake",
       "table": "compliance_events",
-      "columns": ["event_id"]
+      "columns": [
+        "event_id"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT kpi_name, ROUND(kpi_value, 2) AS kpi_value, CASE WHEN CAST(strftime('%w', target_date) AS INTEGER) = 6 THEN date(target_date, '-1 day') WHEN CAST(strftime('%w', target_date) AS INTEGER) = 0 THEN date(target_date, '-2 days') ELSE target_date END AS as_of FROM (SELECT 'total_customers' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, MAX(as_of) AS target_date FROM customers WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_accounts' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(as_of) FROM customers) AS target_date FROM accounts WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_balance' AS kpi_name, COALESCE(SUM(current_balance), 0.0) AS kpi_value, (SELECT MAX(as_of) FROM customers) AS target_date FROM accounts WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_transactions' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(as_of) FROM customers) AS target_date FROM transactions WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_txn_amount' AS kpi_name, COALESCE(SUM(amount), 0.0) AS kpi_value, (SELECT MAX(as_of) FROM customers) AS target_date FROM transactions WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_investments' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(as_of) FROM customers) AS target_date FROM investments WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_investment_value' AS kpi_name, COALESCE(SUM(current_value), 0.0) AS kpi_value, (SELECT MAX(as_of) FROM customers) AS target_date FROM investments WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'compliance_events' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(as_of) FROM customers) AS target_date FROM compliance_events WHERE EXISTS (SELECT 1 FROM customers))"
+      "sql": "SELECT kpi_name, ROUND(kpi_value, 2) AS kpi_value, CASE WHEN CAST(strftime('%w', target_date) AS INTEGER) = 6 THEN date(target_date, '-1 day') WHEN CAST(strftime('%w', target_date) AS INTEGER) = 0 THEN date(target_date, '-2 days') ELSE target_date END AS ifw_effective_date FROM (SELECT 'total_customers' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, MAX(ifw_effective_date) AS target_date FROM customers WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_accounts' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(ifw_effective_date) FROM customers) AS target_date FROM accounts WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_balance' AS kpi_name, COALESCE(SUM(current_balance), 0.0) AS kpi_value, (SELECT MAX(ifw_effective_date) FROM customers) AS target_date FROM accounts WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_transactions' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(ifw_effective_date) FROM customers) AS target_date FROM transactions WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_txn_amount' AS kpi_name, COALESCE(SUM(amount), 0.0) AS kpi_value, (SELECT MAX(ifw_effective_date) FROM customers) AS target_date FROM transactions WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_investments' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(ifw_effective_date) FROM customers) AS target_date FROM investments WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'total_investment_value' AS kpi_name, COALESCE(SUM(current_value), 0.0) AS kpi_value, (SELECT MAX(ifw_effective_date) FROM customers) AS target_date FROM investments WHERE EXISTS (SELECT 1 FROM customers) UNION ALL SELECT 'compliance_events' AS kpi_name, CAST(COUNT(*) AS REAL) AS kpi_value, (SELECT MAX(ifw_effective_date) FROM customers) AS target_date FROM compliance_events WHERE EXISTS (SELECT 1 FROM customers))"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/quarterly_executive_kpis/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "quarterly_executive_kpis",
+      "fileName": "quarterly_executive_kpis"
     }
   ]
 }

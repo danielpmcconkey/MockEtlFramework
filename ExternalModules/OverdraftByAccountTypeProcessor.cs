@@ -9,7 +9,7 @@ public class OverdraftByAccountTypeProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "account_type", "account_count", "overdraft_count", "overdraft_rate", "as_of"
+            "account_type", "account_count", "overdraft_count", "overdraft_rate", "ifw_effective_date"
         };
 
         var overdraftEvents = sharedState.ContainsKey("overdraft_events")
@@ -25,7 +25,7 @@ public class OverdraftByAccountTypeProcessor : IExternalStep
             return sharedState;
         }
 
-        var asOf = overdraftEvents.Rows[0]["as_of"];
+        var asOf = overdraftEvents.Rows[0]["ifw_effective_date"];
 
         // Build account_id -> account_type lookup (AP6: row-by-row iteration)
         var accountTypeLookup = new Dictionary<int, string>();
@@ -76,7 +76,7 @@ public class OverdraftByAccountTypeProcessor : IExternalStep
                 ["account_count"] = accountCount,
                 ["overdraft_count"] = odCount,
                 ["overdraft_rate"] = overdraftRate,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

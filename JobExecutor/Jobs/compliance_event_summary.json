@@ -7,14 +7,24 @@
       "resultName": "compliance_events",
       "schema": "datalake",
       "table": "compliance_events",
-      "columns": ["event_id", "customer_id", "event_type", "status"]
+      "columns": [
+        "event_id",
+        "customer_id",
+        "event_type",
+        "status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status"
+      ]
     },
     {
       "type": "External",
@@ -24,11 +34,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/compliance_event_summary.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "compliance_event_summary",
+      "fileName": "compliance_event_summary.csv"
     }
   ]
 }

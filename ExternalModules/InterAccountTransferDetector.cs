@@ -10,7 +10,7 @@ public class InterAccountTransferDetector : IExternalStep
         var outputColumns = new List<string>
         {
             "debit_txn_id", "credit_txn_id", "from_account_id", "to_account_id",
-            "amount", "txn_timestamp", "as_of"
+            "amount", "txn_timestamp", "ifw_effective_date"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
@@ -36,9 +36,9 @@ public class InterAccountTransferDetector : IExternalStep
             var txnType = row["txn_type"]?.ToString() ?? "";
 
             if (txnType == "Debit")
-                debits.Add((txnId, accountId, amount, timestamp, row["as_of"]));
+                debits.Add((txnId, accountId, amount, timestamp, row["ifw_effective_date"]));
             else if (txnType == "Credit")
-                credits.Add((txnId, accountId, amount, timestamp, row["as_of"]));
+                credits.Add((txnId, accountId, amount, timestamp, row["ifw_effective_date"]));
         }
 
         // AP6: O(n^2) nested loop matching where SQL self-join would work
@@ -66,7 +66,7 @@ public class InterAccountTransferDetector : IExternalStep
                         ["to_account_id"] = credit.accountId,
                         ["amount"] = debit.amount,
                         ["txn_timestamp"] = debit.timestamp,
-                        ["as_of"] = debit.asOf
+                        ["ifw_effective_date"] = debit.asOf
                     }));
 
                     break;

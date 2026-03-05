@@ -32,7 +32,9 @@ public static class ModuleFactory
         el.GetProperty("columns").EnumerateArray().Select(c => c.GetString()!).ToArray(),
         el.TryGetProperty("minEffectiveDate", out var minEl) ? DateOnly.Parse(minEl.GetString()!) : null,
         el.TryGetProperty("maxEffectiveDate", out var maxEl) ? DateOnly.Parse(maxEl.GetString()!) : null,
-        el.TryGetProperty("additionalFilter", out var af)    ? af.GetString() ?? ""                : ""
+        el.TryGetProperty("additionalFilter", out var af)    ? af.GetString() ?? ""                : "",
+        el.TryGetProperty("lookbackDays", out var lb)        ? lb.GetInt32()                       : null,
+        el.TryGetProperty("mostRecentPrior", out var mrp) && mrp.GetBoolean()
     );
 
     private static Transformation CreateTransformation(JsonElement el) => new(
@@ -55,13 +57,17 @@ public static class ModuleFactory
     private static ParquetFileWriter CreateParquetFileWriter(JsonElement el) => new(
         el.GetProperty("source").GetString()!,
         el.GetProperty("outputDirectory").GetString()!,
+        el.GetProperty("jobDirName").GetString()!,
+        el.GetProperty("fileName").GetString()!,
         el.TryGetProperty("numParts", out var np) ? np.GetInt32() : 1,
         Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!)
     );
 
     private static CsvFileWriter CreateCsvFileWriter(JsonElement el) => new(
         el.GetProperty("source").GetString()!,
-        el.GetProperty("outputFile").GetString()!,
+        el.GetProperty("outputDirectory").GetString()!,
+        el.GetProperty("jobDirName").GetString()!,
+        el.GetProperty("fileName").GetString()!,
         !el.TryGetProperty("includeHeader", out var ih) || ih.GetBoolean(),
         el.TryGetProperty("trailerFormat", out var tf) ? tf.GetString() : null,
         Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!),

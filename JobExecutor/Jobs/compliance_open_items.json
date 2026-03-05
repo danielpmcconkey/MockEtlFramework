@@ -7,14 +7,27 @@
       "resultName": "compliance_events",
       "schema": "datalake",
       "table": "compliance_events",
-      "columns": ["event_id", "customer_id", "event_type", "event_date", "status", "review_date"]
+      "columns": [
+        "event_id",
+        "customer_id",
+        "event_type",
+        "event_date",
+        "status",
+        "review_date"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "prefix", "first_name", "last_name", "suffix"]
+      "columns": [
+        "id",
+        "prefix",
+        "first_name",
+        "last_name",
+        "suffix"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +37,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/compliance_open_items/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "compliance_open_items",
+      "fileName": "compliance_open_items"
     }
   ]
 }

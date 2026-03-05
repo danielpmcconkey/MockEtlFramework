@@ -40,7 +40,7 @@ Since the owner of this project is more comfortable in C# than Python, the ETL F
 - **Shared state as the integration contract:** Modules are decoupled from one another. They communicate only through named entries in the shared state dictionary.
 - **JSON-driven configuration:** Job behavior is defined externally in JSON, not in code. This keeps the framework generic and reusable across many different jobs.
 - **DataFrame as a first-class citizen:** The custom `DataFrame` class provides PySpark-like operations (Select, Filter, WithColumn, GroupBy, Join, Union, Distinct, OrderBy, Limit, etc.) so that transformation logic feels familiar to users of the production system.
-- **Full-load temporal data:** The data lake follows a snapshot (full-load) pattern. Each day's load is a complete picture of a table's state at that point in time, identified by an `as_of` date column. `DataSourcing` returns a flat DataFrame that includes the `as_of` column, allowing consumers to work across date ranges in a single DataFrame without requiring special date-loop logic in the framework itself.
+- **Full-load temporal data:** The data lake follows a snapshot (full-load) pattern. Each day's load is a complete picture of a table's state at that point in time, identified by an `ifw_effective_date` date column. `DataSourcing` returns a flat DataFrame that includes the `ifw_effective_date` column, allowing consumers to work across date ranges in a single DataFrame without requiring special date-loop logic in the framework itself.
 - **Automatic effective date management:** Effective dates are never hard-wired in job configuration files. Instead, `JobExecutorService` reads each job's last successful `max_effective_date` from `control.job_runs` and gap-fills forward one day at a time until today. The dates are injected into shared state before each pipeline run and picked up automatically by `DataSourcing`. On a job's very first run, the start date is read from a `firstEffectiveDate` field in the job conf. This keeps job confs generic and lets the executor handle all scheduling math.
 - **run_date vs. effective date:** `run_date` in `control.job_runs` is the calendar date the executor actually ran (always today). `min_effective_date` / `max_effective_date` record which data dates that run processed. These are separate concerns: a single executor invocation on one `run_date` may produce many rows in `control.job_runs`, each covering a different effective date.
 
@@ -65,7 +65,7 @@ The core framework library. Referenced by both the job executor and the test pro
 | Class | Purpose |
 |---|---|
 | `IModule` | Core module interface: `Execute(Dictionary<string, object> sharedState) → Dictionary<string, object>`. All modules implement this contract. |
-| `DataSourcing` | Queries a PostgreSQL data lake schema for a specified table, column list, and effective date range. Returns a single flat `DataFrame` with `as_of` appended as a column (skipped if the caller already includes it). Supports an optional `additionalFilter` clause. Effective dates may be supplied in the job conf JSON (`minEffectiveDate` / `maxEffectiveDate`) or omitted entirely, in which case the module reads the reserved shared-state keys `__minEffectiveDate` / `__maxEffectiveDate` injected by the executor at runtime. |
+| `DataSourcing` | Queries a PostgreSQL data lake schema for a specified table, column list, and effective date range. Returns a single flat `DataFrame` with `ifw_effective_date` appended as a column (skipped if the caller already includes it). Supports an optional `additionalFilter` clause. Date resolution supports four mutually exclusive modes (validated at construction): (1) static dates via `minEffectiveDate`/`maxEffectiveDate` in config, (2) `lookbackDays: N` — pulls T-N through T-0 relative to `__etlEffectiveDate`, (3) `mostRecentPrior: true` — queries the datalake for the latest `ifw_effective_date` before T-0 (handles weekends/gaps), (4) no date fields — both min and max fall back to `__etlEffectiveDate`. |
 | `Transformation` | Opens an in-memory SQLite connection, registers every `DataFrame` in the current shared state as a SQLite table, executes user-supplied free-form SQL, and stores the result `DataFrame` back into shared state under a caller-specified result name. |
 | `DataFrameWriter` | Writes a named `DataFrame` from shared state to a PostgreSQL curation schema. Auto-creates the target table if it does not exist (type inference from sample values). Supports `Overwrite` mode (truncate then insert) and `Append` mode (insert only). All writes are transaction-wrapped. |
 | `External` | Loads a user-supplied .NET assembly from disk via reflection, locates a named type that implements `IExternalStep`, instantiates it, and delegates `Execute`. Allows teams to inject arbitrary C# logic into any job pipeline without modifying the framework. |
@@ -79,6 +79,7 @@ The core framework library. Referenced by both the job executor and the test pro
 | Class | Purpose |
 |---|---|
 | `ConnectionHelper` | Internal static helper that builds a Npgsql connection string. Decodes the Postgres password from a hex-encoded UTF-16 LE environment variable (`PGPASS`). |
+| `DatePartitionHelper` | Shared utility for scanning date-partitioned output directories. `FindLatestPartition(jobDir)` returns the latest `yyyy-MM-dd`-named subdirectory. Used by both `CsvFileWriter` and `ParquetFileWriter` for append-mode prior-partition lookups. |
 | `PathHelper` | Internal static helper that resolves relative output paths against the solution root directory. Walks up from `AppContext.BaseDirectory` to find the `.sln` file. Used by file writer modules. |
 | `JobConf` | JSON deserialization model. Contains the job name, an optional `firstEffectiveDate` (the bootstrap date used when the job has no prior successful runs), and an ordered `List<JsonElement>` of module configurations. |
 | `JobRunner` | Deserializes a job conf from a JSON file path, iterates the module list, creates each module via `ModuleFactory`, and threads shared state through the pipeline. Accepts an optional `initialState` dictionary pre-populated by the executor (used to inject effective dates). Logs progress to the console. |
@@ -182,7 +183,17 @@ SELECT status, COUNT(*) FROM control.task_queue GROUP BY status;
 }
 ```
 
-Note that no `minEffectiveDate` / `maxEffectiveDate` fields appear in the `DataSourcing` modules — the executor injects those at runtime via shared state.
+Note that no date fields appear in the `DataSourcing` modules above — the executor injects `__etlEffectiveDate` at runtime via shared state, and both min and max default to that value. Other date modes are available:
+
+```json
+// Lookback: pull T-3 through T-0 (4 days inclusive)
+{ "type": "DataSourcing", "lookbackDays": 3, ... }
+
+// Most recent prior: query datalake for latest date before T-0
+{ "type": "DataSourcing", "mostRecentPrior": true, ... }
+```
+
+Date modes are mutually exclusive — mixing `lookbackDays`, `mostRecentPrior`, or static dates throws at construction time.
 
 ---
 
@@ -194,7 +205,8 @@ Unit test coverage for framework components. Tests do not require a live databas
 |---|---|
 | `DataFrameTests` | `DataFrame` API — Count, Columns, Select, Filter, WithColumn, Drop, OrderBy, Limit, Union, Distinct, Join (inner + left), GroupBy/Count |
 | `TransformationTests` | `Transformation` module — basic SELECT, WHERE, column projection, JOIN across two DataFrames, GROUP BY aggregation, shared state preservation, non-DataFrame entries in state are silently ignored |
-| `ModuleFactoryTests` | `ModuleFactory` — all four module types, optional `additionalFilter` field, both write modes, unknown type error, missing type field error |
+| `ModuleFactoryTests` | `ModuleFactory` — all module types, optional fields (`additionalFilter`, `lookbackDays`, `mostRecentPrior`), both write modes, mutually exclusive date mode validation (lookback+mostRecentPrior, lookback+static dates), unknown type error, missing type field error |
+| `DataSourcingTests` | `DataSourcing` date resolution — lookback range calculation, zero-day lookback, static date passthrough, `__etlEffectiveDate` fallback, missing effective date errors, mutually exclusive mode validation (all conflict combinations), negative lookbackDays |
 
 ---
 
@@ -268,7 +280,7 @@ Writes a DataFrame to a single CSV file. UTF-8 encoding (no BOM), configurable l
 | `writeMode` | Yes | — | `"Overwrite"` or `"Append"` |
 | `lineEnding` | No | `"LF"` | Line ending style: `"LF"` or `"CRLF"` |
 
-**Trailer tokens:** `{row_count}` (data rows, excluding header/trailer), `{date}` (effective date from `__maxEffectiveDate` in shared state), `{timestamp}` (UTC now, ISO 8601).
+**Trailer tokens:** `{row_count}` (data rows, excluding header/trailer), `{date}` (effective date from `__etlEffectiveDate` in shared state), `{timestamp}` (UTC now, ISO 8601).
 
 **Vanilla CSV example:**
 ```json

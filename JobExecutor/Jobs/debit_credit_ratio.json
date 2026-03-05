@@ -7,14 +7,25 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount", "description"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_type",
+        "amount",
+        "description"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "interest_rate", "credit_limit"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "interest_rate",
+        "credit_limit"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +35,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/debit_credit_ratio/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "debit_credit_ratio",
+      "fileName": "debit_credit_ratio"
     }
   ]
 }

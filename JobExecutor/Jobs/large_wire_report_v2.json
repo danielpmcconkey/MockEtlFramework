@@ -7,27 +7,40 @@
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["wire_id", "customer_id", "direction", "amount", "counterparty_name", "status"]
+      "columns": [
+        "wire_id",
+        "customer_id",
+        "direction",
+        "amount",
+        "counterparty_name",
+        "status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "WITH latest_customers AS (SELECT id, COALESCE(first_name, '') AS first_name, COALESCE(last_name, '') AS last_name FROM (SELECT id, first_name, last_name, ROW_NUMBER() OVER (PARTITION BY id ORDER BY as_of DESC) AS rn FROM customers) WHERE rn = 1) SELECT wt.wire_id, CAST(wt.customer_id AS INTEGER) AS customer_id, COALESCE(lc.first_name, '') AS first_name, COALESCE(lc.last_name, '') AS last_name, wt.direction, ROUND(wt.amount, 2) AS amount, wt.counterparty_name, wt.status, wt.as_of FROM wire_transfers wt LEFT JOIN latest_customers lc ON CAST(wt.customer_id AS INTEGER) = lc.id WHERE wt.amount > 10000"
+      "sql": "WITH latest_customers AS (SELECT id, COALESCE(first_name, '') AS first_name, COALESCE(last_name, '') AS last_name FROM (SELECT id, first_name, last_name, ROW_NUMBER() OVER (PARTITION BY id ORDER BY ifw_effective_date DESC) AS rn FROM customers) WHERE rn = 1) SELECT wt.wire_id, CAST(wt.customer_id AS INTEGER) AS customer_id, COALESCE(lc.first_name, '') AS first_name, COALESCE(lc.last_name, '') AS last_name, wt.direction, ROUND(wt.amount, 2) AS amount, wt.counterparty_name, wt.status, wt.ifw_effective_date FROM wire_transfers wt LEFT JOIN latest_customers lc ON CAST(wt.customer_id AS INTEGER) = lc.id WHERE wt.amount > 10000"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/large_wire_report.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "large_wire_report",
+      "fileName": "large_wire_report.csv"
     }
   ]
 }

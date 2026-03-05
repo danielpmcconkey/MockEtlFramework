@@ -10,7 +10,7 @@ public class DebitCreditRatioCalculator : IExternalStep
         var outputColumns = new List<string>
         {
             "account_id", "customer_id", "debit_count", "credit_count",
-            "debit_credit_ratio", "debit_amount", "credit_amount", "amount_ratio", "as_of"
+            "debit_credit_ratio", "debit_amount", "credit_amount", "amount_ratio", "ifw_effective_date"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
@@ -41,7 +41,7 @@ public class DebitCreditRatioCalculator : IExternalStep
             double amount = Convert.ToDouble(row["amount"]);
 
             if (!stats.ContainsKey(accountId))
-                stats[accountId] = (0, 0, 0.0, 0.0, row["as_of"]);
+                stats[accountId] = (0, 0, 0.0, 0.0, row["ifw_effective_date"]);
 
             var current = stats[accountId];
             if (txnType == "Debit")
@@ -73,7 +73,7 @@ public class DebitCreditRatioCalculator : IExternalStep
                 ["debit_amount"] = debitAmount,
                 ["credit_amount"] = creditAmount,
                 ["amount_ratio"] = amountRatio,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

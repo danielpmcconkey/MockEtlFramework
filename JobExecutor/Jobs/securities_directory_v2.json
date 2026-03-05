@@ -7,20 +7,29 @@
       "resultName": "securities",
       "schema": "datalake",
       "table": "securities",
-      "columns": ["security_id", "ticker", "security_name", "security_type", "sector", "exchange"]
+      "columns": [
+        "security_id",
+        "ticker",
+        "security_name",
+        "security_type",
+        "sector",
+        "exchange"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "securities_dir",
-      "sql": "SELECT s.security_id, s.ticker, s.security_name, s.security_type, s.sector, s.exchange, s.as_of FROM securities s ORDER BY s.security_id"
+      "sql": "SELECT s.security_id, s.ticker, s.security_name, s.security_type, s.sector, s.exchange, s.ifw_effective_date FROM securities s ORDER BY s.security_id"
     },
     {
       "type": "CsvFileWriter",
       "source": "securities_dir",
-      "outputFile": "Output/double_secret_curated/securities_directory.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "securities_directory",
+      "fileName": "securities_directory.csv"
     }
   ]
 }

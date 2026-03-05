@@ -9,10 +9,10 @@ public class CardCustomerSpendingProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "customer_id", "first_name", "last_name", "txn_count", "total_spending", "as_of"
+            "customer_id", "first_name", "last_name", "txn_count", "total_spending", "ifw_effective_date"
         };
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // W2: Weekend fallback — use Friday's data on Sat/Sun
         DateOnly targetDate = maxDate;
@@ -34,7 +34,7 @@ public class CardCustomerSpendingProcessor : IExternalStep
 
         // Filter to target date
         var filteredTxns = cardTransactions.Rows
-            .Where(r => ((DateOnly)r["as_of"]) == targetDate)
+            .Where(r => ((DateOnly)r["ifw_effective_date"]) == targetDate)
             .ToList();
 
         if (filteredTxns.Count == 0)
@@ -83,7 +83,7 @@ public class CardCustomerSpendingProcessor : IExternalStep
                 ["last_name"] = name.Item2,
                 ["txn_count"] = kvp.Value.count,
                 ["total_spending"] = kvp.Value.total,
-                ["as_of"] = targetDate
+                ["ifw_effective_date"] = targetDate
             }));
         }
 

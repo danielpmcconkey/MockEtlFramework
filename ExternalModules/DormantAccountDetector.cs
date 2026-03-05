@@ -10,7 +10,7 @@ public class DormantAccountDetector : IExternalStep
         var outputColumns = new List<string>
         {
             "account_id", "customer_id", "first_name", "last_name",
-            "account_type", "current_balance", "as_of"
+            "account_type", "current_balance", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -24,7 +24,7 @@ public class DormantAccountDetector : IExternalStep
         }
 
         // W2: Weekend fallback to Friday
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         DateOnly targetDate = maxDate;
         if (maxDate.DayOfWeek == DayOfWeek.Saturday) targetDate = maxDate.AddDays(-1);
         else if (maxDate.DayOfWeek == DayOfWeek.Sunday) targetDate = maxDate.AddDays(-2);
@@ -36,7 +36,7 @@ public class DormantAccountDetector : IExternalStep
             // AP6: Row-by-row iteration where SQL set operation would do
             foreach (var txnRow in transactions.Rows)
             {
-                var asOf = (DateOnly)txnRow["as_of"];
+                var asOf = (DateOnly)txnRow["ifw_effective_date"];
                 if (asOf == targetDate)
                 {
                     var accountId = Convert.ToInt32(txnRow["account_id"]);
@@ -79,7 +79,7 @@ public class DormantAccountDetector : IExternalStep
                     ["last_name"] = lastName,
                     ["account_type"] = acctRow["account_type"],
                     ["current_balance"] = acctRow["current_balance"],
-                    ["as_of"] = targetDate.ToString("yyyy-MM-dd")
+                    ["ifw_effective_date"] = targetDate.ToString("yyyy-MM-dd")
                 }));
             }
         }

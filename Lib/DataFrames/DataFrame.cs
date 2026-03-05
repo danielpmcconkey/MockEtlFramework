@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Parquet;
+using Parquet.Data;
 
 namespace Lib.DataFrames;
 
@@ -276,6 +278,54 @@ public class DataFrame
         });
 
         return new DataFrame(rows, columns);
+    }
+
+    /// <summary>
+    /// Create DataFrame from Parquet files in a directory.
+    /// Reads all *.parquet files, ordered by name, and combines them into a single DataFrame.
+    /// </summary>
+    public static DataFrame FromParquet(string directoryPath)
+    {
+        var files = Directory.GetFiles(directoryPath, "*.parquet").OrderBy(f => f).ToArray();
+        if (files.Length == 0)
+            return new DataFrame(new List<Row>(), new List<string>());
+
+        var allRows = new List<Dictionary<string, object?>>();
+        string[]? columns = null;
+
+        foreach (var file in files)
+        {
+            using var stream = File.OpenRead(file);
+            using var reader = ParquetReader.CreateAsync(stream).Result;
+
+            columns ??= reader.Schema.DataFields.Select(f => f.Name).ToArray();
+
+            for (int g = 0; g < reader.RowGroupCount; g++)
+            {
+                using var groupReader = reader.OpenRowGroupReader(g);
+                var rowCount = (int)groupReader.RowCount;
+
+                var columnData = new Dictionary<string, Array>();
+                foreach (var field in reader.Schema.DataFields)
+                {
+                    var dataColumn = groupReader.ReadColumnAsync(field).Result;
+                    columnData[field.Name] = dataColumn.Data;
+                }
+
+                for (int r = 0; r < rowCount; r++)
+                {
+                    var rowData = new Dictionary<string, object?>();
+                    foreach (var col in columns)
+                    {
+                        var val = columnData[col].GetValue(r);
+                        rowData[col] = val;
+                    }
+                    allRows.Add(rowData);
+                }
+            }
+        }
+
+        return new DataFrame(allRows);
     }
 
     /// <summary>

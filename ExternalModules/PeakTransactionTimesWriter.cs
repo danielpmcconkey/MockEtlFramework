@@ -9,7 +9,7 @@ public class PeakTransactionTimesWriter : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "hour_of_day", "txn_count", "total_amount", "as_of"
+            "hour_of_day", "txn_count", "total_amount", "ifw_effective_date"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
@@ -24,7 +24,7 @@ public class PeakTransactionTimesWriter : IExternalStep
         // W7: Count INPUT rows for trailer (before hourly bucketing)
         var inputCount = transactions.Count;
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Group by hour of day from txn_timestamp
@@ -53,7 +53,7 @@ public class PeakTransactionTimesWriter : IExternalStep
                 ["hour_of_day"] = kvp.Key,
                 ["txn_count"] = kvp.Value.count,
                 ["total_amount"] = Math.Round(kvp.Value.total, 2),
-                ["as_of"] = dateStr
+                ["ifw_effective_date"] = dateStr
             }));
         }
 
@@ -70,7 +70,7 @@ public class PeakTransactionTimesWriter : IExternalStep
         var outputPath = Path.Combine(solutionRoot, "Output", "curated", "peak_transaction_times.csv");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate") ? (DateOnly)sharedState["__maxEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate") ? (DateOnly)sharedState["__etlEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         using var writer = new StreamWriter(outputPath, append: false);

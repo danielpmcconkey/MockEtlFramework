@@ -8,7 +8,7 @@ namespace ExternalModules;
 /// Receives pre-aggregated data from the SQL Transformation step and applies ONLY:
 ///   1. Banker's rounding on total_balance (BR-6, W5)
 ///   2. Decimal arithmetic for exposure_score formula (BR-4, BR-5, W5)
-///   3. as_of assignment from target_date (BR-10)
+///   3. ifw_effective_date assignment from target_date (BR-10)
 ///
 /// All aggregation, joining, customer filtering, weekend fallback, and NULL coalescing
 /// are handled in the upstream Transformation SQL.
@@ -35,7 +35,7 @@ public class RegulatoryExposureSummaryV2Processor : IExternalStep
     private static readonly List<string> OutputColumns = new()
     {
         "customer_id", "first_name", "last_name", "account_count",
-        "total_balance", "compliance_events", "wire_count", "exposure_score", "as_of"
+        "total_balance", "compliance_events", "wire_count", "exposure_score", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -75,7 +75,7 @@ public class RegulatoryExposureSummaryV2Processor : IExternalStep
                 + (totalBalance / BalanceDivisor),
                 2);
 
-            // BR-10: as_of = target date (after weekend fallback, computed in SQL)
+            // BR-10: ifw_effective_date = target date (after weekend fallback, computed in SQL)
             outputRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["customer_id"] = customerId,
@@ -86,7 +86,7 @@ public class RegulatoryExposureSummaryV2Processor : IExternalStep
                 ["compliance_events"] = complianceEvents,
                 ["wire_count"] = wireCount,
                 ["exposure_score"] = exposureScore,
-                ["as_of"] = DateOnly.Parse(targetDate!)
+                ["ifw_effective_date"] = DateOnly.Parse(targetDate!)
             }));
         }
 

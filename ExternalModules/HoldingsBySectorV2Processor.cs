@@ -24,11 +24,11 @@ public class HoldingsBySectorV2Processor : IExternalStep
 {
     private const string OutputRelativePath = "Output/double_secret_curated/holdings_by_sector.csv";
     private const string TrailerPrefix = "TRAILER";
-    private const string HeaderLine = "sector,holding_count,total_value,as_of";
+    private const string HeaderLine = "sector,holding_count,total_value,ifw_effective_date";
 
     private static readonly List<string> OutputColumns = new()
     {
-        "sector", "holding_count", "total_value", "as_of"
+        "sector", "holding_count", "total_value", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -51,7 +51,7 @@ public class HoldingsBySectorV2Processor : IExternalStep
         // W7: Count INPUT rows before grouping (inflated count for trailer)
         var inputCount = holdings.Count;
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Resolve output path
@@ -71,7 +71,7 @@ public class HoldingsBySectorV2Processor : IExternalStep
                 var sector = row["sector"]?.ToString() ?? "Unknown";
                 var holdingCount = row["holding_count"];
                 var totalValue = row["total_value"];
-                var asOf = row["as_of"];
+                var asOf = row["ifw_effective_date"];
                 writer.Write($"{sector},{holdingCount},{totalValue},{asOf}\n");
             }
 

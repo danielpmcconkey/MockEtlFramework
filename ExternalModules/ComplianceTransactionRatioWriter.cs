@@ -9,7 +9,7 @@ public class ComplianceTransactionRatioWriter : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "event_type", "event_count", "txn_count", "events_per_1000_txns", "as_of"
+            "event_type", "event_count", "txn_count", "events_per_1000_txns", "ifw_effective_date"
         };
 
         var complianceEvents = sharedState.ContainsKey("compliance_events") ? sharedState["compliance_events"] as DataFrame : null;
@@ -21,7 +21,7 @@ public class ComplianceTransactionRatioWriter : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // W7: Count INPUT rows from both DataFrames for trailer (inflated)

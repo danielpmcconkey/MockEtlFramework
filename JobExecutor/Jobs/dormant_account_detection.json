@@ -7,21 +7,35 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -31,9 +45,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/dormant_account_detection/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "dormant_account_detection",
+      "fileName": "dormant_account_detection"
     }
   ]
 }

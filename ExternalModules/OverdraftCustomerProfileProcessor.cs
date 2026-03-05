@@ -10,11 +10,11 @@ public class OverdraftCustomerProfileProcessor : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name", "overdraft_count",
-            "total_overdraft_amount", "avg_overdraft", "as_of"
+            "total_overdraft_amount", "avg_overdraft", "ifw_effective_date"
         };
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W2: Weekend fallback — use Friday's data on Sat/Sun
@@ -40,8 +40,8 @@ public class OverdraftCustomerProfileProcessor : IExternalStep
 
         // Filter overdraft events to target date
         var filteredEvents = overdraftEvents.Rows
-            .Where(r => (r["as_of"] is DateOnly d && d == targetDate) ||
-                        r["as_of"]?.ToString() == targetDate.ToString("yyyy-MM-dd"))
+            .Where(r => (r["ifw_effective_date"] is DateOnly d && d == targetDate) ||
+                        r["ifw_effective_date"]?.ToString() == targetDate.ToString("yyyy-MM-dd"))
             .ToList();
 
         if (filteredEvents.Count == 0)
@@ -93,7 +93,7 @@ public class OverdraftCustomerProfileProcessor : IExternalStep
                 ["overdraft_count"] = kvp.Value.count,
                 ["total_overdraft_amount"] = kvp.Value.totalAmount,
                 ["avg_overdraft"] = avgOverdraft,
-                ["as_of"] = targetDate.ToString("yyyy-MM-dd")
+                ["ifw_effective_date"] = targetDate.ToString("yyyy-MM-dd")
             }));
         }
 

@@ -10,7 +10,7 @@ public class CardFraudFlagsProcessor : IExternalStep
         var outputColumns = new List<string>
         {
             "card_txn_id", "card_id", "customer_id", "merchant_name", "mcc_code",
-            "risk_level", "amount", "txn_timestamp", "as_of"
+            "risk_level", "amount", "txn_timestamp", "ifw_effective_date"
         };
 
         var cardTransactions = sharedState.ContainsKey("card_transactions")
@@ -59,7 +59,7 @@ public class CardFraudFlagsProcessor : IExternalStep
                     ["risk_level"] = riskLevel,
                     ["amount"] = amount,
                     ["txn_timestamp"] = txn["txn_timestamp"],
-                    ["as_of"] = txn["as_of"]
+                    ["ifw_effective_date"] = txn["ifw_effective_date"]
                 }));
             }
         }

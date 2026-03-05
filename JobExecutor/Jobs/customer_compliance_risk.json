@@ -7,28 +7,47 @@
       "resultName": "compliance_events",
       "schema": "datalake",
       "table": "compliance_events",
-      "columns": ["event_id", "customer_id", "event_type", "status"]
+      "columns": [
+        "event_id",
+        "customer_id",
+        "event_type",
+        "status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["wire_id", "customer_id", "amount", "direction"]
+      "columns": [
+        "wire_id",
+        "customer_id",
+        "amount",
+        "direction"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "amount", "txn_type"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "amount",
+        "txn_type"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -38,10 +57,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/customer_compliance_risk.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "customer_compliance_risk",
+      "fileName": "customer_compliance_risk.csv"
     }
   ]
 }

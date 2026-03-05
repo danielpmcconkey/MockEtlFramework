@@ -21,7 +21,7 @@ public class CustomerBranchActivityV2Processor : IExternalStep
     // Output schema columns — matches V1 output column order exactly
     private static readonly List<string> OutputColumns = new()
     {
-        "customer_id", "first_name", "last_name", "as_of", "visit_count"
+        "customer_id", "first_name", "last_name", "ifw_effective_date", "visit_count"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -48,8 +48,8 @@ public class CustomerBranchActivityV2Processor : IExternalStep
         }
 
         // BR-2: Build customer name lookup (last-write-wins for duplicate customer_ids
-        // across as_of dates). DataSourcing orders by as_of [DataSourcing.cs:85],
-        // so the last entry per id is the latest as_of date — matching V1's
+        // across ifw_effective_date dates). DataSourcing orders by ifw_effective_date [DataSourcing.cs:85],
+        // so the last entry per id is the latest ifw_effective_date date — matching V1's
         // dictionary overwrite behavior [CustomerBranchActivityBuilder.cs:35].
         var customerNames = customers.Rows
             .GroupBy(r => Convert.ToInt32(r["id"]))
@@ -57,7 +57,7 @@ public class CustomerBranchActivityV2Processor : IExternalStep
                 g => g.Key,
                 g =>
                 {
-                    var last = g.Last(); // last-write-wins (latest as_of)
+                    var last = g.Last(); // last-write-wins (latest ifw_effective_date)
                     return (
                         firstName: last["first_name"]?.ToString() ?? "",
                         lastName: last["last_name"]?.ToString() ?? ""
@@ -65,12 +65,12 @@ public class CustomerBranchActivityV2Processor : IExternalStep
                 }
             );
 
-        // BR-5: Single as_of from first branch_visits row, applied to all output rows.
-        // V1 behavior: branchVisits.Rows[0]["as_of"] [CustomerBranchActivityBuilder.cs:52]
-        // DataSourcing orders by as_of, so first row is the earliest date in range.
-        var asOf = branchVisits.Rows[0]["as_of"];
+        // BR-5: Single ifw_effective_date from first branch_visits row, applied to all output rows.
+        // V1 behavior: branchVisits.Rows[0]["ifw_effective_date"] [CustomerBranchActivityBuilder.cs:52]
+        // DataSourcing orders by ifw_effective_date, so first row is the earliest date in range.
+        var asOf = branchVisits.Rows[0]["ifw_effective_date"];
 
-        // BR-1, BR-10: Aggregate visit count per customer across ALL as_of dates.
+        // BR-1, BR-10: Aggregate visit count per customer across ALL ifw_effective_date dates.
         // LINQ GroupBy preserves group order by first appearance (BR-9: dictionary
         // insertion order — customers ordered by earliest visit date, then row order).
         var visitGroups = branchVisits.Rows
@@ -95,7 +95,7 @@ public class CustomerBranchActivityV2Processor : IExternalStep
                 ["customer_id"] = customerId,
                 ["first_name"] = firstName,
                 ["last_name"] = lastName,
-                ["as_of"] = asOf,
+                ["ifw_effective_date"] = asOf,
                 ["visit_count"] = visitCount
             });
         }).ToList();

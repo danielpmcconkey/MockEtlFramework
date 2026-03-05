@@ -7,6 +7,8 @@ namespace Lib.Tests;
 public class CsvFileWriterTests : IDisposable
 {
     private readonly string _tempDir;
+    private static readonly DateOnly TestDate = new(2024, 11, 15);
+    private const string TestDateStr = "2024-11-15";
 
     public CsvFileWriterTests()
     {
@@ -27,39 +29,58 @@ public class CsvFileWriterTests : IDisposable
         new { Id = 3, Name = "Charlie", City = "Paris"    }
     });
 
-    private string ReadOutput(string fileName) =>
-        File.ReadAllText(Path.Combine(_tempDir, fileName));
+    private CsvFileWriter MakeWriter(string fileName = "output.csv",
+        bool includeHeader = true, string? trailerFormat = null,
+        WriteMode writeMode = WriteMode.Overwrite, string lineEnding = "\n") =>
+        new("data", _tempDir, "testjob", fileName, includeHeader, trailerFormat, writeMode, lineEnding);
 
-    private string[] ReadLines(string fileName) =>
-        File.ReadAllLines(Path.Combine(_tempDir, fileName));
+    private Dictionary<string, object> MakeState(DataFrame? df = null) => new()
+    {
+        ["data"] = df ?? MakeTestFrame(),
+        [DataSourcing.EtlEffectiveDateKey] = TestDate
+    };
+
+    /// <summary>
+    /// Output path for the test partition: {tempDir}/testjob/{date}/{fileName}
+    /// </summary>
+    private string OutputPath(string fileName = "output.csv") =>
+        Path.Combine(_tempDir, "testjob", TestDateStr, fileName);
+
+    private string ReadOutput(string fileName = "output.csv") =>
+        File.ReadAllText(OutputPath(fileName));
+
+    private string[] ReadLines(string fileName = "output.csv") =>
+        File.ReadAllLines(OutputPath(fileName));
 
     [Fact]
     public void Execute_WritesHeaderAndDataRows()
     {
-        var path = Path.Combine(_tempDir, "basic.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        MakeWriter().Execute(MakeState());
 
-        writer.Execute(state);
-
-        var lines = ReadLines("basic.csv");
+        var lines = ReadLines();
         Assert.Equal(4, lines.Length); // header + 3 data rows
-        Assert.Equal("Id,Name,City", lines[0]);
-        Assert.Equal("1,Alice,New York", lines[1]);
+        Assert.Equal("Id,Name,City,etl_effective_date", lines[0]);
+        Assert.Equal($"1,Alice,New York,{TestDateStr}", lines[1]);
+    }
+
+    [Fact]
+    public void Execute_InjectsEtlEffectiveDateColumn()
+    {
+        MakeWriter().Execute(MakeState());
+
+        var lines = ReadLines();
+        // Every data row should end with the date
+        Assert.All(lines.Skip(1), line => Assert.EndsWith(TestDateStr, line));
     }
 
     [Fact]
     public void Execute_NoHeader_SkipsHeaderRow()
     {
-        var path = Path.Combine(_tempDir, "noheader.csv");
-        var writer = new CsvFileWriter("data", path, includeHeader: false);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        MakeWriter(includeHeader: false).Execute(MakeState());
 
-        writer.Execute(state);
-
-        var lines = ReadLines("noheader.csv");
+        var lines = ReadLines();
         Assert.Equal(3, lines.Length); // data rows only
-        Assert.Equal("1,Alice,New York", lines[0]);
+        Assert.Equal($"1,Alice,New York,{TestDateStr}", lines[0]);
     }
 
     [Fact]
@@ -69,14 +90,10 @@ public class CsvFileWriterTests : IDisposable
         {
             new Dictionary<string, object?> { ["Name"] = "Last, First", ["Value"] = (object?)1 }
         });
-        var path = Path.Combine(_tempDir, "comma.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = df };
+        MakeWriter().Execute(MakeState(df));
 
-        writer.Execute(state);
-
-        var lines = ReadLines("comma.csv");
-        Assert.Equal("\"Last, First\",1", lines[1]);
+        var lines = ReadLines();
+        Assert.Equal($"\"Last, First\",1,{TestDateStr}", lines[1]);
     }
 
     [Fact]
@@ -86,14 +103,10 @@ public class CsvFileWriterTests : IDisposable
         {
             new Dictionary<string, object?> { ["Name"] = "She said \"hello\"", ["Value"] = (object?)1 }
         });
-        var path = Path.Combine(_tempDir, "quote.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = df };
+        MakeWriter().Execute(MakeState(df));
 
-        writer.Execute(state);
-
-        var lines = ReadLines("quote.csv");
-        Assert.Equal("\"She said \"\"hello\"\"\",1", lines[1]);
+        var lines = ReadLines();
+        Assert.Equal($"\"She said \"\"hello\"\"\",1,{TestDateStr}", lines[1]);
     }
 
     [Fact]
@@ -103,94 +116,93 @@ public class CsvFileWriterTests : IDisposable
         {
             new Dictionary<string, object?> { ["A"] = "x", ["B"] = null, ["C"] = "z" }
         });
-        var path = Path.Combine(_tempDir, "nulls.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = df };
+        MakeWriter().Execute(MakeState(df));
 
-        writer.Execute(state);
-
-        var lines = ReadLines("nulls.csv");
-        Assert.Equal("x,,z", lines[1]);
+        var lines = ReadLines();
+        Assert.Equal($"x,,z,{TestDateStr}", lines[1]);
     }
 
     [Fact]
     public void Execute_TrailerFormat_WritesTrailerLine()
     {
-        var path = Path.Combine(_tempDir, "trailer.csv");
-        var writer = new CsvFileWriter("data", path, trailerFormat: "TRAILER|{row_count}|{date}");
-        var state = new Dictionary<string, object>
-        {
-            ["data"] = MakeTestFrame(),
-            ["__maxEffectiveDate"] = new DateOnly(2024, 11, 15)
-        };
+        MakeWriter(trailerFormat: "TRAILER|{row_count}|{date}").Execute(MakeState());
 
-        writer.Execute(state);
-
-        var lines = ReadLines("trailer.csv");
+        var lines = ReadLines();
         Assert.Equal(5, lines.Length); // header + 3 data + trailer
-        Assert.Equal("TRAILER|3|2024-11-15", lines[4]);
+        Assert.Equal($"TRAILER|3|{TestDateStr}", lines[4]);
     }
 
     [Fact]
     public void Execute_TrailerFormat_TimestampToken_Resolves()
     {
-        var path = Path.Combine(_tempDir, "ts.csv");
-        var writer = new CsvFileWriter("data", path, trailerFormat: "END|{timestamp}");
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        MakeWriter(trailerFormat: "END|{timestamp}").Execute(MakeState());
 
-        writer.Execute(state);
-
-        var lines = ReadLines("ts.csv");
+        var lines = ReadLines();
         var trailer = lines.Last();
         Assert.StartsWith("END|", trailer);
         Assert.Contains("T", trailer); // ISO 8601 timestamp
     }
 
     [Fact]
-    public void Execute_OverwriteMode_ReplacesExistingFile()
+    public void Execute_OverwriteMode_WritesToDatePartition()
     {
-        var path = Path.Combine(_tempDir, "overwrite.csv");
-        File.WriteAllText(path, "old,stale,data\n1,2,3\n4,5,6\n");
+        MakeWriter().Execute(MakeState());
 
-        var writer = new CsvFileWriter("data", path, writeMode: WriteMode.Overwrite);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
-
-        writer.Execute(state);
-
-        var lines = ReadLines("overwrite.csv");
-        Assert.Equal("Id,Name,City", lines[0]); // new header, not old
-        Assert.Equal(4, lines.Length);
+        Assert.True(File.Exists(OutputPath()));
+        // Verify the partition directory structure
+        Assert.True(Directory.Exists(Path.Combine(_tempDir, "testjob", TestDateStr)));
     }
 
     [Fact]
-    public void Execute_AppendMode_AppendsWithoutHeader()
+    public void Execute_OverwriteMode_RerunOverwritesPartition()
     {
-        var path = Path.Combine(_tempDir, "append.csv");
-        File.WriteAllText(path, "Id,Name,City\n1,Alice,New York\n");
+        // First run
+        MakeWriter().Execute(MakeState());
+        // Second run — should overwrite the same partition
+        var df = DataFrame.FromObjects(new[] { new { Id = 99, Name = "Replacement", City = "Nowhere" } });
+        MakeWriter().Execute(MakeState(df));
 
-        var writer = new CsvFileWriter("data", path, writeMode: WriteMode.Append);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        var lines = ReadLines();
+        Assert.Equal(2, lines.Length); // header + 1 row (not 4)
+        Assert.Contains("Replacement", lines[1]);
+    }
 
-        writer.Execute(state);
+    [Fact]
+    public void Execute_AppendMode_FirstRunWritesNormally()
+    {
+        MakeWriter(writeMode: WriteMode.Append).Execute(MakeState());
 
-        var content = ReadOutput("append.csv");
-        // Original header + original row + 3 appended data rows (no second header)
-        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        Assert.Equal(5, lines.Length);
-        Assert.Equal("Id,Name,City", lines[0]); // only one header
+        var lines = ReadLines();
+        Assert.Equal(4, lines.Length); // header + 3 rows
+    }
+
+    [Fact]
+    public void Execute_AppendMode_UnionsWithPriorPartition()
+    {
+        // Create a prior partition with 2 rows
+        var priorDate = new DateOnly(2024, 11, 14);
+        var priorDir = Path.Combine(_tempDir, "testjob", "2024-11-14");
+        Directory.CreateDirectory(priorDir);
+        File.WriteAllText(Path.Combine(priorDir, "output.csv"),
+            "Id,Name,City,etl_effective_date\n1,Alice,New York,2024-11-14\n2,Bob,London,2024-11-14\n");
+
+        // New data has 1 row
+        var newDf = DataFrame.FromObjects(new[] { new { Id = 3, Name = "Charlie", City = "Paris" } });
+        MakeWriter(writeMode: WriteMode.Append).Execute(MakeState(newDf));
+
+        var lines = ReadLines();
+        // header + 2 prior rows + 1 new row = 4 lines
+        Assert.Equal(4, lines.Length);
+        // All rows should have today's date (not the prior date)
+        Assert.All(lines.Skip(1), line => Assert.EndsWith(TestDateStr, line));
     }
 
     [Fact]
     public void Execute_Utf8NoBom()
     {
-        var path = Path.Combine(_tempDir, "encoding.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        MakeWriter().Execute(MakeState());
 
-        writer.Execute(state);
-
-        var bytes = File.ReadAllBytes(path);
-        // UTF-8 BOM is EF BB BF — verify it's absent
+        var bytes = File.ReadAllBytes(OutputPath());
         Assert.False(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF,
             "File should not have a UTF-8 BOM");
     }
@@ -198,71 +210,22 @@ public class CsvFileWriterTests : IDisposable
     [Fact]
     public void Execute_LfLineEndings()
     {
-        var path = Path.Combine(_tempDir, "lf.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        MakeWriter().Execute(MakeState());
 
-        writer.Execute(state);
-
-        var content = File.ReadAllBytes(path);
+        var content = File.ReadAllBytes(OutputPath());
         var text = Encoding.UTF8.GetString(content);
         Assert.DoesNotContain("\r\n", text);
         Assert.Contains("\n", text);
     }
 
     [Fact]
-    public void Execute_CreatesParentDirectory()
-    {
-        var path = Path.Combine(_tempDir, "nested", "deep", "output.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
-
-        writer.Execute(state);
-
-        Assert.True(File.Exists(path));
-    }
-
-    [Fact]
-    public void Execute_MissingDataFrame_ThrowsKeyNotFoundException()
-    {
-        var path = Path.Combine(_tempDir, "missing.csv");
-        var writer = new CsvFileWriter("nonexistent", path);
-        var state = new Dictionary<string, object>();
-
-        Assert.Throws<KeyNotFoundException>(() => writer.Execute(state));
-    }
-
-    [Fact]
-    public void Execute_ReturnsSharedStateUnchanged()
-    {
-        var path = Path.Combine(_tempDir, "state.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object>
-        {
-            ["data"] = MakeTestFrame(),
-            ["other"] = "keep me"
-        };
-
-        var result = writer.Execute(state);
-
-        Assert.Same(state, result);
-        Assert.Equal("keep me", result["other"]);
-    }
-
-    [Fact]
     public void Execute_CrlfLineEndings()
     {
-        var path = Path.Combine(_tempDir, "crlf.csv");
-        var writer = new CsvFileWriter("data", path, lineEnding: "\r\n");
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        MakeWriter(lineEnding: "\r\n").Execute(MakeState());
 
-        writer.Execute(state);
-
-        var bytes = File.ReadAllBytes(path);
+        var bytes = File.ReadAllBytes(OutputPath());
         var text = Encoding.UTF8.GetString(bytes);
-        // Every line should end with \r\n
         Assert.Contains("\r\n", text);
-        // Strip all \r\n, then confirm no stray \n remains
         var stripped = text.Replace("\r\n", "");
         Assert.DoesNotContain("\n", stripped);
     }
@@ -270,14 +233,46 @@ public class CsvFileWriterTests : IDisposable
     [Fact]
     public void Execute_DefaultLineEndingIsLf()
     {
-        var path = Path.Combine(_tempDir, "defaultlf.csv");
-        var writer = new CsvFileWriter("data", path);
-        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+        MakeWriter().Execute(MakeState());
 
-        writer.Execute(state);
-
-        var text = Encoding.UTF8.GetString(File.ReadAllBytes(path));
+        var text = Encoding.UTF8.GetString(File.ReadAllBytes(OutputPath()));
         Assert.DoesNotContain("\r\n", text);
         Assert.Contains("\n", text);
+    }
+
+    [Fact]
+    public void Execute_CreatesDirectoryStructure()
+    {
+        MakeWriter().Execute(MakeState());
+        Assert.True(File.Exists(OutputPath()));
+    }
+
+    [Fact]
+    public void Execute_MissingDataFrame_ThrowsKeyNotFoundException()
+    {
+        var writer = new CsvFileWriter("nonexistent", _tempDir, "testjob", "output.csv");
+        var state = new Dictionary<string, object> { [DataSourcing.EtlEffectiveDateKey] = TestDate };
+
+        Assert.Throws<KeyNotFoundException>(() => writer.Execute(state));
+    }
+
+    [Fact]
+    public void Execute_MissingEffectiveDate_ThrowsInvalidOperationException()
+    {
+        var state = new Dictionary<string, object> { ["data"] = MakeTestFrame() };
+
+        Assert.Throws<InvalidOperationException>(() => MakeWriter().Execute(state));
+    }
+
+    [Fact]
+    public void Execute_ReturnsSharedStateUnchanged()
+    {
+        var state = MakeState();
+        state["other"] = "keep me";
+
+        var result = MakeWriter().Execute(state);
+
+        Assert.Same(state, result);
+        Assert.Equal("keep me", result["other"]);
     }
 }

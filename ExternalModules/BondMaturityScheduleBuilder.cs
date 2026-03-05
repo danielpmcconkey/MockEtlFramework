@@ -10,7 +10,7 @@ public class BondMaturityScheduleBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "security_id", "ticker", "security_name", "sector",
-            "total_held_value", "holder_count", "as_of"
+            "total_held_value", "holder_count", "ifw_effective_date"
         };
 
         var securities = sharedState.ContainsKey("securities") ? sharedState["securities"] as DataFrame : null;
@@ -22,7 +22,7 @@ public class BondMaturityScheduleBuilder : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // AP3: Unnecessary External — this could be done in SQL
         // Filter to bonds only
@@ -84,7 +84,7 @@ public class BondMaturityScheduleBuilder : IExternalStep
                 ["sector"] = info.sector,
                 ["total_held_value"] = Math.Round(totals.totalValue, 2),
                 ["holder_count"] = totals.holderCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

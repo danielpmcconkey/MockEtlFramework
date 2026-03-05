@@ -7,33 +7,49 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_timestamp", "txn_type", "amount", "description"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_timestamp",
+        "txn_type",
+        "amount",
+        "description"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id"]
+      "columns": [
+        "account_id",
+        "customer_id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT t.transaction_id, t.account_id, COALESCE(a.customer_id, 0) AS customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, t.txn_type, t.amount, t.description, t.txn_timestamp, t.as_of FROM transactions t LEFT JOIN accounts a ON t.account_id = a.account_id AND t.as_of = a.as_of LEFT JOIN customers c ON a.customer_id = c.id AND t.as_of = c.as_of WHERE t.amount > 500"
+      "sql": "SELECT t.transaction_id, t.account_id, COALESCE(a.customer_id, 0) AS customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, t.txn_type, t.amount, t.description, t.txn_timestamp, t.ifw_effective_date FROM transactions t LEFT JOIN accounts a ON t.account_id = a.account_id AND t.ifw_effective_date = a.ifw_effective_date LEFT JOIN customers c ON a.customer_id = c.id AND t.ifw_effective_date = c.ifw_effective_date WHERE t.amount > 500"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/large_transaction_log/",
+      "outputDirectory": "Output/poc4",
       "numParts": 3,
-      "writeMode": "Append"
+      "writeMode": "Append",
+      "jobDirName": "large_transaction_log",
+      "fileName": "large_transaction_log"
     }
   ]
 }

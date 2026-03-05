@@ -10,7 +10,7 @@ public class CustomerDemographicsBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name", "birthdate", "age",
-            "age_bracket", "primary_phone", "primary_email", "as_of"
+            "age_bracket", "primary_phone", "primary_email", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -60,7 +60,7 @@ public class CustomerDemographicsBuilder : IExternalStep
             var lastName = custRow["last_name"]?.ToString() ?? "";
 
             var birthdate = ToDateOnly(custRow["birthdate"]);
-            var asOfDate = ToDateOnly(custRow["as_of"]);
+            var asOfDate = ToDateOnly(custRow["ifw_effective_date"]);
 
             var age = asOfDate.Year - birthdate.Year;
             if (birthdate > asOfDate.AddYears(-age)) age--;
@@ -88,7 +88,7 @@ public class CustomerDemographicsBuilder : IExternalStep
                 ["age_bracket"] = ageBracket,
                 ["primary_phone"] = primaryPhone,
                 ["primary_email"] = primaryEmail,
-                ["as_of"] = custRow["as_of"]
+                ["ifw_effective_date"] = custRow["ifw_effective_date"]
             }));
         }
 

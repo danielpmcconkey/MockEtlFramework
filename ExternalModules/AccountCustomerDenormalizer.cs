@@ -10,7 +10,7 @@ public class AccountCustomerDenormalizer : IExternalStep
         var outputColumns = new List<string>
         {
             "account_id", "customer_id", "first_name", "last_name",
-            "account_type", "account_status", "current_balance", "as_of"
+            "account_type", "account_status", "current_balance", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -48,7 +48,7 @@ public class AccountCustomerDenormalizer : IExternalStep
                 ["account_type"] = acctRow["account_type"],
                 ["account_status"] = acctRow["account_status"],
                 ["current_balance"] = acctRow["current_balance"],
-                ["as_of"] = acctRow["as_of"]
+                ["ifw_effective_date"] = acctRow["ifw_effective_date"]
             }));
         }
 

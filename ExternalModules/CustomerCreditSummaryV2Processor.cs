@@ -23,7 +23,7 @@ public class CustomerCreditSummaryV2Processor : IExternalStep
     {
         "customer_id", "first_name", "last_name", "avg_credit_score",
         "total_loan_balance", "total_account_balance", "loan_count",
-        "account_count", "as_of"
+        "account_count", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -104,7 +104,7 @@ public class CustomerCreditSummaryV2Processor : IExternalStep
                 accountCount = acctData.count;
             }
 
-            // BR-7: as_of from customer row (injected by DataSourcing)
+            // BR-7: ifw_effective_date from customer row (injected by DataSourcing)
             outputRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["customer_id"] = customerId,
@@ -115,7 +115,7 @@ public class CustomerCreditSummaryV2Processor : IExternalStep
                 ["total_account_balance"] = totalAccountBalance,
                 ["loan_count"] = loanCount,
                 ["account_count"] = accountCount,
-                ["as_of"] = custRow["as_of"]
+                ["ifw_effective_date"] = custRow["ifw_effective_date"]
             }));
         }
 

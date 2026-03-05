@@ -24,7 +24,7 @@ public class CoveredTransactionsV2Processor : IExternalStep
     /// <summary>Timestamp format for txn_timestamp output column.</summary>
     private const string TimestampFormat = "yyyy-MM-dd HH:mm:ss";
 
-    /// <summary>Date format for account_opened and as_of output columns.</summary>
+    /// <summary>Date format for account_opened and ifw_effective_date output columns.</summary>
     private const string DateFormat = "yyyy-MM-dd";
 
     /// <summary>Output column names in exact V1 order.</summary>
@@ -35,41 +35,41 @@ public class CoveredTransactionsV2Processor : IExternalStep
         "name_suffix", "customer_segment", "address_id", "address_line1",
         "city", "state_province", "postal_code", "country",
         "account_id", "account_type", "account_status", "account_opened",
-        "as_of", "record_count"
+        "ifw_effective_date", "record_count"
     };
 
     // --- SQL queries ---
 
     private const string TransactionsQuery =
         @"SELECT transaction_id, account_id, txn_timestamp, txn_type, amount, description
-          FROM datalake.transactions WHERE as_of = @date";
+          FROM datalake.transactions WHERE ifw_effective_date = @date";
 
     private const string AccountsSnapshotQuery =
         @"SELECT DISTINCT ON (account_id) account_id, customer_id, account_type, account_status, open_date
-          FROM datalake.accounts WHERE as_of <= @date
-          ORDER BY account_id, as_of DESC";
+          FROM datalake.accounts WHERE ifw_effective_date <= @date
+          ORDER BY account_id, ifw_effective_date DESC";
 
     private const string CustomersSnapshotQuery =
         @"SELECT DISTINCT ON (id) id, prefix, first_name, last_name, sort_name, suffix
-          FROM datalake.customers WHERE as_of <= @date
-          ORDER BY id, as_of DESC";
+          FROM datalake.customers WHERE ifw_effective_date <= @date
+          ORDER BY id, ifw_effective_date DESC";
 
     private const string ActiveUsAddressesQuery =
         @"SELECT address_id, customer_id, address_line1, city, state_province, postal_code, country, start_date
           FROM datalake.addresses
-          WHERE as_of = @date AND country = 'US' AND (end_date IS NULL OR end_date >= @date)
+          WHERE ifw_effective_date = @date AND country = 'US' AND (end_date IS NULL OR end_date >= @date)
           ORDER BY customer_id, start_date ASC";
 
     private const string SegmentsQuery =
         @"SELECT DISTINCT ON (cs.customer_id) cs.customer_id, s.segment_code
           FROM datalake.customers_segments cs
-          JOIN datalake.segments s ON cs.segment_id = s.segment_id AND s.as_of = cs.as_of
-          WHERE cs.as_of = @date
+          JOIN datalake.segments s ON cs.segment_id = s.segment_id AND s.ifw_effective_date = cs.ifw_effective_date
+          WHERE cs.ifw_effective_date = @date
           ORDER BY cs.customer_id, s.segment_code ASC";
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        var effectiveDate = (DateOnly)sharedState[DataSourcing.MinDateKey];
+        var effectiveDate = (DateOnly)sharedState[DataSourcing.EtlEffectiveDateKey];
         var dateParam = effectiveDate.ToDateTime(TimeOnly.MinValue);
 
         using var connection = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
@@ -172,7 +172,7 @@ public class CoveredTransactionsV2Processor : IExternalStep
                 ["account_type"] = account["account_type"]?.ToString()?.Trim(),
                 ["account_status"] = account["account_status"]?.ToString()?.Trim(),
                 ["account_opened"] = FormatDate(account["open_date"]),
-                ["as_of"] = effectiveDate.ToString(DateFormat),
+                ["ifw_effective_date"] = effectiveDate.ToString(DateFormat),
                 ["record_count"] = 0 // placeholder, set after counting
             });
 
@@ -191,7 +191,7 @@ public class CoveredTransactionsV2Processor : IExternalStep
 
         if (recordCount == 0)
         {
-            // Zero-row case: single null-placeholder row with as_of and record_count = 0
+            // Zero-row case: single null-placeholder row with ifw_effective_date and record_count = 0
             finalRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["transaction_id"] = null,
@@ -216,7 +216,7 @@ public class CoveredTransactionsV2Processor : IExternalStep
                 ["account_type"] = null,
                 ["account_status"] = null,
                 ["account_opened"] = null,
-                ["as_of"] = effectiveDate.ToString(DateFormat),
+                ["ifw_effective_date"] = effectiveDate.ToString(DateFormat),
                 ["record_count"] = 0
             }));
         }

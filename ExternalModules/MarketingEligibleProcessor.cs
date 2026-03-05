@@ -9,11 +9,11 @@ public class MarketingEligibleProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "customer_id", "first_name", "last_name", "email_address", "as_of"
+            "customer_id", "first_name", "last_name", "email_address", "ifw_effective_date"
         };
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W2: Weekend fallback — use Friday's data on Sat/Sun
@@ -70,7 +70,7 @@ public class MarketingEligibleProcessor : IExternalStep
         {
             if (targetDate != maxDate)
             {
-                var rowDate = (DateOnly)row["as_of"];
+                var rowDate = (DateOnly)row["ifw_effective_date"];
                 if (rowDate != targetDate) continue;
             }
 
@@ -100,7 +100,7 @@ public class MarketingEligibleProcessor : IExternalStep
                     ["first_name"] = firstName,
                     ["last_name"] = lastName,
                     ["email_address"] = email,
-                    ["as_of"] = targetDate
+                    ["ifw_effective_date"] = targetDate
                 }));
             }
         }

@@ -7,21 +7,26 @@
       "resultName": "customer_preferences",
       "schema": "datalake",
       "table": "customer_preferences",
-      "columns": ["preference_type", "opted_in"]
+      "columns": [
+        "preference_type",
+        "opted_in"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT COALESCE(preference_type, '') AS preference_type, SUM(CASE WHEN opted_in = 1 THEN 1 ELSE 0 END) AS opted_in_count, SUM(CASE WHEN opted_in = 0 THEN 1 ELSE 0 END) AS opted_out_count, SUM(CASE WHEN opted_in = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN opted_in = 0 THEN 1 ELSE 0 END) AS total_customers, MIN(as_of) AS as_of FROM customer_preferences GROUP BY COALESCE(preference_type, '') ORDER BY MIN(rowid)"
+      "sql": "SELECT COALESCE(preference_type, '') AS preference_type, SUM(CASE WHEN opted_in = 1 THEN 1 ELSE 0 END) AS opted_in_count, SUM(CASE WHEN opted_in = 0 THEN 1 ELSE 0 END) AS opted_out_count, SUM(CASE WHEN opted_in = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN opted_in = 0 THEN 1 ELSE 0 END) AS total_customers, MIN(ifw_effective_date) AS ifw_effective_date FROM customer_preferences GROUP BY COALESCE(preference_type, '') ORDER BY MIN(rowid)"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/preference_summary.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "preference_summary",
+      "fileName": "preference_summary.csv"
     }
   ]
 }

@@ -7,28 +7,45 @@
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id"]
+      "columns": [
+        "visit_id",
+        "customer_id",
+        "branch_id"
+      ]
     },
     {
       "type": "External",
@@ -38,10 +55,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/customer_value_score.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "customer_value_score",
+      "fileName": "customer_value_score.csv"
     }
   ]
 }

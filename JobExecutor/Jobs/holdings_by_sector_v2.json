@@ -19,7 +19,7 @@
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT COALESCE(s.sector, 'Unknown') AS sector, COUNT(h.security_id) AS holding_count, ROUND(SUM(h.current_value), 2) AS total_value, (SELECT MAX(as_of) FROM holdings) AS as_of FROM holdings h LEFT JOIN securities s ON h.security_id = s.security_id AND h.as_of = s.as_of GROUP BY COALESCE(s.sector, 'Unknown') ORDER BY sector"
+      "sql": "SELECT COALESCE(s.sector, 'Unknown') AS sector, COUNT(h.security_id) AS holding_count, ROUND(SUM(h.current_value), 2) AS total_value, (SELECT MAX(ifw_effective_date) FROM holdings) AS ifw_effective_date FROM holdings h LEFT JOIN securities s ON h.security_id = s.security_id AND h.ifw_effective_date = s.ifw_effective_date GROUP BY COALESCE(s.sector, 'Unknown') ORDER BY sector"
     },
     {
       "type": "External",

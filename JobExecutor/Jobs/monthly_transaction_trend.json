@@ -7,27 +7,37 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "monthly_trend",
-      "sql": "WITH base AS (SELECT as_of, COUNT(*) AS daily_transactions, ROUND(SUM(amount), 2) AS daily_amount, ROUND(AVG(amount), 2) AS avg_transaction_amount FROM transactions WHERE as_of >= '2024-10-01' GROUP BY as_of) SELECT as_of, daily_transactions, daily_amount, avg_transaction_amount FROM base ORDER BY as_of"
+      "sql": "WITH base AS (SELECT ifw_effective_date, COUNT(*) AS daily_transactions, ROUND(SUM(amount), 2) AS daily_amount, ROUND(AVG(amount), 2) AS avg_transaction_amount FROM transactions WHERE ifw_effective_date >= '2024-10-01' GROUP BY ifw_effective_date) SELECT ifw_effective_date, daily_transactions, daily_amount, avg_transaction_amount FROM base ORDER BY ifw_effective_date"
     },
     {
       "type": "CsvFileWriter",
       "source": "monthly_trend",
-      "outputFile": "Output/curated/monthly_transaction_trend.csv",
       "includeHeader": true,
       "writeMode": "Append",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "monthly_transaction_trend",
+      "fileName": "monthly_transaction_trend.csv"
     }
   ]
 }

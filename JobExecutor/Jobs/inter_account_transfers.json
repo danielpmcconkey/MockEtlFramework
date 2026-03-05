@@ -7,14 +7,23 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_timestamp", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_timestamp",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id"]
+      "columns": [
+        "account_id",
+        "customer_id"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +33,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/inter_account_transfers/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "inter_account_transfers",
+      "fileName": "inter_account_transfers"
     }
   ]
 }

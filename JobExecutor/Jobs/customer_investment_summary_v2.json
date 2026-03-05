@@ -7,27 +7,36 @@
       "resultName": "investments",
       "schema": "datalake",
       "table": "investments",
-      "columns": ["customer_id", "current_value"]
+      "columns": [
+        "customer_id",
+        "current_value"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT i.customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, COUNT(*) AS investment_count, ROUND(SUM(i.current_value), 2) AS total_value, MAX(i.as_of) AS as_of FROM investments i LEFT JOIN (SELECT DISTINCT id, first_name, last_name FROM customers) c ON c.id = i.customer_id GROUP BY i.customer_id ORDER BY i.customer_id"
+      "sql": "SELECT i.customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, COUNT(*) AS investment_count, ROUND(SUM(i.current_value), 2) AS total_value, MAX(i.ifw_effective_date) AS ifw_effective_date FROM investments i LEFT JOIN (SELECT DISTINCT id, first_name, last_name FROM customers) c ON c.id = i.customer_id GROUP BY i.customer_id ORDER BY i.customer_id"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/customer_investment_summary.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "customer_investment_summary",
+      "fileName": "customer_investment_summary.csv"
     }
   ]
 }

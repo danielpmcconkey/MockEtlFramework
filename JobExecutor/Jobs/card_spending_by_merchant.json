@@ -7,14 +7,27 @@
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["card_txn_id", "card_id", "customer_id", "merchant_name", "merchant_category_code", "amount", "txn_timestamp", "authorization_status"]
+      "columns": [
+        "card_txn_id",
+        "card_id",
+        "customer_id",
+        "merchant_name",
+        "merchant_category_code",
+        "amount",
+        "txn_timestamp",
+        "authorization_status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "merchant_categories",
       "schema": "datalake",
       "table": "merchant_categories",
-      "columns": ["mcc_code", "mcc_description", "risk_level"]
+      "columns": [
+        "mcc_code",
+        "mcc_description",
+        "risk_level"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +37,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/card_spending_by_merchant/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "card_spending_by_merchant",
+      "fileName": "card_spending_by_merchant"
     }
   ]
 }

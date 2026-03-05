@@ -7,49 +7,82 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "loan_accounts",
       "schema": "datalake",
       "table": "loan_accounts",
-      "columns": ["loan_id", "customer_id", "loan_type", "current_balance"]
+      "columns": [
+        "loan_id",
+        "customer_id",
+        "loan_type",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id", "visit_purpose"]
+      "columns": [
+        "visit_id",
+        "customer_id",
+        "branch_id",
+        "visit_purpose"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name", "city", "state_province"]
+      "columns": [
+        "branch_id",
+        "branch_name",
+        "city",
+        "state_province"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "segments",
       "schema": "datalake",
       "table": "segments",
-      "columns": ["segment_id", "segment_name"]
+      "columns": [
+        "segment_id",
+        "segment_name"
+      ]
     },
     {
       "type": "External",
@@ -59,11 +92,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/executive_dashboard.csv",
       "includeHeader": true,
       "trailerFormat": "SUMMARY|{row_count}|{date}|{timestamp}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "executive_dashboard",
+      "fileName": "executive_dashboard.csv"
     }
   ]
 }

@@ -7,14 +7,23 @@
       "resultName": "customer_preferences",
       "schema": "datalake",
       "table": "customer_preferences",
-      "columns": ["preference_id", "customer_id", "preference_type", "opted_in"]
+      "columns": [
+        "preference_id",
+        "customer_id",
+        "preference_type",
+        "opted_in"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -24,11 +33,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/do_not_contact_list.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "do_not_contact_list",
+      "fileName": "do_not_contact_list.csv"
     }
   ]
 }

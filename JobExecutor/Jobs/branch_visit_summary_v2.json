@@ -7,28 +7,35 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["branch_id"]
+      "columns": [
+        "branch_id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "visit_summary",
-      "sql": "SELECT bv.branch_id, b.branch_name, bv.as_of, COUNT(*) AS visit_count FROM branch_visits bv LEFT JOIN branches b ON bv.branch_id = b.branch_id AND bv.as_of = b.as_of GROUP BY bv.branch_id, b.branch_name, bv.as_of ORDER BY bv.as_of, bv.branch_id"
+      "sql": "SELECT bv.branch_id, b.branch_name, bv.ifw_effective_date, COUNT(*) AS visit_count FROM branch_visits bv LEFT JOIN branches b ON bv.branch_id = b.branch_id AND bv.ifw_effective_date = b.ifw_effective_date GROUP BY bv.branch_id, b.branch_name, bv.ifw_effective_date ORDER BY bv.ifw_effective_date, bv.branch_id"
     },
     {
       "type": "CsvFileWriter",
       "source": "visit_summary",
-      "outputFile": "Output/double_secret_curated/branch_visit_summary.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Append",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "branch_visit_summary",
+      "fileName": "branch_visit_summary.csv"
     }
   ]
 }

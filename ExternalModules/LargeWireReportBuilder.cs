@@ -10,7 +10,7 @@ public class LargeWireReportBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "wire_id", "customer_id", "first_name", "last_name",
-            "direction", "amount", "counterparty_name", "status", "as_of"
+            "direction", "amount", "counterparty_name", "status", "ifw_effective_date"
         };
 
         var wireTransfers = sharedState.ContainsKey("wire_transfers") ? sharedState["wire_transfers"] as DataFrame : null;
@@ -59,7 +59,7 @@ public class LargeWireReportBuilder : IExternalStep
                     ["amount"] = roundedAmount,
                     ["counterparty_name"] = row["counterparty_name"],
                     ["status"] = row["status"],
-                    ["as_of"] = row["as_of"]
+                    ["ifw_effective_date"] = row["ifw_effective_date"]
                 }));
             }
         }

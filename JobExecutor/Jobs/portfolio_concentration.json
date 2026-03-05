@@ -7,21 +7,39 @@
       "resultName": "holdings",
       "schema": "datalake",
       "table": "holdings",
-      "columns": ["holding_id", "investment_id", "security_id", "customer_id", "quantity", "current_value"]
+      "columns": [
+        "holding_id",
+        "investment_id",
+        "security_id",
+        "customer_id",
+        "quantity",
+        "current_value"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "securities",
       "schema": "datalake",
       "table": "securities",
-      "columns": ["security_id", "ticker", "security_name", "security_type", "sector"]
+      "columns": [
+        "security_id",
+        "ticker",
+        "security_name",
+        "security_type",
+        "sector"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "investments",
       "schema": "datalake",
       "table": "investments",
-      "columns": ["investment_id", "customer_id", "account_type", "current_value"]
+      "columns": [
+        "investment_id",
+        "customer_id",
+        "account_type",
+        "current_value"
+      ]
     },
     {
       "type": "External",
@@ -31,9 +49,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/portfolio_concentration/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "portfolio_concentration",
+      "fileName": "portfolio_concentration"
     }
   ]
 }

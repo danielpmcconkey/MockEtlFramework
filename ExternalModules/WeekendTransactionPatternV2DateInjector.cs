@@ -5,7 +5,7 @@ namespace ExternalModules;
 
 /// <summary>
 /// V2 minimal External module for WeekendTransactionPattern (Step 1 of 2).
-/// Injects __maxEffectiveDate from shared state into a single-row DataFrame
+/// Injects __etlEffectiveDate from shared state into a single-row DataFrame
 /// so that the downstream Transformation SQL can filter and classify by date.
 ///
 /// This module does ZERO business logic — it is a bridge for the framework
@@ -13,7 +13,7 @@ namespace ExternalModules;
 ///
 /// Anti-patterns eliminated:
 ///   AP3 — V1's monolithic External replaced; business logic moved to SQL
-///   AP4 — DataSourcing reduced from 5 columns to 2 (amount, as_of)
+///   AP4 — DataSourcing reduced from 5 columns to 2 (amount, ifw_effective_date)
 ///   AP6 — V1's foreach loops replaced with SQL GROUP BY
 ///
 /// Anti-patterns retained:
@@ -25,7 +25,7 @@ public class WeekendTransactionPatternV2DateInjector : IExternalStep
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
         // AP10 retained: framework cannot compute dynamic date offsets for weekly summary range
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // W3a: On Sundays, compute the Monday of the current week (6 days prior)

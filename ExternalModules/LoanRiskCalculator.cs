@@ -10,7 +10,7 @@ public class LoanRiskCalculator : IExternalStep
         var outputColumns = new List<string>
         {
             "loan_id", "customer_id", "loan_type", "current_balance",
-            "interest_rate", "loan_status", "avg_credit_score", "risk_tier", "as_of"
+            "interest_rate", "loan_status", "avg_credit_score", "risk_tier", "ifw_effective_date"
         };
 
         var loanAccounts = sharedState.ContainsKey("loan_accounts") ? sharedState["loan_accounts"] as DataFrame : null;
@@ -79,7 +79,7 @@ public class LoanRiskCalculator : IExternalStep
                 ["loan_status"] = loanRow["loan_status"],
                 ["avg_credit_score"] = avgCreditScore,
                 ["risk_tier"] = riskTier,
-                ["as_of"] = loanRow["as_of"]
+                ["ifw_effective_date"] = loanRow["ifw_effective_date"]
             }));
         }
 

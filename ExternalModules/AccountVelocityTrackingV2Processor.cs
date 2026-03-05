@@ -7,7 +7,7 @@ namespace ExternalModules;
 /// V2 minimal External module for AccountVelocityTracking.
 /// Business logic is handled by the upstream SQL Transformation (Tier 2).
 /// This module ONLY handles:
-///   1. Injecting the as_of column (__maxEffectiveDate) — BR-5
+///   1. Injecting the ifw_effective_date column (__etlEffectiveDate) — BR-5
 ///   2. W12: Direct CSV write with header re-emitted on every append run
 ///
 /// Anti-patterns eliminated:
@@ -21,7 +21,7 @@ public class AccountVelocityTrackingV2Processor : IExternalStep
     // Output column order must match V1 exactly
     private static readonly List<string> OutputColumns = new()
     {
-        "account_id", "customer_id", "txn_date", "txn_count", "total_amount", "as_of"
+        "account_id", "customer_id", "txn_date", "txn_count", "total_amount", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -43,7 +43,7 @@ public class AccountVelocityTrackingV2Processor : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Read the SQL-produced velocity_output from Transformation step.
@@ -60,7 +60,7 @@ public class AccountVelocityTrackingV2Processor : IExternalStep
             return sharedState;
         }
 
-        // Inject as_of column (__maxEffectiveDate) per BR-5.
+        // Inject ifw_effective_date column (__etlEffectiveDate) per BR-5.
         // The SQL Transformation cannot access shared state scalar values,
         // so this column is appended here.
         var outputRows = new List<Row>();
@@ -73,7 +73,7 @@ public class AccountVelocityTrackingV2Processor : IExternalStep
                 ["txn_date"] = row["txn_date"],
                 ["txn_count"] = row["txn_count"],
                 ["total_amount"] = row["total_amount"],
-                ["as_of"] = dateStr
+                ["ifw_effective_date"] = dateStr
             }));
         }
 

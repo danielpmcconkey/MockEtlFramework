@@ -9,11 +9,11 @@ public class CustomerContactabilityProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "customer_id", "first_name", "last_name", "email_address", "phone_number", "as_of"
+            "customer_id", "first_name", "last_name", "email_address", "phone_number", "ifw_effective_date"
         };
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W2: Weekend fallback — use Friday's data on Sat/Sun
@@ -79,7 +79,7 @@ public class CustomerContactabilityProcessor : IExternalStep
         {
             if (targetDate != maxDate)
             {
-                var rowDate = (DateOnly)row["as_of"];
+                var rowDate = (DateOnly)row["ifw_effective_date"];
                 if (rowDate != targetDate) continue;
             }
 
@@ -108,7 +108,7 @@ public class CustomerContactabilityProcessor : IExternalStep
                 ["last_name"] = lastName,
                 ["email_address"] = emailLookup[custId],
                 ["phone_number"] = phoneLookup[custId],
-                ["as_of"] = targetDate
+                ["ifw_effective_date"] = targetDate
             }));
         }
 

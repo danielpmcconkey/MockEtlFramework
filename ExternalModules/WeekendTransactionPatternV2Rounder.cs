@@ -32,14 +32,14 @@ public class WeekendTransactionPatternV2Rounder : IExternalStep
             // Pass through empty DataFrame as-is
             sharedState["output"] = preOutput ?? new DataFrame(
                 new List<Row>(),
-                new List<string> { "day_type", "txn_count", "total_amount", "avg_amount", "as_of" }
+                new List<string> { "day_type", "txn_count", "total_amount", "avg_amount", "ifw_effective_date" }
             );
             return sharedState;
         }
 
         var outputColumns = new List<string>
         {
-            "day_type", "txn_count", "total_amount", "avg_amount", "as_of"
+            "day_type", "txn_count", "total_amount", "avg_amount", "ifw_effective_date"
         };
 
         var outputRows = new List<Row>();
@@ -56,7 +56,7 @@ public class WeekendTransactionPatternV2Rounder : IExternalStep
                 // Math.Round(decimal, 2) behavior [WeekendTransactionPatternProcessor.cs:59,67,107,115]
                 ["total_amount"] = Math.Round(totalAmount, 2, MidpointRounding.ToEven),
                 ["avg_amount"] = Math.Round(avgAmount, 2, MidpointRounding.ToEven),
-                ["as_of"] = row["as_of"]
+                ["ifw_effective_date"] = row["ifw_effective_date"]
             }));
         }
 

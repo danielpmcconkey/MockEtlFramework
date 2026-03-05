@@ -24,7 +24,7 @@ public class PeakTransactionTimesV2Processor : IExternalStep
 {
     private static readonly List<string> OutputColumns = new()
     {
-        "hour_of_day", "txn_count", "total_amount", "as_of"
+        "hour_of_day", "txn_count", "total_amount", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -42,8 +42,8 @@ public class PeakTransactionTimesV2Processor : IExternalStep
         // W7: Trailer uses input transaction count (before hourly grouping)
         int inputCount = transactions?.Count ?? 0;
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 

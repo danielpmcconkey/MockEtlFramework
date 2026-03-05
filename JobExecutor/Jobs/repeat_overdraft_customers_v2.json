@@ -7,26 +7,35 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["customer_id", "overdraft_amount"]
+      "columns": [
+        "customer_id",
+        "overdraft_amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT oe.customer_id, COALESCE(cl.first_name, '') AS first_name, COALESCE(cl.last_name, '') AS last_name, oe.overdraft_count, oe.total_overdraft_amount, oe.as_of FROM (SELECT customer_id, COUNT(*) AS overdraft_count, SUM(overdraft_amount) AS total_overdraft_amount, (SELECT MIN(as_of) FROM overdraft_events) AS as_of FROM overdraft_events GROUP BY customer_id HAVING COUNT(*) >= 2) oe LEFT JOIN (SELECT id, first_name, last_name FROM customers WHERE rowid IN (SELECT MAX(rowid) FROM customers GROUP BY id)) cl ON oe.customer_id = cl.id"
+      "sql": "SELECT oe.customer_id, COALESCE(cl.first_name, '') AS first_name, COALESCE(cl.last_name, '') AS last_name, oe.overdraft_count, oe.total_overdraft_amount, oe.ifw_effective_date FROM (SELECT customer_id, COUNT(*) AS overdraft_count, SUM(overdraft_amount) AS total_overdraft_amount, (SELECT MIN(ifw_effective_date) FROM overdraft_events) AS ifw_effective_date FROM overdraft_events GROUP BY customer_id HAVING COUNT(*) >= 2) oe LEFT JOIN (SELECT id, first_name, last_name FROM customers WHERE rowid IN (SELECT MAX(rowid) FROM customers GROUP BY id)) cl ON oe.customer_id = cl.id"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/repeat_overdraft_customers/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "repeat_overdraft_customers",
+      "fileName": "repeat_overdraft_customers"
     }
   ]
 }

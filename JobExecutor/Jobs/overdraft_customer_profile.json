@@ -7,21 +7,41 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["overdraft_id", "account_id", "customer_id", "overdraft_amount", "fee_amount", "fee_waived", "event_timestamp"]
+      "columns": [
+        "overdraft_id",
+        "account_id",
+        "customer_id",
+        "overdraft_amount",
+        "fee_amount",
+        "fee_waived",
+        "event_timestamp"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "prefix", "first_name", "last_name", "suffix", "birthdate"]
+      "columns": [
+        "id",
+        "prefix",
+        "first_name",
+        "last_name",
+        "suffix",
+        "birthdate"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status"
+      ]
     },
     {
       "type": "External",
@@ -31,9 +51,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/overdraft_customer_profile/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "overdraft_customer_profile",
+      "fileName": "overdraft_customer_profile"
     }
   ]
 }

@@ -7,33 +7,44 @@
       "resultName": "compliance_events",
       "schema": "datalake",
       "table": "compliance_events",
-      "columns": ["customer_id"]
+      "columns": [
+        "customer_id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["customer_id"]
+      "columns": [
+        "customer_id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["customer_id", "current_balance"]
+      "columns": [
+        "customer_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "WITH effective AS (SELECT MAX(as_of) AS eff_date FROM customers), target AS (SELECT CASE CAST(strftime('%w', eff_date) AS INTEGER) WHEN 6 THEN date(eff_date, '-1 day') WHEN 0 THEN date(eff_date, '-2 days') ELSE eff_date END AS target_date FROM effective), date_filtered_customers AS (SELECT id, first_name, last_name, as_of FROM customers WHERE as_of = (SELECT target_date FROM target)), fallback_customers AS (SELECT id, first_name, last_name, as_of FROM date_filtered_customers WHERE (SELECT COUNT(*) FROM date_filtered_customers) > 0 UNION ALL SELECT id, first_name, last_name, as_of FROM customers WHERE (SELECT COUNT(*) FROM date_filtered_customers) = 0), comp_agg AS (SELECT customer_id, COUNT(*) AS compliance_event_count FROM compliance_events GROUP BY customer_id), wire_agg AS (SELECT customer_id, COUNT(*) AS wire_transfer_count FROM wire_transfers GROUP BY customer_id), acct_agg AS (SELECT customer_id, COUNT(*) AS account_count, SUM(current_balance) AS raw_total_balance FROM accounts GROUP BY customer_id) SELECT CAST(fc.id AS INTEGER) AS customer_id, COALESCE(fc.first_name, '') AS first_name, COALESCE(fc.last_name, '') AS last_name, COALESCE(ca.account_count, 0) AS account_count, COALESCE(ca.raw_total_balance, 0.0) AS raw_total_balance, COALESCE(co.compliance_event_count, 0) AS compliance_events, COALESCE(wa.wire_transfer_count, 0) AS wire_count, (SELECT target_date FROM target) AS target_date FROM fallback_customers fc LEFT JOIN comp_agg co ON fc.id = co.customer_id LEFT JOIN wire_agg wa ON fc.id = wa.customer_id LEFT JOIN acct_agg ca ON fc.id = ca.customer_id"
+      "sql": "WITH effective AS (SELECT MAX(ifw_effective_date) AS eff_date FROM customers), target AS (SELECT CASE CAST(strftime('%w', eff_date) AS INTEGER) WHEN 6 THEN date(eff_date, '-1 day') WHEN 0 THEN date(eff_date, '-2 days') ELSE eff_date END AS target_date FROM effective), date_filtered_customers AS (SELECT id, first_name, last_name, ifw_effective_date FROM customers WHERE ifw_effective_date = (SELECT target_date FROM target)), fallback_customers AS (SELECT id, first_name, last_name, ifw_effective_date FROM date_filtered_customers WHERE (SELECT COUNT(*) FROM date_filtered_customers) > 0 UNION ALL SELECT id, first_name, last_name, ifw_effective_date FROM customers WHERE (SELECT COUNT(*) FROM date_filtered_customers) = 0), comp_agg AS (SELECT customer_id, COUNT(*) AS compliance_event_count FROM compliance_events GROUP BY customer_id), wire_agg AS (SELECT customer_id, COUNT(*) AS wire_transfer_count FROM wire_transfers GROUP BY customer_id), acct_agg AS (SELECT customer_id, COUNT(*) AS account_count, SUM(current_balance) AS raw_total_balance FROM accounts GROUP BY customer_id) SELECT CAST(fc.id AS INTEGER) AS customer_id, COALESCE(fc.first_name, '') AS first_name, COALESCE(fc.last_name, '') AS last_name, COALESCE(ca.account_count, 0) AS account_count, COALESCE(ca.raw_total_balance, 0.0) AS raw_total_balance, COALESCE(co.compliance_event_count, 0) AS compliance_events, COALESCE(wa.wire_transfer_count, 0) AS wire_count, (SELECT target_date FROM target) AS target_date FROM fallback_customers fc LEFT JOIN comp_agg co ON fc.id = co.customer_id LEFT JOIN wire_agg wa ON fc.id = wa.customer_id LEFT JOIN acct_agg ca ON fc.id = ca.customer_id"
     },
     {
       "type": "External",
@@ -43,9 +54,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/regulatory_exposure_summary/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "regulatory_exposure_summary",
+      "fileName": "regulatory_exposure_summary"
     }
   ]
 }

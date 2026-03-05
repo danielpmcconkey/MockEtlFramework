@@ -9,7 +9,7 @@ public class CreditScoreProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "credit_score_id", "customer_id", "bureau", "score", "as_of"
+            "credit_score_id", "customer_id", "bureau", "score", "ifw_effective_date"
         };
 
         var creditScores = sharedState.ContainsKey("credit_scores") ? sharedState["credit_scores"] as DataFrame : null;
@@ -30,7 +30,7 @@ public class CreditScoreProcessor : IExternalStep
                 ["customer_id"] = row["customer_id"],
                 ["bureau"] = row["bureau"],
                 ["score"] = row["score"],
-                ["as_of"] = row["as_of"]
+                ["ifw_effective_date"] = row["ifw_effective_date"]
             }));
         }
 

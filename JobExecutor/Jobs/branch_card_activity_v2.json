@@ -7,33 +7,44 @@
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["card_txn_id", "customer_id", "amount"]
+      "columns": [
+        "card_txn_id",
+        "customer_id",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id"]
+      "columns": [
+        "id"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT b.branch_id, b.branch_name, COUNT(ct.card_txn_id) AS card_txn_count, ROUND(SUM(ct.amount), 2) AS total_card_amount, ct.as_of FROM card_transactions ct JOIN customers c ON ct.customer_id = c.id JOIN branches b ON b.branch_id = (ct.customer_id % (SELECT MAX(branch_id) FROM branches)) + 1 GROUP BY b.branch_id, b.branch_name, ct.as_of"
+      "sql": "SELECT b.branch_id, b.branch_name, COUNT(ct.card_txn_id) AS card_txn_count, ROUND(SUM(ct.amount), 2) AS total_card_amount, ct.ifw_effective_date FROM card_transactions ct JOIN customers c ON ct.customer_id = c.id JOIN branches b ON b.branch_id = (ct.customer_id % (SELECT MAX(branch_id) FROM branches)) + 1 GROUP BY b.branch_id, b.branch_name, ct.ifw_effective_date"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/branch_card_activity/",
+      "outputDirectory": "Output/poc4",
       "numParts": 50,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "branch_card_activity",
+      "fileName": "branch_card_activity"
     }
   ]
 }

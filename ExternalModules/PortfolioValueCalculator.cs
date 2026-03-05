@@ -10,7 +10,7 @@ public class PortfolioValueCalculator : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name",
-            "total_portfolio_value", "holding_count", "as_of"
+            "total_portfolio_value", "holding_count", "ifw_effective_date"
         };
 
         var holdings = sharedState.ContainsKey("holdings") ? sharedState["holdings"] as DataFrame : null;
@@ -23,13 +23,13 @@ public class PortfolioValueCalculator : IExternalStep
         }
 
         // W2: Weekend fallback — use Friday's data on Sat/Sun
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         DateOnly targetDate = maxDate;
         if (maxDate.DayOfWeek == DayOfWeek.Saturday) targetDate = maxDate.AddDays(-1);
         else if (maxDate.DayOfWeek == DayOfWeek.Sunday) targetDate = maxDate.AddDays(-2);
 
         var filteredHoldings = holdings.Rows
-            .Where(r => ((DateOnly)r["as_of"]) == targetDate)
+            .Where(r => ((DateOnly)r["ifw_effective_date"]) == targetDate)
             .ToList();
 
         // Build customer lookup
@@ -74,7 +74,7 @@ public class PortfolioValueCalculator : IExternalStep
                 ["last_name"] = name.lastName,
                 ["total_portfolio_value"] = Math.Round(totalValue, 2),
                 ["holding_count"] = holdingCount,
-                ["as_of"] = targetDate
+                ["ifw_effective_date"] = targetDate
             }));
         }
 

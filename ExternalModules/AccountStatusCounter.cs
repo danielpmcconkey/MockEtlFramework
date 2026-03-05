@@ -9,7 +9,7 @@ public class AccountStatusCounter : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "account_type", "account_status", "account_count", "as_of"
+            "account_type", "account_status", "account_count", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -20,8 +20,8 @@ public class AccountStatusCounter : IExternalStep
             return sharedState;
         }
 
-        // Get as_of from first account row
-        var asOf = accounts.Rows[0]["as_of"];
+        // Get ifw_effective_date from first account row
+        var asOf = accounts.Rows[0]["ifw_effective_date"];
 
         // Build (account_type, account_status) -> count dictionary
         var counts = new Dictionary<(string type, string status), int>();
@@ -44,7 +44,7 @@ public class AccountStatusCounter : IExternalStep
                 ["account_type"] = kvp.Key.type,
                 ["account_status"] = kvp.Key.status,
                 ["account_count"] = kvp.Value,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

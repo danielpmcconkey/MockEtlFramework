@@ -10,7 +10,7 @@ public class LoanSnapshotBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "loan_id", "customer_id", "loan_type", "original_amount",
-            "current_balance", "interest_rate", "loan_status", "as_of"
+            "current_balance", "interest_rate", "loan_status", "ifw_effective_date"
         };
 
         var loanAccounts = sharedState.ContainsKey("loan_accounts") ? sharedState["loan_accounts"] as DataFrame : null;
@@ -34,7 +34,7 @@ public class LoanSnapshotBuilder : IExternalStep
                 ["current_balance"] = row["current_balance"],
                 ["interest_rate"] = row["interest_rate"],
                 ["loan_status"] = row["loan_status"],
-                ["as_of"] = row["as_of"]
+                ["ifw_effective_date"] = row["ifw_effective_date"]
             }));
         }
 

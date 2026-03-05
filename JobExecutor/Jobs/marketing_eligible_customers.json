@@ -7,21 +7,38 @@
       "resultName": "customer_preferences",
       "schema": "datalake",
       "table": "customer_preferences",
-      "columns": ["preference_id", "customer_id", "preference_type", "opted_in"]
+      "columns": [
+        "preference_id",
+        "customer_id",
+        "preference_type",
+        "opted_in"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "prefix", "first_name", "last_name", "suffix", "birthdate"]
+      "columns": [
+        "id",
+        "prefix",
+        "first_name",
+        "last_name",
+        "suffix",
+        "birthdate"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "email_addresses",
       "schema": "datalake",
       "table": "email_addresses",
-      "columns": ["email_id", "customer_id", "email_address", "email_type"]
+      "columns": [
+        "email_id",
+        "customer_id",
+        "email_address",
+        "email_type"
+      ]
     },
     {
       "type": "External",
@@ -31,10 +48,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/marketing_eligible_customers.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "marketing_eligible_customers",
+      "fileName": "marketing_eligible_customers.csv"
     }
   ]
 }

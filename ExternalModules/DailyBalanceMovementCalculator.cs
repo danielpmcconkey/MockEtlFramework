@@ -9,7 +9,7 @@ public class DailyBalanceMovementCalculator : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "account_id", "customer_id", "debit_total", "credit_total", "net_movement", "as_of"
+            "account_id", "customer_id", "debit_total", "credit_total", "net_movement", "ifw_effective_date"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
@@ -39,7 +39,7 @@ public class DailyBalanceMovementCalculator : IExternalStep
             double amount = Convert.ToDouble(row["amount"]);
 
             if (!stats.ContainsKey(accountId))
-                stats[accountId] = (0.0, 0.0, row["as_of"]);
+                stats[accountId] = (0.0, 0.0, row["ifw_effective_date"]);
 
             var current = stats[accountId];
             if (txnType == "Debit")
@@ -65,7 +65,7 @@ public class DailyBalanceMovementCalculator : IExternalStep
                 ["debit_total"] = debitTotal,
                 ["credit_total"] = creditTotal,
                 ["net_movement"] = netMovement,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

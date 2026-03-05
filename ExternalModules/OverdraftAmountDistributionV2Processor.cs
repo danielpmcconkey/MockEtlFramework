@@ -28,7 +28,7 @@ public class OverdraftAmountDistributionV2Processor : IExternalStep
 
     private static readonly List<string> OutputColumns = new()
     {
-        "amount_bucket", "event_count", "total_amount", "as_of"
+        "amount_bucket", "event_count", "total_amount", "ifw_effective_date"
     };
 
     private static string GetSolutionRoot()
@@ -49,13 +49,13 @@ public class OverdraftAmountDistributionV2Processor : IExternalStep
             ? outVal as DataFrame
             : null;
 
-        // Read the source DataFrame for W7 inflated trailer count and OQ-1 as_of format
+        // Read the source DataFrame for W7 inflated trailer count and OQ-1 ifw_effective_date format
         var overdraftEvents = sharedState.TryGetValue(SourceDataFrameName, out var srcVal)
             ? srcVal as DataFrame
             : null;
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W7: Count INPUT rows before bucketing for inflated trailer count.
@@ -63,13 +63,13 @@ public class OverdraftAmountDistributionV2Processor : IExternalStep
         // not the number of output buckets (e.g., 5).
         int inputRowCount = overdraftEvents?.Count ?? 0;
 
-        // OQ-1: Read as_of from the source DataFrame as raw DateOnly, then call
+        // OQ-1: Read ifw_effective_date from the source DataFrame as raw DateOnly, then call
         // .ToString() to match V1's format exactly. The Transformation SQL produces
-        // as_of as a "yyyy-MM-dd" string (via SQLite), but V1 calls DateOnly.ToString()
+        // ifw_effective_date as a "yyyy-MM-dd" string (via SQLite), but V1 calls DateOnly.ToString()
         // which produces a culture-dependent format. Reading from the source DataFrame
         // preserves the original DateOnly object.
         var asOf = overdraftEvents != null && overdraftEvents.Count > 0
-            ? overdraftEvents.Rows[0]["as_of"]?.ToString() ?? maxDate.ToString("yyyy-MM-dd")
+            ? overdraftEvents.Rows[0]["ifw_effective_date"]?.ToString() ?? maxDate.ToString("yyyy-MM-dd")
             : maxDate.ToString("yyyy-MM-dd");
 
         // Handle empty data edge case

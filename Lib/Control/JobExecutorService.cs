@@ -12,7 +12,7 @@ namespace Lib.Control;
 ///   - On subsequent runs, the start date is (last Succeeded max_effective_date + 1 day).
 ///   - The end date is always today. The executor gap-fills one day at a time until caught up.
 ///   - Effective dates are injected into shared state before the pipeline runs, under the
-///     reserved keys DataSourcing.MinDateKey and DataSourcing.MaxDateKey.
+///     reserved key DataSourcing.EtlEffectiveDateKey.
 ///
 /// run_date in control.job_runs is always set to today's date (the actual execution date),
 /// regardless of which effective date is being processed.
@@ -96,8 +96,7 @@ public class JobExecutorService
                 {
                     var initialState = new Dictionary<string, object>
                     {
-                        [Modules.DataSourcing.MinDateKey] = effDate,
-                        [Modules.DataSourcing.MaxDateKey] = effDate
+                        [Modules.DataSourcing.EtlEffectiveDateKey] = effDate
                     };
 
                     var runner     = new JobRunner();

@@ -9,7 +9,7 @@ public class CustomerBranchActivityBuilder : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "customer_id", "first_name", "last_name", "as_of", "visit_count"
+            "customer_id", "first_name", "last_name", "ifw_effective_date", "visit_count"
         };
 
         var branchVisits = sharedState.ContainsKey("branch_visits") ? sharedState["branch_visits"] as DataFrame : null;
@@ -48,8 +48,8 @@ public class CustomerBranchActivityBuilder : IExternalStep
             visitCounts[custId]++;
         }
 
-        // Get as_of from first branch_visit row
-        var asOf = branchVisits.Rows[0]["as_of"];
+        // Get ifw_effective_date from first branch_visit row
+        var asOf = branchVisits.Rows[0]["ifw_effective_date"];
 
         // Build output rows
         var outputRows = new List<Row>();
@@ -72,7 +72,7 @@ public class CustomerBranchActivityBuilder : IExternalStep
                 ["customer_id"] = customerId,
                 ["first_name"] = firstName,
                 ["last_name"] = lastName,
-                ["as_of"] = asOf,
+                ["ifw_effective_date"] = asOf,
                 ["visit_count"] = visitCount
             }));
         }

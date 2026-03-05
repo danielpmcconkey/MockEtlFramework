@@ -10,7 +10,7 @@ public class CommunicationChannelMapper : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name", "preferred_channel",
-            "email", "phone", "as_of"
+            "email", "phone", "ifw_effective_date"
         };
 
         var prefs = sharedState.ContainsKey("customer_preferences")
@@ -73,7 +73,7 @@ public class CommunicationChannelMapper : IExternalStep
             }
         }
 
-        var asOf = customers.Rows[0]["as_of"];
+        var asOf = customers.Rows[0]["ifw_effective_date"];
 
         // AP6: Row-by-row iteration through customers
         var outputRows = new List<Row>();
@@ -108,7 +108,7 @@ public class CommunicationChannelMapper : IExternalStep
                 ["preferred_channel"] = preferredChannel,
                 ["email"] = email,
                 ["phone"] = phone,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

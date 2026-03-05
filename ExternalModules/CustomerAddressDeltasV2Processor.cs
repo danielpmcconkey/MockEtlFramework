@@ -33,18 +33,18 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
     {
         "change_type", "address_id", "customer_id", "customer_name",
         "address_line1", "city", "state_province", "postal_code",
-        "country", "start_date", "end_date", "as_of", "record_count"
+        "country", "start_date", "end_date", "ifw_effective_date", "record_count"
     };
 
     /// <summary>
-    /// Date format for as_of, start_date, and end_date output fields. (AP7: named constant)
+    /// Date format for ifw_effective_date, start_date, and end_date output fields. (AP7: named constant)
     /// </summary>
     private const string DateFormat = "yyyy-MM-dd";
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
         // BR-1: Read effective date from shared state
-        var currentDate = (DateOnly)sharedState[DataSourcing.MinDateKey];
+        var currentDate = (DateOnly)sharedState[DataSourcing.EtlEffectiveDateKey];
         // BR-1: Previous date is always currentDate - 1 (no weekend fallback)
         var previousDate = currentDate.AddDays(-1);
 
@@ -58,7 +58,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
         var customerNames = FetchCustomerNames(connection, currentDate);
 
         // BR-3: Baseline day -- no previous snapshot means no meaningful delta.
-        // Produce a single null-filled sentinel row with as_of and record_count=0.
+        // Produce a single null-filled sentinel row with ifw_effective_date and record_count=0.
         if (previousAddresses.Count == 0)
         {
             var nullRow = new Row(new Dictionary<string, object?>
@@ -74,7 +74,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
                 ["country"] = null,
                 ["start_date"] = null,
                 ["end_date"] = null,
-                ["as_of"] = currentDate.ToString(DateFormat),
+                ["ifw_effective_date"] = currentDate.ToString(DateFormat),
                 ["record_count"] = 0
             });
             sharedState["output"] = new DataFrame(new List<Row> { nullRow }, OutputColumns);
@@ -134,7 +134,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
                 ["country"] = current["country"]?.ToString()?.Trim(), // BR-10: trim country
                 ["start_date"] = FormatDate(current["start_date"]),   // BR-11: format as yyyy-MM-dd
                 ["end_date"] = FormatDate(current["end_date"]),       // BR-11: format as yyyy-MM-dd
-                ["as_of"] = currentDate.ToString(DateFormat),         // BR-12: as_of as string
+                ["ifw_effective_date"] = currentDate.ToString(DateFormat),         // BR-12: ifw_effective_date as string
                 ["record_count"] = 0 // placeholder, set to final count below
             }));
         }
@@ -157,7 +157,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
                 ["country"] = null,
                 ["start_date"] = null,
                 ["end_date"] = null,
-                ["as_of"] = currentDate.ToString(DateFormat),
+                ["ifw_effective_date"] = currentDate.ToString(DateFormat),
                 ["record_count"] = 0
             }));
         }
@@ -184,7 +184,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
             SELECT address_id, customer_id, address_line1, city, state_province,
                    postal_code, country, start_date, end_date
             FROM datalake.addresses
-            WHERE as_of = @date
+            WHERE ifw_effective_date = @date
             ORDER BY address_id";
 
         using var cmd = new NpgsqlCommand(query, connection);
@@ -208,7 +208,7 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
 
     /// <summary>
     /// Fetch the most recent customer name for each customer as of the given date.
-    /// Uses PostgreSQL DISTINCT ON to get the latest as_of row per customer id (BR-8).
+    /// Uses PostgreSQL DISTINCT ON to get the latest ifw_effective_date row per customer id (BR-8).
     /// Returns a dictionary mapping customer_id to "first_name last_name".
     /// </summary>
     private static Dictionary<int, string> FetchCustomerNames(NpgsqlConnection connection, DateOnly asOfDate)
@@ -216,8 +216,8 @@ public class CustomerAddressDeltasV2Processor : IExternalStep
         const string query = @"
             SELECT DISTINCT ON (id) id, first_name, last_name
             FROM datalake.customers
-            WHERE as_of <= @date
-            ORDER BY id, as_of DESC";
+            WHERE ifw_effective_date <= @date
+            ORDER BY id, ifw_effective_date DESC";
 
         using var cmd = new NpgsqlCommand(query, connection);
         cmd.Parameters.AddWithValue("@date", asOfDate.ToDateTime(TimeOnly.MinValue));

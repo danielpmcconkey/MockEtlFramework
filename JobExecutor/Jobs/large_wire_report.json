@@ -7,14 +7,25 @@
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["wire_id", "customer_id", "direction", "amount", "counterparty_name", "status"]
+      "columns": [
+        "wire_id",
+        "customer_id",
+        "direction",
+        "amount",
+        "counterparty_name",
+        "status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -24,10 +35,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/large_wire_report.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "large_wire_report",
+      "fileName": "large_wire_report.csv"
     }
   ]
 }

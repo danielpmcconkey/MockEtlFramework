@@ -7,19 +7,27 @@
       "resultName": "holdings",
       "schema": "datalake",
       "table": "holdings",
-      "columns": ["customer_id", "investment_id", "security_id", "current_value"]
+      "columns": [
+        "customer_id",
+        "investment_id",
+        "security_id",
+        "current_value"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "securities",
       "schema": "datalake",
       "table": "securities",
-      "columns": ["security_id", "sector"]
+      "columns": [
+        "security_id",
+        "sector"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "sector_agg",
-      "sql": "SELECT h.customer_id, h.investment_id, COALESCE(s.sector, 'Unknown') AS sector, SUM(h.current_value) AS sector_value, cust_total.total_value AS total_value, (SELECT MAX(as_of) FROM holdings) AS as_of FROM holdings h LEFT JOIN securities s ON h.security_id = s.security_id AND h.as_of = s.as_of LEFT JOIN (SELECT customer_id, SUM(current_value) AS total_value FROM holdings GROUP BY customer_id) cust_total ON h.customer_id = cust_total.customer_id GROUP BY h.customer_id, h.investment_id, COALESCE(s.sector, 'Unknown'), cust_total.total_value ORDER BY h.customer_id, h.investment_id, sector"
+      "sql": "SELECT h.customer_id, h.investment_id, COALESCE(s.sector, 'Unknown') AS sector, SUM(h.current_value) AS sector_value, cust_total.total_value AS total_value, (SELECT MAX(ifw_effective_date) FROM holdings) AS ifw_effective_date FROM holdings h LEFT JOIN securities s ON h.security_id = s.security_id AND h.ifw_effective_date = s.ifw_effective_date LEFT JOIN (SELECT customer_id, SUM(current_value) AS total_value FROM holdings GROUP BY customer_id) cust_total ON h.customer_id = cust_total.customer_id GROUP BY h.customer_id, h.investment_id, COALESCE(s.sector, 'Unknown'), cust_total.total_value ORDER BY h.customer_id, h.investment_id, sector"
     },
     {
       "type": "External",
@@ -29,9 +37,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/portfolio_concentration/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "portfolio_concentration",
+      "fileName": "portfolio_concentration"
     }
   ]
 }

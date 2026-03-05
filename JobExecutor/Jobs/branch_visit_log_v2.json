@@ -7,33 +7,48 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id", "visit_timestamp", "visit_purpose"]
+      "columns": [
+        "visit_id",
+        "customer_id",
+        "branch_id",
+        "visit_timestamp",
+        "visit_purpose"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT bv.visit_id, bv.customer_id, CASE WHEN c.id IS NOT NULL THEN COALESCE(c.first_name, '') ELSE NULL END AS first_name, CASE WHEN c.id IS NOT NULL THEN COALESCE(c.last_name, '') ELSE NULL END AS last_name, bv.branch_id, COALESCE(b.branch_name, '') AS branch_name, bv.visit_timestamp, bv.visit_purpose, bv.as_of FROM branch_visits bv LEFT JOIN (SELECT br.branch_id, br.branch_name FROM branches br INNER JOIN (SELECT branch_id, MAX(as_of) AS max_as_of FROM branches GROUP BY branch_id) br_latest ON br.branch_id = br_latest.branch_id AND br.as_of = br_latest.max_as_of) b ON bv.branch_id = b.branch_id LEFT JOIN (SELECT cu.id, cu.first_name, cu.last_name FROM customers cu INNER JOIN (SELECT id, MAX(as_of) AS max_as_of FROM customers GROUP BY id) cu_latest ON cu.id = cu_latest.id AND cu.as_of = cu_latest.max_as_of) c ON bv.customer_id = c.id ORDER BY bv.as_of, bv.visit_id"
+      "sql": "SELECT bv.visit_id, bv.customer_id, CASE WHEN c.id IS NOT NULL THEN COALESCE(c.first_name, '') ELSE NULL END AS first_name, CASE WHEN c.id IS NOT NULL THEN COALESCE(c.last_name, '') ELSE NULL END AS last_name, bv.branch_id, COALESCE(b.branch_name, '') AS branch_name, bv.visit_timestamp, bv.visit_purpose, bv.ifw_effective_date FROM branch_visits bv LEFT JOIN (SELECT br.branch_id, br.branch_name FROM branches br INNER JOIN (SELECT branch_id, MAX(ifw_effective_date) AS max_ifw_effective_date FROM branches GROUP BY branch_id) br_latest ON br.branch_id = br_latest.branch_id AND br.ifw_effective_date = br_latest.max_ifw_effective_date) b ON bv.branch_id = b.branch_id LEFT JOIN (SELECT cu.id, cu.first_name, cu.last_name FROM customers cu INNER JOIN (SELECT id, MAX(ifw_effective_date) AS max_ifw_effective_date FROM customers GROUP BY id) cu_latest ON cu.id = cu_latest.id AND cu.ifw_effective_date = cu_latest.max_ifw_effective_date) c ON bv.customer_id = c.id ORDER BY bv.ifw_effective_date, bv.visit_id"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/branch_visit_log/",
+      "outputDirectory": "Output/poc4",
       "numParts": 3,
-      "writeMode": "Append"
+      "writeMode": "Append",
+      "jobDirName": "branch_visit_log",
+      "fileName": "branch_visit_log"
     }
   ]
 }

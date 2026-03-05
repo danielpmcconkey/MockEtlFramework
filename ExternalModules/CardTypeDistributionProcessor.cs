@@ -9,7 +9,7 @@ public class CardTypeDistributionProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "card_type", "card_count", "pct_of_total", "as_of"
+            "card_type", "card_count", "pct_of_total", "ifw_effective_date"
         };
 
         var cards = sharedState.ContainsKey("cards")
@@ -22,7 +22,7 @@ public class CardTypeDistributionProcessor : IExternalStep
             return sharedState;
         }
 
-        var asOf = cards.Rows[0]["as_of"];
+        var asOf = cards.Rows[0]["ifw_effective_date"];
 
         // Group by card_type
         var counts = new Dictionary<string, int>();
@@ -50,7 +50,7 @@ public class CardTypeDistributionProcessor : IExternalStep
                 ["card_type"] = kvp.Key,
                 ["card_count"] = kvp.Value,
                 ["pct_of_total"] = pct,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

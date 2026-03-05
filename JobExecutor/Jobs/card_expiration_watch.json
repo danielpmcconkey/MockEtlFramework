@@ -7,14 +7,23 @@
       "resultName": "cards",
       "schema": "datalake",
       "table": "cards",
-      "columns": ["card_id", "customer_id", "card_type", "expiration_date"]
+      "columns": [
+        "card_id",
+        "customer_id",
+        "card_type",
+        "expiration_date"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +33,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/card_expiration_watch/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "card_expiration_watch",
+      "fileName": "card_expiration_watch"
     }
   ]
 }

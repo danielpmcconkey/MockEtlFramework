@@ -7,28 +7,49 @@
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "prefix", "first_name", "last_name", "suffix"]
+      "columns": [
+        "id",
+        "prefix",
+        "first_name",
+        "last_name",
+        "suffix"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "current_balance", "interest_rate", "credit_limit", "apr"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "current_balance",
+        "interest_rate",
+        "credit_limit",
+        "apr"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "cards",
       "schema": "datalake",
       "table": "cards",
-      "columns": ["card_id", "customer_id", "card_number_masked"]
+      "columns": [
+        "card_id",
+        "customer_id",
+        "card_number_masked"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "investments",
       "schema": "datalake",
       "table": "investments",
-      "columns": ["investment_id", "customer_id", "current_value"]
+      "columns": [
+        "investment_id",
+        "customer_id",
+        "current_value"
+      ]
     },
     {
       "type": "External",
@@ -38,9 +59,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/customer_360_snapshot/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "customer_360_snapshot",
+      "fileName": "customer_360_snapshot"
     }
   ]
 }

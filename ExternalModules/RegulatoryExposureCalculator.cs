@@ -11,7 +11,7 @@ public class RegulatoryExposureCalculator : IExternalStep
         {
             "customer_id", "first_name", "last_name",
             "account_count", "total_balance", "compliance_events", "wire_count",
-            "exposure_score", "as_of"
+            "exposure_score", "ifw_effective_date"
         };
 
         var complianceEvents = sharedState.ContainsKey("compliance_events") ? sharedState["compliance_events"] as DataFrame : null;
@@ -26,7 +26,7 @@ public class RegulatoryExposureCalculator : IExternalStep
         }
 
         // W2: Weekend fallback — use Friday's data on Sat/Sun
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         DateOnly targetDate = maxDate;
         if (maxDate.DayOfWeek == DayOfWeek.Saturday) targetDate = maxDate.AddDays(-1);
         else if (maxDate.DayOfWeek == DayOfWeek.Sunday) targetDate = maxDate.AddDays(-2);
@@ -35,7 +35,7 @@ public class RegulatoryExposureCalculator : IExternalStep
         // AP6: row-by-row iteration
 
         // Filter all data to target date
-        var targetCustomers = customers.Rows.Where(r => ((DateOnly)r["as_of"]) == targetDate).ToList();
+        var targetCustomers = customers.Rows.Where(r => ((DateOnly)r["ifw_effective_date"]) == targetDate).ToList();
         if (targetCustomers.Count == 0)
         {
             // Fall back to all rows if no exact date match
@@ -115,7 +115,7 @@ public class RegulatoryExposureCalculator : IExternalStep
                 ["compliance_events"] = complianceCount,
                 ["wire_count"] = wireCount,
                 ["exposure_score"] = exposureScore,
-                ["as_of"] = targetDate
+                ["ifw_effective_date"] = targetDate
             }));
         }
 

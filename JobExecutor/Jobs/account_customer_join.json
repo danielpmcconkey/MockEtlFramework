@@ -7,21 +7,37 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "addresses",
       "schema": "datalake",
       "table": "addresses",
-      "columns": ["address_id", "customer_id", "address_line1", "city", "state_province"]
+      "columns": [
+        "address_id",
+        "customer_id",
+        "address_line1",
+        "city",
+        "state_province"
+      ]
     },
     {
       "type": "External",
@@ -31,9 +47,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/account_customer_join/",
+      "outputDirectory": "Output/poc4",
       "numParts": 2,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "account_customer_join",
+      "fileName": "account_customer_join"
     }
   ]
 }

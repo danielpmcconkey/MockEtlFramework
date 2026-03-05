@@ -10,7 +10,7 @@ public class ComplianceOpenItemsBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "event_id", "customer_id", "first_name", "last_name",
-            "event_type", "event_date", "status", "as_of"
+            "event_type", "event_date", "status", "ifw_effective_date"
         };
 
         var complianceEvents = sharedState.ContainsKey("compliance_events") ? sharedState["compliance_events"] as DataFrame : null;
@@ -23,7 +23,7 @@ public class ComplianceOpenItemsBuilder : IExternalStep
         }
 
         // W2: Weekend fallback — use Friday's data on Sat/Sun
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         DateOnly targetDate = maxDate;
         if (maxDate.DayOfWeek == DayOfWeek.Saturday) targetDate = maxDate.AddDays(-1);
         else if (maxDate.DayOfWeek == DayOfWeek.Sunday) targetDate = maxDate.AddDays(-2);
@@ -45,7 +45,7 @@ public class ComplianceOpenItemsBuilder : IExternalStep
 
         // Filter to target date rows and Open/Escalated status
         var filteredRows = complianceEvents.Rows
-            .Where(r => ((DateOnly)r["as_of"]) == targetDate)
+            .Where(r => ((DateOnly)r["ifw_effective_date"]) == targetDate)
             .Where(r =>
             {
                 var status = r["status"]?.ToString() ?? "";
@@ -68,7 +68,7 @@ public class ComplianceOpenItemsBuilder : IExternalStep
                 ["event_type"] = row["event_type"],
                 ["event_date"] = row["event_date"],
                 ["status"] = row["status"],
-                ["as_of"] = targetDate
+                ["ifw_effective_date"] = targetDate
             }));
         }
 

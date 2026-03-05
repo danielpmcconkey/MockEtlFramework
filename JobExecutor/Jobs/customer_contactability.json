@@ -7,35 +7,57 @@
       "resultName": "customer_preferences",
       "schema": "datalake",
       "table": "customer_preferences",
-      "columns": ["preference_id", "customer_id", "preference_type", "opted_in"]
+      "columns": [
+        "preference_id",
+        "customer_id",
+        "preference_type",
+        "opted_in"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "prefix", "first_name", "last_name", "suffix"]
+      "columns": [
+        "id",
+        "prefix",
+        "first_name",
+        "last_name",
+        "suffix"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "email_addresses",
       "schema": "datalake",
       "table": "email_addresses",
-      "columns": ["email_id", "customer_id", "email_address"]
+      "columns": [
+        "email_id",
+        "customer_id",
+        "email_address"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "phone_numbers",
       "schema": "datalake",
       "table": "phone_numbers",
-      "columns": ["phone_id", "customer_id", "phone_number"]
+      "columns": [
+        "phone_id",
+        "customer_id",
+        "phone_number"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "segments",
       "schema": "datalake",
       "table": "segments",
-      "columns": ["segment_id", "segment_name"]
+      "columns": [
+        "segment_id",
+        "segment_name"
+      ]
     },
     {
       "type": "External",
@@ -45,9 +67,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/customer_contactability/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "customer_contactability",
+      "fileName": "customer_contactability"
     }
   ]
 }

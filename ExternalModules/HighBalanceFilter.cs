@@ -10,7 +10,7 @@ public class HighBalanceFilter : IExternalStep
         var outputColumns = new List<string>
         {
             "account_id", "customer_id", "account_type", "current_balance",
-            "first_name", "last_name", "as_of"
+            "first_name", "last_name", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -49,7 +49,7 @@ public class HighBalanceFilter : IExternalStep
                     ["current_balance"] = acctRow["current_balance"],
                     ["first_name"] = firstName,
                     ["last_name"] = lastName,
-                    ["as_of"] = acctRow["as_of"]
+                    ["ifw_effective_date"] = acctRow["ifw_effective_date"]
                 }));
             }
         }

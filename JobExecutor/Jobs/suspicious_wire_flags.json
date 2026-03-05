@@ -7,21 +7,39 @@
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["wire_id", "customer_id", "direction", "amount", "counterparty_name", "counterparty_bank", "status"]
+      "columns": [
+        "wire_id",
+        "customer_id",
+        "direction",
+        "amount",
+        "counterparty_name",
+        "counterparty_bank",
+        "status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name", "suffix"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name",
+        "suffix"
+      ]
     },
     {
       "type": "External",
@@ -31,9 +49,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/suspicious_wire_flags/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "suspicious_wire_flags",
+      "fileName": "suspicious_wire_flags"
     }
   ]
 }

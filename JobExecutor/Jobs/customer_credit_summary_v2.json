@@ -7,28 +7,41 @@
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["customer_id", "current_balance"]
+      "columns": [
+        "customer_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "credit_scores",
       "schema": "datalake",
       "table": "credit_scores",
-      "columns": ["customer_id", "score"]
+      "columns": [
+        "customer_id",
+        "score"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "loan_accounts",
       "schema": "datalake",
       "table": "loan_accounts",
-      "columns": ["customer_id", "current_balance"]
+      "columns": [
+        "customer_id",
+        "current_balance"
+      ]
     },
     {
       "type": "External",
@@ -38,10 +51,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/customer_credit_summary.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "customer_credit_summary",
+      "fileName": "customer_credit_summary.csv"
     }
   ]
 }

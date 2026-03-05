@@ -9,7 +9,7 @@ public class ExecutiveDashboardBuilder : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "metric_name", "metric_value", "as_of"
+            "metric_name", "metric_value", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -27,11 +27,11 @@ public class ExecutiveDashboardBuilder : IExternalStep
             return sharedState;
         }
 
-        // Get as_of from first customer row (or first transaction row as fallback)
-        object? asOf = customers.Rows[0]["as_of"];
+        // Get ifw_effective_date from first customer row (or first transaction row as fallback)
+        object? asOf = customers.Rows[0]["ifw_effective_date"];
         if (asOf == null && transactions != null && transactions.Count > 0)
         {
-            asOf = transactions.Rows[0]["as_of"];
+            asOf = transactions.Rows[0]["ifw_effective_date"];
         }
 
         // 1. total_customers
@@ -100,7 +100,7 @@ public class ExecutiveDashboardBuilder : IExternalStep
             {
                 ["metric_name"] = name,
                 ["metric_value"] = value,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

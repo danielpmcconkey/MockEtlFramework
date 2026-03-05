@@ -7,21 +7,33 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id", "visit_purpose"]
+      "columns": [
+        "visit_id",
+        "customer_id",
+        "branch_id",
+        "visit_purpose"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "External",
@@ -31,10 +43,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/customer_branch_activity.csv",
       "includeHeader": true,
       "writeMode": "Append",
-      "lineEnding": "CRLF"
+      "lineEnding": "CRLF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "customer_branch_activity",
+      "fileName": "customer_branch_activity.csv"
     }
   ]
 }

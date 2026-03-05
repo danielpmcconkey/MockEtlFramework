@@ -7,14 +7,26 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "open_date", "current_balance", "interest_rate", "credit_limit"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "open_date",
+        "current_balance",
+        "interest_rate",
+        "credit_limit"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +36,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/account_balance_snapshot/",
+      "outputDirectory": "Output/poc4",
       "numParts": 2,
-      "writeMode": "Append"
+      "writeMode": "Append",
+      "jobDirName": "account_balance_snapshot",
+      "fileName": "account_balance_snapshot"
     }
   ]
 }

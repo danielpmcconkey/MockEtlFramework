@@ -7,28 +7,46 @@
       "resultName": "compliance_events",
       "schema": "datalake",
       "table": "compliance_events",
-      "columns": ["event_id", "customer_id", "event_type", "status"]
+      "columns": [
+        "event_id",
+        "customer_id",
+        "event_type",
+        "status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["wire_id", "customer_id", "amount", "direction"]
+      "columns": [
+        "wire_id",
+        "customer_id",
+        "amount",
+        "direction"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -38,9 +56,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/regulatory_exposure_summary/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "regulatory_exposure_summary",
+      "fileName": "regulatory_exposure_summary"
     }
   ]
 }

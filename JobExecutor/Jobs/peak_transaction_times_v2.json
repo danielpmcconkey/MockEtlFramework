@@ -12,7 +12,7 @@
     {
       "type": "Transformation",
       "resultName": "peak_transaction_times",
-      "sql": "SELECT CAST(strftime('%H', txn_timestamp) AS INTEGER) AS hour_of_day, COUNT(*) AS txn_count, ROUND(SUM(CAST(amount AS REAL)), 2) AS total_amount, strftime('%Y-%m-%d', MAX(as_of)) AS as_of FROM transactions GROUP BY CAST(strftime('%H', txn_timestamp) AS INTEGER) ORDER BY hour_of_day ASC"
+      "sql": "SELECT CAST(strftime('%H', txn_timestamp) AS INTEGER) AS hour_of_day, COUNT(*) AS txn_count, ROUND(SUM(CAST(amount AS REAL)), 2) AS total_amount, strftime('%Y-%m-%d', MAX(ifw_effective_date)) AS ifw_effective_date FROM transactions GROUP BY CAST(strftime('%H', txn_timestamp) AS INTEGER) ORDER BY hour_of_day ASC"
     },
     {
       "type": "External",

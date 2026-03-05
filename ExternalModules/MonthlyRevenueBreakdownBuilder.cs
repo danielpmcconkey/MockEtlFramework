@@ -9,13 +9,13 @@ public class MonthlyRevenueBreakdownBuilder : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "revenue_source", "total_revenue", "transaction_count", "as_of"
+            "revenue_source", "total_revenue", "transaction_count", "ifw_effective_date"
         };
 
         var overdraftEvents = sharedState.ContainsKey("overdraft_events") ? sharedState["overdraft_events"] as DataFrame : null;
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // Compute daily overdraft fee revenue (charged, not waived)
         decimal overdraftRevenue = 0m;
@@ -57,14 +57,14 @@ public class MonthlyRevenueBreakdownBuilder : IExternalStep
                 ["revenue_source"] = "overdraft_fees",
                 ["total_revenue"] = Math.Round(overdraftRevenue, 2, MidpointRounding.ToEven),
                 ["transaction_count"] = overdraftCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }),
             new Row(new Dictionary<string, object?>
             {
                 ["revenue_source"] = "credit_interest_proxy",
                 ["total_revenue"] = Math.Round(creditRevenue, 2, MidpointRounding.ToEven),
                 ["transaction_count"] = creditCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             })
         };
 
@@ -82,14 +82,14 @@ public class MonthlyRevenueBreakdownBuilder : IExternalStep
                 ["revenue_source"] = "QUARTERLY_TOTAL_overdraft_fees",
                 ["total_revenue"] = Math.Round(qOverdraftRevenue, 2, MidpointRounding.ToEven),
                 ["transaction_count"] = qOverdraftCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
             outputRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["revenue_source"] = "QUARTERLY_TOTAL_credit_interest_proxy",
                 ["total_revenue"] = Math.Round(qCreditRevenue, 2, MidpointRounding.ToEven),
                 ["transaction_count"] = qCreditCount,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

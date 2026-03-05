@@ -9,7 +9,7 @@ public class RepeatOverdraftCustomerProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "customer_id", "first_name", "last_name", "overdraft_count", "total_overdraft_amount", "as_of"
+            "customer_id", "first_name", "last_name", "overdraft_count", "total_overdraft_amount", "ifw_effective_date"
         };
 
         var overdraftEvents = sharedState.ContainsKey("overdraft_events")
@@ -25,7 +25,7 @@ public class RepeatOverdraftCustomerProcessor : IExternalStep
             return sharedState;
         }
 
-        var asOf = overdraftEvents.Rows[0]["as_of"];
+        var asOf = overdraftEvents.Rows[0]["ifw_effective_date"];
 
         // Build customer lookup
         var customerLookup = new Dictionary<int, (string firstName, string lastName)>();
@@ -70,7 +70,7 @@ public class RepeatOverdraftCustomerProcessor : IExternalStep
                 ["last_name"] = lastName,
                 ["overdraft_count"] = kvp.Value.count,
                 ["total_overdraft_amount"] = kvp.Value.totalAmount,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

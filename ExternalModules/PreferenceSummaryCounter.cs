@@ -9,7 +9,7 @@ public class PreferenceSummaryCounter : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "preference_type", "opted_in_count", "opted_out_count", "total_customers", "as_of"
+            "preference_type", "opted_in_count", "opted_out_count", "total_customers", "ifw_effective_date"
         };
 
         var prefs = sharedState.ContainsKey("customer_preferences")
@@ -22,7 +22,7 @@ public class PreferenceSummaryCounter : IExternalStep
             return sharedState;
         }
 
-        var asOf = prefs.Rows[0]["as_of"];
+        var asOf = prefs.Rows[0]["ifw_effective_date"];
 
         // AP6: Row-by-row iteration where SQL GROUP BY would suffice
         var counts = new Dictionary<string, (int optedIn, int optedOut)>();
@@ -50,7 +50,7 @@ public class PreferenceSummaryCounter : IExternalStep
                 ["opted_in_count"] = kvp.Value.optedIn,
                 ["opted_out_count"] = kvp.Value.optedOut,
                 ["total_customers"] = kvp.Value.optedIn + kvp.Value.optedOut,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

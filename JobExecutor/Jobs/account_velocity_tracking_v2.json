@@ -19,7 +19,7 @@
     {
       "type": "Transformation",
       "resultName": "velocity_output",
-      "sql": "SELECT CAST(t.account_id AS INTEGER) AS account_id, COALESCE(a.customer_id, 0) AS customer_id, CAST(t.as_of AS TEXT) AS txn_date, COUNT(*) AS txn_count, ROUND(SUM(CAST(t.amount AS REAL)), 2) AS total_amount FROM transactions t LEFT JOIN (SELECT DISTINCT account_id, customer_id FROM accounts) a ON CAST(t.account_id AS INTEGER) = CAST(a.account_id AS INTEGER) GROUP BY t.account_id, t.as_of ORDER BY CAST(t.as_of AS TEXT) ASC, CAST(t.account_id AS INTEGER) ASC"
+      "sql": "SELECT CAST(t.account_id AS INTEGER) AS account_id, COALESCE(a.customer_id, 0) AS customer_id, CAST(t.ifw_effective_date AS TEXT) AS txn_date, COUNT(*) AS txn_count, ROUND(SUM(CAST(t.amount AS REAL)), 2) AS total_amount FROM transactions t LEFT JOIN (SELECT DISTINCT account_id, customer_id FROM accounts) a ON CAST(t.account_id AS INTEGER) = CAST(a.account_id AS INTEGER) GROUP BY t.account_id, t.ifw_effective_date ORDER BY CAST(t.ifw_effective_date AS TEXT) ASC, CAST(t.account_id AS INTEGER) ASC"
     },
     {
       "type": "External",

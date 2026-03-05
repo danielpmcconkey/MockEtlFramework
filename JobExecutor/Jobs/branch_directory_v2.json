@@ -7,20 +7,30 @@
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name", "address_line1", "city", "state_province", "postal_code", "country"]
+      "columns": [
+        "branch_id",
+        "branch_name",
+        "address_line1",
+        "city",
+        "state_province",
+        "postal_code",
+        "country"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "branch_dir",
-      "sql": "WITH branch_data AS (SELECT b.branch_id, b.branch_name, b.address_line1, b.city, b.state_province, b.postal_code, b.country, b.as_of, ROW_NUMBER() OVER (PARTITION BY b.branch_id ORDER BY b.branch_id) AS rn FROM branches b) SELECT branch_id, branch_name, address_line1, city, state_province, postal_code, country, as_of FROM branch_data WHERE rn = 1 ORDER BY branch_id"
+      "sql": "WITH branch_data AS (SELECT b.branch_id, b.branch_name, b.address_line1, b.city, b.state_province, b.postal_code, b.country, b.ifw_effective_date, ROW_NUMBER() OVER (PARTITION BY b.branch_id ORDER BY b.branch_id) AS rn FROM branches b) SELECT branch_id, branch_name, address_line1, city, state_province, postal_code, country, ifw_effective_date FROM branch_data WHERE rn = 1 ORDER BY branch_id"
     },
     {
       "type": "CsvFileWriter",
       "source": "branch_dir",
-      "outputFile": "Output/double_secret_curated/branch_directory.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "CRLF"
+      "lineEnding": "CRLF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "branch_directory",
+      "fileName": "branch_directory.csv"
     }
   ]
 }

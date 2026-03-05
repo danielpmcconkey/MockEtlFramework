@@ -7,14 +7,29 @@
       "resultName": "securities",
       "schema": "datalake",
       "table": "securities",
-      "columns": ["security_id", "ticker", "security_name", "security_type", "sector", "exchange"]
+      "columns": [
+        "security_id",
+        "ticker",
+        "security_name",
+        "security_type",
+        "sector",
+        "exchange"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "holdings",
       "schema": "datalake",
       "table": "holdings",
-      "columns": ["holding_id", "investment_id", "security_id", "customer_id", "quantity", "cost_basis", "current_value"]
+      "columns": [
+        "holding_id",
+        "investment_id",
+        "security_id",
+        "customer_id",
+        "quantity",
+        "cost_basis",
+        "current_value"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +39,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/bond_maturity_schedule/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "bond_maturity_schedule",
+      "fileName": "bond_maturity_schedule"
     }
   ]
 }

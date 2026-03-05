@@ -7,26 +7,33 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["account_id"]
+      "columns": [
+        "account_id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "account_type"]
+      "columns": [
+        "account_id",
+        "account_type"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "WITH account_type_counts AS (SELECT COALESCE(account_type, '') AS account_type, COUNT(*) AS account_count FROM accounts GROUP BY COALESCE(account_type, '')), last_seen_type AS (SELECT a.account_id, COALESCE(a.account_type, '') AS account_type FROM accounts a INNER JOIN (SELECT account_id, MAX(as_of) AS max_as_of FROM accounts GROUP BY account_id) latest ON a.account_id = latest.account_id AND a.as_of = latest.max_as_of), overdraft_type_counts AS (SELECT lst.account_type, COUNT(*) AS overdraft_count FROM overdraft_events oe INNER JOIN last_seen_type lst ON oe.account_id = lst.account_id GROUP BY lst.account_type), first_as_of AS (SELECT MIN(as_of) AS as_of FROM overdraft_events) SELECT atc.account_type, atc.account_count, COALESCE(otc.overdraft_count, 0) AS overdraft_count, COALESCE(otc.overdraft_count, 0) / atc.account_count AS overdraft_rate, fa.as_of FROM account_type_counts atc LEFT JOIN overdraft_type_counts otc ON atc.account_type = otc.account_type CROSS JOIN first_as_of fa"
+      "sql": "WITH account_type_counts AS (SELECT COALESCE(account_type, '') AS account_type, COUNT(*) AS account_count FROM accounts GROUP BY COALESCE(account_type, '')), last_seen_type AS (SELECT a.account_id, COALESCE(a.account_type, '') AS account_type FROM accounts a INNER JOIN (SELECT account_id, MAX(ifw_effective_date) AS max_ifw_effective_date FROM accounts GROUP BY account_id) latest ON a.account_id = latest.account_id AND a.ifw_effective_date = latest.max_ifw_effective_date), overdraft_type_counts AS (SELECT lst.account_type, COUNT(*) AS overdraft_count FROM overdraft_events oe INNER JOIN last_seen_type lst ON oe.account_id = lst.account_id GROUP BY lst.account_type), first_ifw_effective_date AS (SELECT MIN(ifw_effective_date) AS ifw_effective_date FROM overdraft_events) SELECT atc.account_type, atc.account_count, COALESCE(otc.overdraft_count, 0) AS overdraft_count, COALESCE(otc.overdraft_count, 0) / atc.account_count AS overdraft_rate, fa.ifw_effective_date FROM account_type_counts atc LEFT JOIN overdraft_type_counts otc ON atc.account_type = otc.account_type CROSS JOIN first_ifw_effective_date fa"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/overdraft_by_account_type/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "overdraft_by_account_type",
+      "fileName": "overdraft_by_account_type"
     }
   ]
 }

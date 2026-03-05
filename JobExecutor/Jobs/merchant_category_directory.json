@@ -7,27 +7,37 @@
       "resultName": "merchant_categories",
       "schema": "datalake",
       "table": "merchant_categories",
-      "columns": ["mcc_code", "mcc_description", "risk_level"]
+      "columns": [
+        "mcc_code",
+        "mcc_description",
+        "risk_level"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "cards",
       "schema": "datalake",
       "table": "cards",
-      "columns": ["card_id", "customer_id", "card_type"]
+      "columns": [
+        "card_id",
+        "customer_id",
+        "card_type"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT mc.mcc_code, mc.mcc_description, mc.risk_level, mc.as_of FROM merchant_categories mc"
+      "sql": "SELECT mc.mcc_code, mc.mcc_description, mc.risk_level, mc.ifw_effective_date FROM merchant_categories mc"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/merchant_category_directory.csv",
       "includeHeader": true,
       "writeMode": "Append",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "merchant_category_directory",
+      "fileName": "merchant_category_directory.csv"
     }
   ]
 }

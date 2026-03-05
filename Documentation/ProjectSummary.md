@@ -21,7 +21,7 @@ The mock framework mirrors a production PySpark ETL system. Key concepts:
 
 | Module | What It Does |
 |---|---|
-| **DataSourcing** | Reads from PostgreSQL datalake schema; injects effective dates via shared state keys `__minEffectiveDate` / `__maxEffectiveDate` |
+| **DataSourcing** | Reads from PostgreSQL datalake schema. Four date modes (mutually exclusive): static dates, `lookbackDays` (T-N through T-0), `mostRecentPrior` (latest date before T-0 via DB query), or default fallback to `__etlEffectiveDate` |
 | **Transformation** | Registers all DataFrames as SQLite tables, runs user-supplied SQL, stores result back in shared state |
 | **DataFrameWriter** | Writes a DataFrame to a PostgreSQL curated schema; supports `Overwrite` (truncate+insert) and `Append` modes; configurable `targetSchema` parameter |
 | **CsvFileWriter** | Writes DataFrame to CSV file; optional trailer (`{row_count}`, `{date}`, `{timestamp}`); configurable line endings (LF/CRLF) |
@@ -33,7 +33,7 @@ The mock framework mirrors a production PySpark ETL system. Key concepts:
 - `JobExecutorService` reads job registrations from `control.jobs`, builds a topological execution plan based on dependencies, and auto-advances each job from its last succeeded date forward to today
 - Effective dates are injected into shared state automatically -- job configs never hardcode dates
 - Dependency types: `SameDay` (upstream must succeed same run_date) and `Latest` (upstream must have ever succeeded)
-- Data lake uses a full-load snapshot pattern: each day's load is a complete picture with an `as_of` column
+- Data lake uses a full-load snapshot pattern: each day's load is a complete picture with an `ifw_effective_date` column
 
 ### Database Layout
 
@@ -68,6 +68,7 @@ MockEtlFramework/
 │   ├── Control/                # JobExecutorService, ExecutionPlan,
 │   │                           #   ControlDb, JobRegistration, JobDependency
 │   ├── ConnectionHelper.cs     # DB connection (decodes PGPASS)
+│   ├── DatePartitionHelper.cs  # Shared utility for date-partitioned dir scanning
 │   ├── PathHelper.cs           # Resolves relative paths from solution root
 │   ├── JobConf.cs              # JSON config model
 │   └── JobRunner.cs            # Runs module chain

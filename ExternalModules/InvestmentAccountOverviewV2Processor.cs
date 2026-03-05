@@ -19,20 +19,20 @@ namespace ExternalModules;
 ///          full SQL elimination blocked by W1 requirement
 ///
 /// Wrinkles reproduced:
-///   W1 — Sunday skip: returns empty DataFrame when __maxEffectiveDate is Sunday
+///   W1 — Sunday skip: returns empty DataFrame when __etlEffectiveDate is Sunday
 /// </summary>
 public class InvestmentAccountOverviewV2Processor : IExternalStep
 {
     private static readonly List<string> OutputColumns = new()
     {
         "investment_id", "customer_id", "first_name", "last_name",
-        "account_type", "current_value", "risk_profile", "as_of"
+        "account_type", "current_value", "risk_profile", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        // Read __maxEffectiveDate from shared state (fallback: today)
-        var maxDate = sharedState.TryGetValue("__maxEffectiveDate", out var dateVal)
+        // Read __etlEffectiveDate from shared state (fallback: today)
+        var maxDate = sharedState.TryGetValue("__etlEffectiveDate", out var dateVal)
             ? (DateOnly)dateVal
             : DateOnly.FromDateTime(DateTime.Today);
 
@@ -92,7 +92,7 @@ public class InvestmentAccountOverviewV2Processor : IExternalStep
                 ["account_type"] = row["account_type"]?.ToString() ?? "",
                 ["current_value"] = Convert.ToDecimal(row["current_value"]),  // BR-6: no rounding
                 ["risk_profile"] = row["risk_profile"]?.ToString() ?? "",
-                ["as_of"] = row["as_of"]  // BR-5: row-level, NOT __maxEffectiveDate
+                ["ifw_effective_date"] = row["ifw_effective_date"]  // BR-5: row-level, NOT __etlEffectiveDate
             }));
         }
 

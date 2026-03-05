@@ -7,14 +7,27 @@
       "resultName": "loan_accounts",
       "schema": "datalake",
       "table": "loan_accounts",
-      "columns": ["loan_id", "customer_id", "loan_type", "original_amount", "current_balance", "interest_rate", "origination_date", "maturity_date", "loan_status"]
+      "columns": [
+        "loan_id",
+        "customer_id",
+        "loan_type",
+        "original_amount",
+        "current_balance",
+        "interest_rate",
+        "origination_date",
+        "maturity_date",
+        "loan_status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +37,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/loan_portfolio_snapshot/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "loan_portfolio_snapshot",
+      "fileName": "loan_portfolio_snapshot"
     }
   ]
 }

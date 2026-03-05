@@ -9,13 +9,13 @@ public class ComplianceEventSummaryBuilder : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "event_type", "status", "event_count", "as_of"
+            "event_type", "status", "event_count", "ifw_effective_date"
         };
 
         var complianceEvents = sharedState.ContainsKey("compliance_events") ? sharedState["compliance_events"] as DataFrame : null;
 
         // W1: Sunday skip — return empty on Sundays
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate") ? (DateOnly)sharedState["__maxEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate") ? (DateOnly)sharedState["__etlEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
         if (maxDate.DayOfWeek == DayOfWeek.Sunday)
         {
             sharedState["output"] = new DataFrame(new List<Row>(), outputColumns);
@@ -30,7 +30,7 @@ public class ComplianceEventSummaryBuilder : IExternalStep
 
         // AP1: accounts sourced but never used (dead-end)
 
-        var asOf = complianceEvents.Rows[0]["as_of"];
+        var asOf = complianceEvents.Rows[0]["ifw_effective_date"];
 
         // Count events by (event_type, status)
         var counts = new Dictionary<(string eventType, string status), int>();
@@ -53,7 +53,7 @@ public class ComplianceEventSummaryBuilder : IExternalStep
                 ["event_type"] = kvp.Key.eventType,
                 ["status"] = kvp.Key.status,
                 ["event_count"] = kvp.Value,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

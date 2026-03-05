@@ -7,19 +7,28 @@
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["wire_id", "customer_id", "direction", "amount", "counterparty_name", "status"]
+      "columns": [
+        "wire_id",
+        "customer_id",
+        "direction",
+        "amount",
+        "counterparty_name",
+        "status"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT wire_id, customer_id, direction, CAST(amount AS REAL) AS amount, COALESCE(counterparty_name, '') AS counterparty_name, status, CASE WHEN INSTR(COALESCE(counterparty_name, ''), 'OFFSHORE') > 0 THEN 'OFFSHORE_COUNTERPARTY' WHEN CAST(amount AS REAL) > 50000 THEN 'HIGH_AMOUNT' END AS flag_reason, as_of FROM wire_transfers WHERE INSTR(COALESCE(counterparty_name, ''), 'OFFSHORE') > 0 OR CAST(amount AS REAL) > 50000"
+      "sql": "SELECT wire_id, customer_id, direction, CAST(amount AS REAL) AS amount, COALESCE(counterparty_name, '') AS counterparty_name, status, CASE WHEN INSTR(COALESCE(counterparty_name, ''), 'OFFSHORE') > 0 THEN 'OFFSHORE_COUNTERPARTY' WHEN CAST(amount AS REAL) > 50000 THEN 'HIGH_AMOUNT' END AS flag_reason, ifw_effective_date FROM wire_transfers WHERE INSTR(COALESCE(counterparty_name, ''), 'OFFSHORE') > 0 OR CAST(amount AS REAL) > 50000"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/suspicious_wire_flags/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "suspicious_wire_flags",
+      "fileName": "suspicious_wire_flags"
     }
   ]
 }

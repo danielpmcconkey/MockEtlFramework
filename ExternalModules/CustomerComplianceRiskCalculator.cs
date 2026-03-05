@@ -10,7 +10,7 @@ public class CustomerComplianceRiskCalculator : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name",
-            "compliance_events", "wire_count", "high_txn_count", "risk_score", "as_of"
+            "compliance_events", "wire_count", "high_txn_count", "risk_score", "ifw_effective_date"
         };
 
         var complianceEvents = sharedState.ContainsKey("compliance_events") ? sharedState["compliance_events"] as DataFrame : null;
@@ -99,7 +99,7 @@ public class CustomerComplianceRiskCalculator : IExternalStep
                 ["wire_count"] = wireCount,
                 ["high_txn_count"] = highTxnCount,
                 ["risk_score"] = roundedScore,
-                ["as_of"] = custRow["as_of"]
+                ["ifw_effective_date"] = custRow["ifw_effective_date"]
             }));
         }
 

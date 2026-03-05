@@ -5,7 +5,7 @@ namespace ExternalModules;
 
 /// <summary>
 /// V2 minimal bridge for FeeRevenueDaily.
-/// Materializes __maxEffectiveDate from shared state into a single-row DataFrame
+/// Materializes __etlEffectiveDate from shared state into a single-row DataFrame
 /// (effective_date_ref) so the Transformation SQL can access the current effective date.
 ///
 /// This module contains ZERO business logic. All fee aggregation, monthly total,
@@ -19,9 +19,9 @@ public class FeeRevenueDailyV2Processor : IExternalStep
 {
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        // Read __maxEffectiveDate from shared state; fall back to today if missing (EC-5).
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        // Read __etlEffectiveDate from shared state; fall back to today if missing (EC-5).
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // Create a single-row DataFrame with one column: effective_date (yyyy-MM-dd string).

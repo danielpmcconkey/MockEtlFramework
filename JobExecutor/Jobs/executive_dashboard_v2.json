@@ -7,35 +7,49 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "current_balance"]
+      "columns": [
+        "account_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id"]
+      "columns": [
+        "id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "loan_accounts",
       "schema": "datalake",
       "table": "loan_accounts",
-      "columns": ["loan_id", "current_balance"]
+      "columns": [
+        "loan_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id"]
+      "columns": [
+        "visit_id"
+      ]
     },
     {
       "type": "External",
@@ -45,11 +59,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/executive_dashboard.csv",
       "includeHeader": true,
       "trailerFormat": "SUMMARY|{row_count}|{date}|{timestamp}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "executive_dashboard",
+      "fileName": "executive_dashboard.csv"
     }
   ]
 }

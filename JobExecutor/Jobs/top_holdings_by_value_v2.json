@@ -7,26 +7,36 @@
       "resultName": "holdings",
       "schema": "datalake",
       "table": "holdings",
-      "columns": ["security_id", "current_value"]
+      "columns": [
+        "security_id",
+        "current_value"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "securities",
       "schema": "datalake",
       "table": "securities",
-      "columns": ["security_id", "ticker", "security_name", "sector"]
+      "columns": [
+        "security_id",
+        "ticker",
+        "security_name",
+        "sector"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "top_holdings",
-      "sql": "WITH security_totals AS (SELECT h.security_id, SUM(h.current_value) AS total_held_value, COUNT(*) AS holder_count, h.as_of FROM holdings h GROUP BY h.security_id, h.as_of), ranked AS (SELECT st.security_id, s.ticker, s.security_name, s.sector, st.total_held_value, st.holder_count, st.as_of, ROW_NUMBER() OVER (ORDER BY st.total_held_value DESC) AS rank FROM security_totals st JOIN securities s ON st.security_id = s.security_id AND st.as_of = s.as_of) SELECT r.security_id, r.ticker, r.security_name, r.sector, r.total_held_value, r.holder_count, CASE WHEN r.rank <= 5 THEN 'Top 5' WHEN r.rank <= 10 THEN 'Top 10' WHEN r.rank <= 20 THEN 'Top 20' ELSE 'Other' END AS rank, r.as_of FROM ranked r WHERE r.rank <= 20 ORDER BY r.rank"
+      "sql": "WITH security_totals AS (SELECT h.security_id, SUM(h.current_value) AS total_held_value, COUNT(*) AS holder_count, h.ifw_effective_date FROM holdings h GROUP BY h.security_id, h.ifw_effective_date), ranked AS (SELECT st.security_id, s.ticker, s.security_name, s.sector, st.total_held_value, st.holder_count, st.ifw_effective_date, ROW_NUMBER() OVER (ORDER BY st.total_held_value DESC) AS rank FROM security_totals st JOIN securities s ON st.security_id = s.security_id AND st.ifw_effective_date = s.ifw_effective_date) SELECT r.security_id, r.ticker, r.security_name, r.sector, r.total_held_value, r.holder_count, CASE WHEN r.rank <= 5 THEN 'Top 5' WHEN r.rank <= 10 THEN 'Top 10' WHEN r.rank <= 20 THEN 'Top 20' ELSE 'Other' END AS rank, r.ifw_effective_date FROM ranked r WHERE r.rank <= 20 ORDER BY r.rank"
     },
     {
       "type": "ParquetFileWriter",
       "source": "top_holdings",
-      "outputDirectory": "Output/double_secret_curated/top_holdings_by_value/",
+      "outputDirectory": "Output/poc4",
       "numParts": 50,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "top_holdings_by_value",
+      "fileName": "top_holdings_by_value"
     }
   ]
 }

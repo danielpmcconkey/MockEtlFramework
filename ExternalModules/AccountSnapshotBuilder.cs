@@ -10,7 +10,7 @@ public class AccountSnapshotBuilder : IExternalStep
         var outputColumns = new List<string>
         {
             "account_id", "customer_id", "account_type", "account_status",
-            "current_balance", "as_of"
+            "current_balance", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -31,7 +31,7 @@ public class AccountSnapshotBuilder : IExternalStep
                 ["account_type"] = acctRow["account_type"],
                 ["account_status"] = acctRow["account_status"],
                 ["current_balance"] = acctRow["current_balance"],
-                ["as_of"] = acctRow["as_of"]
+                ["ifw_effective_date"] = acctRow["ifw_effective_date"]
             }));
         }
 

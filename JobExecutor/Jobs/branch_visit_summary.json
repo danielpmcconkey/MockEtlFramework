@@ -7,28 +7,38 @@
       "resultName": "branch_visits",
       "schema": "datalake",
       "table": "branch_visits",
-      "columns": ["visit_id", "customer_id", "branch_id", "visit_purpose"]
+      "columns": [
+        "visit_id",
+        "customer_id",
+        "branch_id",
+        "visit_purpose"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "visit_summary",
-      "sql": "WITH visit_counts AS (SELECT bv.branch_id, COUNT(*) AS visit_count, bv.as_of FROM branch_visits bv GROUP BY bv.branch_id, bv.as_of) SELECT vc.branch_id, b.branch_name, vc.as_of, vc.visit_count FROM visit_counts vc JOIN branches b ON vc.branch_id = b.branch_id AND vc.as_of = b.as_of ORDER BY vc.as_of, vc.branch_id"
+      "sql": "WITH visit_counts AS (SELECT bv.branch_id, COUNT(*) AS visit_count, bv.ifw_effective_date FROM branch_visits bv GROUP BY bv.branch_id, bv.ifw_effective_date) SELECT vc.branch_id, b.branch_name, vc.ifw_effective_date, vc.visit_count FROM visit_counts vc JOIN branches b ON vc.branch_id = b.branch_id AND vc.ifw_effective_date = b.ifw_effective_date ORDER BY vc.ifw_effective_date, vc.branch_id"
     },
     {
       "type": "CsvFileWriter",
       "source": "visit_summary",
-      "outputFile": "Output/curated/branch_visit_summary.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Append",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "branch_visit_summary",
+      "fileName": "branch_visit_summary.csv"
     }
   ]
 }

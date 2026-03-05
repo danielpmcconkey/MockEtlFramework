@@ -28,7 +28,7 @@ public class PreferenceBySegmentV2Processor : IExternalStep
 
     private static readonly List<string> OutputColumns = new()
     {
-        "segment_name", "preference_type", "opt_in_rate", "as_of"
+        "segment_name", "preference_type", "opt_in_rate", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -55,7 +55,7 @@ public class PreferenceBySegmentV2Processor : IExternalStep
         // W7: Capture INPUT row count before any grouping (inflated count for trailer)
         var inputCount = customerPreferences.Count;
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Build segment lookup: segment_id -> segment_name

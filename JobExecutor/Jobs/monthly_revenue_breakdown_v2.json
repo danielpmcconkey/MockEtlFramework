@@ -7,14 +7,20 @@
       "resultName": "overdraft_events",
       "schema": "datalake",
       "table": "overdraft_events",
-      "columns": ["fee_amount", "fee_waived"]
+      "columns": [
+        "fee_amount",
+        "fee_waived"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["txn_type", "amount"]
+      "columns": [
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "Transformation",
@@ -29,11 +35,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/monthly_revenue_breakdown.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "monthly_revenue_breakdown",
+      "fileName": "monthly_revenue_breakdown.csv"
     }
   ]
 }

@@ -9,13 +9,13 @@ public class WireTransferDailyProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "wire_date", "wire_count", "total_amount", "avg_amount", "as_of"
+            "wire_date", "wire_count", "total_amount", "avg_amount", "ifw_effective_date"
         };
 
         var wireTransfers = sharedState.ContainsKey("wire_transfers") ? sharedState["wire_transfers"] as DataFrame : null;
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         if (wireTransfers == null || wireTransfers.Count == 0)
@@ -27,11 +27,11 @@ public class WireTransferDailyProcessor : IExternalStep
         // AP3: unnecessary External — SQL GROUP BY would suffice
         // AP6: row-by-row iteration instead of set-based
 
-        // Group by as_of (used as wire_date) row-by-row — daily rows
+        // Group by ifw_effective_date (used as wire_date) row-by-row — daily rows
         var dailyGroups = new Dictionary<object, (int count, decimal total)>();
         foreach (var row in wireTransfers.Rows)
         {
-            var asOf = row["as_of"];
+            var asOf = row["ifw_effective_date"];
             var amount = Convert.ToDecimal(row["amount"]);
 
             if (asOf == null) continue;
@@ -57,7 +57,7 @@ public class WireTransferDailyProcessor : IExternalStep
                 ["wire_count"] = wireCount,
                 ["total_amount"] = Math.Round(totalAmount, 2),
                 ["avg_amount"] = avgAmount,
-                ["as_of"] = wireDate
+                ["ifw_effective_date"] = wireDate
             }));
         }
 
@@ -73,7 +73,7 @@ public class WireTransferDailyProcessor : IExternalStep
                 ["wire_count"] = totalWires,
                 ["total_amount"] = Math.Round(totalAmt, 2),
                 ["avg_amount"] = totalWires > 0 ? Math.Round(totalAmt / totalWires, 2) : 0m,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

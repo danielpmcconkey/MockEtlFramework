@@ -7,21 +7,28 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_type", "amount"]
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_type",
+        "amount"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "daily_vol",
-      "sql": "WITH daily_agg AS (SELECT as_of, COUNT(*) AS total_transactions, ROUND(SUM(amount), 2) AS total_amount, ROUND(AVG(amount), 2) AS avg_amount, MIN(amount) AS min_amount, MAX(amount) AS max_amount FROM transactions GROUP BY as_of) SELECT as_of, total_transactions, total_amount, avg_amount FROM daily_agg ORDER BY as_of"
+      "sql": "WITH daily_agg AS (SELECT ifw_effective_date, COUNT(*) AS total_transactions, ROUND(SUM(amount), 2) AS total_amount, ROUND(AVG(amount), 2) AS avg_amount, MIN(amount) AS min_amount, MAX(amount) AS max_amount FROM transactions GROUP BY ifw_effective_date) SELECT ifw_effective_date, total_transactions, total_amount, avg_amount FROM daily_agg ORDER BY ifw_effective_date"
     },
     {
       "type": "CsvFileWriter",
       "source": "daily_vol",
-      "outputFile": "Output/curated/daily_transaction_volume.csv",
       "includeHeader": true,
       "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
       "writeMode": "Append",
-      "lineEnding": "CRLF"
+      "lineEnding": "CRLF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "daily_transaction_volume",
+      "fileName": "daily_transaction_volume.csv"
     }
   ]
 }

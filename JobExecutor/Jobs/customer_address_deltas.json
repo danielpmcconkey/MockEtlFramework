@@ -10,9 +10,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/customer_address_deltas/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Append"
+      "writeMode": "Append",
+      "jobDirName": "customer_address_deltas",
+      "fileName": "customer_address_deltas"
     }
   ]
 }

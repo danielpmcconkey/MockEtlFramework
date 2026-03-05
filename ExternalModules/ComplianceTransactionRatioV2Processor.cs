@@ -10,7 +10,7 @@ namespace ExternalModules;
 /// subquery referencing an empty 'transactions' table would fail.
 ///
 /// This External module is minimal: it reads pre-grouped data from the SQL Transformation,
-/// augments with txn_count/events_per_1000_txns/as_of, and writes the CSV with inflated trailer.
+/// augments with txn_count/events_per_1000_txns/ifw_effective_date, and writes the CSV with inflated trailer.
 ///
 /// Anti-patterns addressed:
 ///   AP3 — Grouping/NULL coalescing/ordering moved to SQL Transformation (partial elimination)
@@ -28,7 +28,7 @@ public class ComplianceTransactionRatioV2Processor : IExternalStep
     // Output columns match V1 exactly (ComplianceTransactionRatioWriter.cs:10-12)
     private static readonly List<string> OutputColumns = new()
     {
-        "event_type", "event_count", "txn_count", "events_per_1000_txns", "as_of"
+        "event_type", "event_count", "txn_count", "events_per_1000_txns", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -70,7 +70,7 @@ public class ComplianceTransactionRatioV2Processor : IExternalStep
         int inputCount = complianceEvents.Count + (transactions?.Count ?? 0);
 
         // Step 4: Read effective date from shared state (BR-9)
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         // Step 5: Build output rows from pre-grouped data (already ordered by event_type from SQL)

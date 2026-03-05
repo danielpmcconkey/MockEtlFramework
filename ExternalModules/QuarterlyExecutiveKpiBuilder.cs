@@ -9,7 +9,7 @@ public class QuarterlyExecutiveKpiBuilder : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "kpi_name", "kpi_value", "as_of"
+            "kpi_name", "kpi_value", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -25,7 +25,7 @@ public class QuarterlyExecutiveKpiBuilder : IExternalStep
         }
 
         // W2: Weekend fallback to Friday
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
         DateOnly targetDate = maxDate;
         if (maxDate.DayOfWeek == DayOfWeek.Saturday) targetDate = maxDate.AddDays(-1);
         else if (maxDate.DayOfWeek == DayOfWeek.Sunday) targetDate = maxDate.AddDays(-2);
@@ -95,7 +95,7 @@ public class QuarterlyExecutiveKpiBuilder : IExternalStep
             {
                 ["kpi_name"] = name,
                 ["kpi_value"] = value,
-                ["as_of"] = targetDate
+                ["ifw_effective_date"] = targetDate
             }));
         }
 

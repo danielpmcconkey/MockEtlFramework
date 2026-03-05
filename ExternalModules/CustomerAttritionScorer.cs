@@ -11,7 +11,7 @@ public class CustomerAttritionScorer : IExternalStep
         {
             "customer_id", "first_name", "last_name",
             "account_count", "txn_count", "avg_balance",
-            "attrition_score", "risk_level", "as_of"
+            "attrition_score", "risk_level", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -24,7 +24,7 @@ public class CustomerAttritionScorer : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // Build per-customer account counts and balances
         var accountCountByCustomer = new Dictionary<int, int>();
@@ -100,7 +100,7 @@ public class CustomerAttritionScorer : IExternalStep
                 ["avg_balance"] = Math.Round(avgBalance, 2),
                 ["attrition_score"] = attritionScore,
                 ["risk_level"] = riskLevel,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

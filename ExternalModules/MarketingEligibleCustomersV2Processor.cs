@@ -24,7 +24,7 @@ public class MarketingEligibleCustomersV2Processor : IExternalStep
 {
     private static readonly List<string> OutputColumns = new()
     {
-        "customer_id", "first_name", "last_name", "email_address", "as_of"
+        "customer_id", "first_name", "last_name", "email_address", "ifw_effective_date"
     };
 
     /// <summary>
@@ -41,8 +41,8 @@ public class MarketingEligibleCustomersV2Processor : IExternalStep
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W2: Weekend fallback -- Saturday/Sunday use Friday's preference data
@@ -101,7 +101,7 @@ public class MarketingEligibleCustomersV2Processor : IExternalStep
         {
             if (targetDate != maxDate)
             {
-                var rowDate = (DateOnly)row["as_of"];
+                var rowDate = (DateOnly)row["ifw_effective_date"];
                 if (rowDate != targetDate) continue;
             }
 
@@ -130,14 +130,14 @@ public class MarketingEligibleCustomersV2Processor : IExternalStep
                 // BR-5: Empty string if customer has no email on file
                 var email = emailLookup.GetValueOrDefault(kvp.Key, "");
 
-                // BR-6: as_of set to targetDate (may be Friday fallback on weekends)
+                // BR-6: ifw_effective_date set to targetDate (may be Friday fallback on weekends)
                 outputRows.Add(new Row(new Dictionary<string, object?>
                 {
                     ["customer_id"] = kvp.Key,
                     ["first_name"] = firstName,
                     ["last_name"] = lastName,
                     ["email_address"] = email,
-                    ["as_of"] = targetDate
+                    ["ifw_effective_date"] = targetDate
                 }));
             }
         }

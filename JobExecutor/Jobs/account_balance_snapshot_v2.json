@@ -7,14 +7,22 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "current_balance"
+      ]
     },
     {
       "type": "ParquetFileWriter",
       "source": "accounts",
-      "outputDirectory": "Output/double_secret_curated/account_balance_snapshot/",
+      "outputDirectory": "Output/poc4",
       "numParts": 2,
-      "writeMode": "Append"
+      "writeMode": "Append",
+      "jobDirName": "account_balance_snapshot",
+      "fileName": "account_balance_snapshot"
     }
   ]
 }

@@ -10,7 +10,7 @@ public class CustomerValueCalculator : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "first_name", "last_name",
-            "transaction_score", "balance_score", "visit_score", "composite_score", "as_of"
+            "transaction_score", "balance_score", "visit_score", "composite_score", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -115,7 +115,7 @@ public class CustomerValueCalculator : IExternalStep
                 ["balance_score"] = Math.Round(balanceScore, 2),
                 ["visit_score"] = Math.Round(visitScore, 2),
                 ["composite_score"] = Math.Round(compositeScore, 2),
-                ["as_of"] = custRow["as_of"]
+                ["ifw_effective_date"] = custRow["ifw_effective_date"]
             }));
         }
 

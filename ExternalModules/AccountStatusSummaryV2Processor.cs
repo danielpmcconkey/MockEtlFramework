@@ -17,7 +17,7 @@ public class AccountStatusSummaryV2Processor : IExternalStep
 {
     private static readonly List<string> OutputColumns = new()
     {
-        "account_type", "account_status", "account_count", "as_of"
+        "account_type", "account_status", "account_count", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -37,10 +37,10 @@ public class AccountStatusSummaryV2Processor : IExternalStep
             return sharedState;
         }
 
-        // BR-3: as_of from first accounts row, applied to all output rows.
-        // All rows within a single effective date share the same as_of value.
+        // BR-3: ifw_effective_date from first accounts row, applied to all output rows.
+        // All rows within a single effective date share the same ifw_effective_date value.
         // Preserved as raw DateOnly object so CsvFileWriter renders it as MM/dd/yyyy.
-        var asOf = accounts.Rows[0]["as_of"];
+        var asOf = accounts.Rows[0]["ifw_effective_date"];
 
         // BR-1: Group by (account_type, account_status), count per group.
         // AP6 fix: LINQ set-based grouping replaces V1's foreach + Dictionary pattern.
@@ -54,7 +54,7 @@ public class AccountStatusSummaryV2Processor : IExternalStep
                 ["account_type"] = group.Key.type,
                 ["account_status"] = group.Key.status,
                 ["account_count"] = group.Count(),
-                ["as_of"] = asOf // Preserved as DateOnly for correct CsvFileWriter formatting
+                ["ifw_effective_date"] = asOf // Preserved as DateOnly for correct CsvFileWriter formatting
             }))
             .ToList();
 

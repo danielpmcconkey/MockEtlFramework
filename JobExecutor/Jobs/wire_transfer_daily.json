@@ -7,14 +7,26 @@
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["wire_id", "customer_id", "account_id", "direction", "amount", "wire_timestamp", "status"]
+      "columns": [
+        "wire_id",
+        "customer_id",
+        "account_id",
+        "direction",
+        "amount",
+        "wire_timestamp",
+        "status"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type"
+      ]
     },
     {
       "type": "External",
@@ -24,9 +36,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/wire_transfer_daily/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "wire_transfer_daily",
+      "fileName": "wire_transfer_daily"
     }
   ]
 }

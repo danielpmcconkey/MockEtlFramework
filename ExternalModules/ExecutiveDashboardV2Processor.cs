@@ -5,7 +5,7 @@ namespace ExternalModules;
 
 /// <summary>
 /// V2 replacement for ExecutiveDashboardBuilder.
-/// Produces a vertical table of 9 key business metrics (metric_name, metric_value, as_of).
+/// Produces a vertical table of 9 key business metrics (metric_name, metric_value, ifw_effective_date).
 /// Guard clause returns empty DataFrame when customers, accounts, or loan_accounts are empty.
 ///
 /// Anti-patterns eliminated:
@@ -21,7 +21,7 @@ public class ExecutiveDashboardV2Processor : IExternalStep
 {
     private static readonly List<string> OutputColumns = new()
     {
-        "metric_name", "metric_value", "as_of"
+        "metric_name", "metric_value", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -53,11 +53,11 @@ public class ExecutiveDashboardV2Processor : IExternalStep
             return sharedState;
         }
 
-        // BR-3: as_of from first customer row, fallback to first transaction row.
-        object? asOf = customers.Rows[0]["as_of"];
+        // BR-3: ifw_effective_date from first customer row, fallback to first transaction row.
+        object? asOf = customers.Rows[0]["ifw_effective_date"];
         if (asOf == null && transactions != null && transactions.Count > 0)
         {
-            asOf = transactions.Rows[0]["as_of"];
+            asOf = transactions.Rows[0]["ifw_effective_date"];
         }
 
         // BR-4: Compute 9 metrics in fixed order.
@@ -111,7 +111,7 @@ public class ExecutiveDashboardV2Processor : IExternalStep
             {
                 ["metric_name"] = m.name,
                 ["metric_value"] = m.value,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }))
             .ToList();
 

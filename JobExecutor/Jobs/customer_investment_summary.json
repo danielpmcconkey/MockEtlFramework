@@ -7,21 +7,38 @@
       "resultName": "investments",
       "schema": "datalake",
       "table": "investments",
-      "columns": ["investment_id", "customer_id", "account_type", "current_value", "advisor_id"]
+      "columns": [
+        "investment_id",
+        "customer_id",
+        "account_type",
+        "current_value",
+        "advisor_id"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name", "birthdate"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name",
+        "birthdate"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "securities",
       "schema": "datalake",
       "table": "securities",
-      "columns": ["security_id", "ticker", "security_name", "security_type", "sector"]
+      "columns": [
+        "security_id",
+        "ticker",
+        "security_name",
+        "security_type",
+        "sector"
+      ]
     },
     {
       "type": "External",
@@ -31,10 +48,12 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/customer_investment_summary.csv",
       "includeHeader": true,
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "customer_investment_summary",
+      "fileName": "customer_investment_summary.csv"
     }
   ]
 }

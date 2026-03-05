@@ -37,16 +37,32 @@ Read `Documentation/Architecture.md` for the full overview. Key pointers:
 - `Lib/Modules/External.cs` — loads user-supplied .NET assemblies via reflection
 - `Lib/Control/JobExecutorService.cs` — orchestrates job execution and auto-advancement
 - `Lib/ConnectionHelper.cs` — database connection helper
-- `DataSourcing.MinDateKey` = `__minEffectiveDate`
-- `DataSourcing.MaxDateKey` = `__maxEffectiveDate`
+- `DataSourcing.EtlEffectiveDateKey` = `__etlEffectiveDate`
 
 ## Guardrails
 
-- **NEVER** modify files in `Lib/` — the framework is fixed
+- Files in `Lib/` may be modified for POC4 framework changes (date-partitioned writers, column injection, etc.)
 - **NEVER** modify or delete data in `datalake` schema
 - **NEVER** modify original V1 job configs or V1 External modules — create V2 versions
 - **NEVER** modify anything in `Output/curated/` — this is the V1 baseline for comparison
 - **NEVER** modify anything in `Tools/proofmark/` — this is a COTS tool, treat it as read-only
+
+## Serena (MCP — Semantic Code Navigation)
+
+Serena is available as an MCP server providing IDE-level code intelligence via Roslyn.
+Prefer Serena's tools over grep/read when you need to:
+
+- **Understand a file's structure:** `get_symbols_overview` instead of reading the whole file
+- **Find who calls a method:** `find_referencing_symbols` instead of grepping the method name
+- **Find a class or method by name:** `find_symbol` instead of glob/grep
+- **Rename across the codebase:** `rename_symbol` instead of find-and-replace
+- **Replace a method body:** `replace_symbol_body` instead of line-based editing
+
+Serena understands C# semantics — it distinguishes declarations from references, resolves
+across projects, and handles overloads. Grep finds text; Serena finds meaning.
+
+Still use grep/read for: searching string literals, config files, JSON, comments, or anything
+that isn't a C# code symbol.
 
 ## Prior Run Artifacts
 

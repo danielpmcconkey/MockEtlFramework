@@ -7,35 +7,47 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "investments",
       "schema": "datalake",
       "table": "investments",
-      "columns": ["investment_id", "customer_id", "current_value"]
+      "columns": [
+        "investment_id",
+        "customer_id",
+        "current_value"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id"]
+      "columns": [
+        "id"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "WITH customer_wealth AS (SELECT customer_id, SUM(current_balance) AS wealth FROM accounts GROUP BY customer_id UNION ALL SELECT customer_id, SUM(current_value) AS wealth FROM investments GROUP BY customer_id), total_wealth_per_customer AS (SELECT customer_id, SUM(wealth) AS total_wealth FROM customer_wealth GROUP BY customer_id), tier_assignment AS (SELECT customer_id, total_wealth, CASE WHEN total_wealth < 25000 THEN 'Bronze' WHEN total_wealth < 100000 THEN 'Silver' WHEN total_wealth < 500000 THEN 'Gold' ELSE 'Platinum' END AS wealth_tier FROM total_wealth_per_customer), tier_stats AS (SELECT wealth_tier, COUNT(*) AS customer_count, SUM(total_wealth) AS raw_total_wealth, CASE WHEN COUNT(*) > 0 THEN SUM(total_wealth) * 1.0 / COUNT(*) ELSE 0 END AS raw_avg_wealth FROM tier_assignment GROUP BY wealth_tier), all_tiers AS (SELECT 'Bronze' AS wealth_tier, 1 AS sort_order UNION ALL SELECT 'Silver', 2 UNION ALL SELECT 'Gold', 3 UNION ALL SELECT 'Platinum', 4), total_customers AS (SELECT COUNT(*) AS cnt FROM total_wealth_per_customer), customers_guard AS (SELECT COUNT(*) AS cnt FROM customers) SELECT a.wealth_tier, COALESCE(t.customer_count, 0) AS customer_count, ROUND(COALESCE(t.raw_total_wealth, 0), 0) AS total_wealth, ROUND(COALESCE(t.raw_avg_wealth, 0), 0) AS avg_wealth, CASE WHEN tc.cnt > 0 THEN ROUND(COALESCE(t.customer_count, 0) * 100.0 / tc.cnt, 0) ELSE 0 END AS pct_of_customers, (SELECT MAX(as_of) FROM accounts) AS as_of FROM all_tiers a LEFT JOIN tier_stats t ON a.wealth_tier = t.wealth_tier CROSS JOIN total_customers tc WHERE (SELECT cnt FROM customers_guard) > 0 ORDER BY a.sort_order"
+      "sql": "WITH customer_wealth AS (SELECT customer_id, SUM(current_balance) AS wealth FROM accounts GROUP BY customer_id UNION ALL SELECT customer_id, SUM(current_value) AS wealth FROM investments GROUP BY customer_id), total_wealth_per_customer AS (SELECT customer_id, SUM(wealth) AS total_wealth FROM customer_wealth GROUP BY customer_id), tier_assignment AS (SELECT customer_id, total_wealth, CASE WHEN total_wealth < 25000 THEN 'Bronze' WHEN total_wealth < 100000 THEN 'Silver' WHEN total_wealth < 500000 THEN 'Gold' ELSE 'Platinum' END AS wealth_tier FROM total_wealth_per_customer), tier_stats AS (SELECT wealth_tier, COUNT(*) AS customer_count, SUM(total_wealth) AS raw_total_wealth, CASE WHEN COUNT(*) > 0 THEN SUM(total_wealth) * 1.0 / COUNT(*) ELSE 0 END AS raw_avg_wealth FROM tier_assignment GROUP BY wealth_tier), all_tiers AS (SELECT 'Bronze' AS wealth_tier, 1 AS sort_order UNION ALL SELECT 'Silver', 2 UNION ALL SELECT 'Gold', 3 UNION ALL SELECT 'Platinum', 4), total_customers AS (SELECT COUNT(*) AS cnt FROM total_wealth_per_customer), customers_guard AS (SELECT COUNT(*) AS cnt FROM customers) SELECT a.wealth_tier, COALESCE(t.customer_count, 0) AS customer_count, ROUND(COALESCE(t.raw_total_wealth, 0), 0) AS total_wealth, ROUND(COALESCE(t.raw_avg_wealth, 0), 0) AS avg_wealth, CASE WHEN tc.cnt > 0 THEN ROUND(COALESCE(t.customer_count, 0) * 100.0 / tc.cnt, 0) ELSE 0 END AS pct_of_customers, (SELECT MAX(ifw_effective_date) FROM accounts) AS ifw_effective_date FROM all_tiers a LEFT JOIN tier_stats t ON a.wealth_tier = t.wealth_tier CROSS JOIN total_customers tc WHERE (SELECT cnt FROM customers_guard) > 0 ORDER BY a.sort_order"
     },
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/double_secret_curated/wealth_tier_analysis.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "wealth_tier_analysis",
+      "fileName": "wealth_tier_analysis.csv"
     }
   ]
 }

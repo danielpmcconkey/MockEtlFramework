@@ -10,7 +10,7 @@ public class TransactionAnomalyFlagger : IExternalStep
         var outputColumns = new List<string>
         {
             "transaction_id", "account_id", "customer_id", "amount",
-            "account_mean", "account_stddev", "deviation_factor", "as_of"
+            "account_mean", "account_stddev", "deviation_factor", "ifw_effective_date"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
@@ -45,7 +45,7 @@ public class TransactionAnomalyFlagger : IExternalStep
                 accountAmounts[accountId] = new List<decimal>();
             accountAmounts[accountId].Add(amount);
 
-            txnData.Add((txnId, accountId, amount, row["as_of"]));
+            txnData.Add((txnId, accountId, amount, row["ifw_effective_date"]));
         }
 
         // Compute per-account mean and stddev
@@ -85,7 +85,7 @@ public class TransactionAnomalyFlagger : IExternalStep
                     ["account_mean"] = Math.Round(mean, 2, MidpointRounding.ToEven),
                     ["account_stddev"] = Math.Round(stddev, 2, MidpointRounding.ToEven),
                     ["deviation_factor"] = Math.Round(deviationFactor, 2, MidpointRounding.ToEven),
-                    ["as_of"] = asOf
+                    ["ifw_effective_date"] = asOf
                 }));
             }
         }

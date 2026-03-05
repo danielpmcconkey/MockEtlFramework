@@ -32,7 +32,7 @@ public class TransactionAnomalyFlagsV2Processor : IExternalStep
     private static readonly List<string> OutputColumns = new()
     {
         "transaction_id", "account_id", "customer_id", "amount",
-        "account_mean", "account_stddev", "deviation_factor", "as_of"
+        "account_mean", "account_stddev", "deviation_factor", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -73,7 +73,7 @@ public class TransactionAnomalyFlagsV2Processor : IExternalStep
                 accountAmounts[accountId] = new List<decimal>();
             accountAmounts[accountId].Add(amount);
 
-            txnData.Add((txnId, accountId, amount, row["as_of"]));
+            txnData.Add((txnId, accountId, amount, row["ifw_effective_date"]));
         }
 
         // Step 3: Compute per-account statistics (BR-2, BR-3, BR-8)
@@ -125,7 +125,7 @@ public class TransactionAnomalyFlagsV2Processor : IExternalStep
                     ["account_mean"] = Math.Round(mean, 2, MidpointRounding.ToEven),
                     ["account_stddev"] = Math.Round(stddev, 2, MidpointRounding.ToEven),
                     ["deviation_factor"] = Math.Round(deviationFactor, 2, MidpointRounding.ToEven),
-                    ["as_of"] = asOf
+                    ["ifw_effective_date"] = asOf
                 }));
             }
         }

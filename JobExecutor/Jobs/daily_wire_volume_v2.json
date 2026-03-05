@@ -7,22 +7,26 @@
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["amount"],
+      "columns": [
+        "amount"
+      ],
       "minEffectiveDate": "2024-10-01",
       "maxEffectiveDate": "2024-12-31"
     },
     {
       "type": "Transformation",
       "resultName": "daily_vol",
-      "sql": "SELECT as_of AS wire_date, COUNT(*) AS wire_count, ROUND(SUM(amount), 2) AS total_amount, as_of FROM wire_transfers GROUP BY as_of ORDER BY as_of"
+      "sql": "SELECT ifw_effective_date AS wire_date, COUNT(*) AS wire_count, ROUND(SUM(amount), 2) AS total_amount, ifw_effective_date FROM wire_transfers GROUP BY ifw_effective_date ORDER BY ifw_effective_date"
     },
     {
       "type": "CsvFileWriter",
       "source": "daily_vol",
-      "outputFile": "Output/double_secret_curated/daily_wire_volume.csv",
       "includeHeader": true,
       "writeMode": "Append",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "daily_wire_volume",
+      "fileName": "daily_wire_volume.csv"
     }
   ]
 }

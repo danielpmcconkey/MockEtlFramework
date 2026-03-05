@@ -7,26 +7,38 @@
       "resultName": "accounts",
       "schema": "datalake",
       "table": "accounts",
-      "columns": ["account_id", "customer_id", "account_type", "account_status", "current_balance"]
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "current_balance"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT a.account_id, a.customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, a.account_type, a.account_status, a.current_balance, a.as_of FROM accounts a LEFT JOIN customers c ON a.customer_id = c.id AND a.as_of = c.as_of ORDER BY a.account_id"
+      "sql": "SELECT a.account_id, a.customer_id, COALESCE(c.first_name, '') AS first_name, COALESCE(c.last_name, '') AS last_name, a.account_type, a.account_status, a.current_balance, a.ifw_effective_date FROM accounts a LEFT JOIN customers c ON a.customer_id = c.id AND a.ifw_effective_date = c.ifw_effective_date ORDER BY a.account_id"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/account_customer_join/",
+      "outputDirectory": "Output/poc4",
       "numParts": 2,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "account_customer_join",
+      "fileName": "account_customer_join"
     }
   ]
 }

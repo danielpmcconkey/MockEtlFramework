@@ -10,7 +10,7 @@ public class LargeTransactionProcessor : IExternalStep
         var outputColumns = new List<string>
         {
             "transaction_id", "account_id", "customer_id", "first_name", "last_name",
-            "txn_type", "amount", "description", "txn_timestamp", "as_of"
+            "txn_type", "amount", "description", "txn_timestamp", "ifw_effective_date"
         };
 
         var accounts = sharedState.ContainsKey("accounts") ? sharedState["accounts"] as DataFrame : null;
@@ -70,7 +70,7 @@ public class LargeTransactionProcessor : IExternalStep
                     ["amount"] = txnRow["amount"],
                     ["description"] = txnRow["description"],
                     ["txn_timestamp"] = txnRow["txn_timestamp"],
-                    ["as_of"] = txnRow["as_of"]
+                    ["ifw_effective_date"] = txnRow["ifw_effective_date"]
                 }));
             }
         }

@@ -150,8 +150,7 @@ public class TaskQueueService
 
         var initialState = new Dictionary<string, object>
         {
-            [Modules.DataSourcing.MinDateKey] = task.EffectiveDate,
-            [Modules.DataSourcing.MaxDateKey] = task.EffectiveDate
+            [Modules.DataSourcing.EtlEffectiveDateKey] = task.EffectiveDate
         };
 
         DateOnly runDate = DateOnly.FromDateTime(DateTime.Today);

@@ -9,15 +9,15 @@ public class FeeRevenueDailyProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "event_date", "charged_fees", "waived_fees", "net_revenue", "as_of"
+            "event_date", "charged_fees", "waived_fees", "net_revenue", "ifw_effective_date"
         };
 
         var overdraftEvents = sharedState.ContainsKey("overdraft_events")
             ? sharedState["overdraft_events"] as DataFrame
             : null;
 
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         if (overdraftEvents == null || overdraftEvents.Count == 0)
@@ -28,8 +28,8 @@ public class FeeRevenueDailyProcessor : IExternalStep
 
         // AP10: Over-sourced full date range via config, but External filters to current date only
         var currentDateRows = overdraftEvents.Rows
-            .Where(r => r["as_of"]?.ToString() == maxDate.ToString("yyyy-MM-dd") ||
-                        (r["as_of"] is DateOnly d && d == maxDate))
+            .Where(r => r["ifw_effective_date"]?.ToString() == maxDate.ToString("yyyy-MM-dd") ||
+                        (r["ifw_effective_date"] is DateOnly d && d == maxDate))
             .ToList();
 
         if (currentDateRows.Count == 0)
@@ -62,7 +62,7 @@ public class FeeRevenueDailyProcessor : IExternalStep
             ["charged_fees"] = chargedFees,
             ["waived_fees"] = waivedFees,
             ["net_revenue"] = netRevenue,
-            ["as_of"] = maxDate.ToString("yyyy-MM-dd")
+            ["ifw_effective_date"] = maxDate.ToString("yyyy-MM-dd")
         }));
 
         // W3b: End-of-month boundary — append monthly summary row
@@ -89,7 +89,7 @@ public class FeeRevenueDailyProcessor : IExternalStep
                 ["charged_fees"] = monthCharged,
                 ["waived_fees"] = monthWaived,
                 ["net_revenue"] = monthCharged - monthWaived,
-                ["as_of"] = maxDate.ToString("yyyy-MM-dd")
+                ["ifw_effective_date"] = maxDate.ToString("yyyy-MM-dd")
             }));
         }
 

@@ -7,9 +7,9 @@ namespace ExternalModules;
 /// V2 External module for CustomerContactability.
 /// Implements weekend fallback date logic (W2) and join/filter across four DataFrames.
 ///
-/// Tier 2 justification: Weekend fallback requires access to __maxEffectiveDate from
+/// Tier 2 justification: Weekend fallback requires access to __etlEffectiveDate from
 /// shared state to compute targetDate BEFORE filtering. This date-conditional logic
-/// cannot be expressed in a Transformation SQL module because __maxEffectiveDate is
+/// cannot be expressed in a Transformation SQL module because __etlEffectiveDate is
 /// not available as a scalar inside SQLite queries.
 ///
 /// Anti-patterns eliminated:
@@ -28,13 +28,13 @@ public class CustomerContactabilityV2Processor : IExternalStep
     private static readonly List<string> OutputColumns = new()
     {
         "customer_id", "first_name", "last_name",
-        "email_address", "phone_number", "as_of"
+        "email_address", "phone_number", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        var maxDate = sharedState.ContainsKey("__maxEffectiveDate")
-            ? (DateOnly)sharedState["__maxEffectiveDate"]
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate")
+            ? (DateOnly)sharedState["__etlEffectiveDate"]
             : DateOnly.FromDateTime(DateTime.Today);
 
         // W2: Weekend fallback — Saturday/Sunday use Friday's preference data
@@ -79,7 +79,7 @@ public class CustomerContactabilityV2Processor : IExternalStep
 
         // Build email lookup — BR-8: last-wins dictionary overwrite
         // When a customer has multiple email rows, the last row encountered
-        // (ordered by as_of from DataSourcing) determines the value.
+        // (ordered by ifw_effective_date from DataSourcing) determines the value.
         var emailLookup = new Dictionary<int, string>();
         if (emails != null)
         {
@@ -111,7 +111,7 @@ public class CustomerContactabilityV2Processor : IExternalStep
             if (targetDate != maxDate)
             {
                 // W2: Weekend — filter to only Friday's preference data
-                var rowDate = (DateOnly)row["as_of"];
+                var rowDate = (DateOnly)row["ifw_effective_date"];
                 if (rowDate != targetDate) continue;
             }
 
@@ -133,7 +133,7 @@ public class CustomerContactabilityV2Processor : IExternalStep
 
             var (firstName, lastName) = customerLookup[custId];
 
-            // BR-5: as_of set to targetDate (may be Friday fallback on weekends)
+            // BR-5: ifw_effective_date set to targetDate (may be Friday fallback on weekends)
             outputRows.Add(new Row(new Dictionary<string, object?>
             {
                 ["customer_id"] = custId,
@@ -141,7 +141,7 @@ public class CustomerContactabilityV2Processor : IExternalStep
                 ["last_name"] = lastName,
                 ["email_address"] = emailLookup[custId],
                 ["phone_number"] = phoneLookup[custId],
-                ["as_of"] = targetDate
+                ["ifw_effective_date"] = targetDate
             }));
         }
 

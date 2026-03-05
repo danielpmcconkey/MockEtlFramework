@@ -6,22 +6,29 @@ using Parquet.Data;
 namespace Lib.Modules;
 
 /// <summary>
-/// Writes a named DataFrame from shared state to one or more Parquet files in a directory.
+/// Writes a named DataFrame from shared state to date-partitioned Parquet files.
+/// Output path: {outputDirectory}/{jobDirName}/{etl_effective_date}/{fileName}/part-N.parquet
+/// Injects an etl_effective_date column into every row before writing.
 /// Files are named part-00000.parquet, part-00001.parquet, etc.
-/// Overwrite mode deletes existing .parquet files in the directory before writing.
+/// Overwrite mode writes to today's partition; prior partitions are untouched.
 /// </summary>
 public class ParquetFileWriter : IModule
 {
     private readonly string _sourceDataFrameName;
     private readonly string _outputDirectory;
+    private readonly string _jobDirName;
+    private readonly string _fileName;
     private readonly int _numParts;
     private readonly WriteMode _writeMode;
 
     public ParquetFileWriter(string sourceDataFrameName, string outputDirectory,
+        string jobDirName, string fileName,
         int numParts = 1, WriteMode writeMode = WriteMode.Overwrite)
     {
         _sourceDataFrameName = sourceDataFrameName ?? throw new ArgumentNullException(nameof(sourceDataFrameName));
         _outputDirectory = outputDirectory ?? throw new ArgumentNullException(nameof(outputDirectory));
+        _jobDirName = jobDirName ?? throw new ArgumentNullException(nameof(jobDirName));
+        _fileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
         _numParts = numParts < 1 ? 1 : numParts;
         _writeMode = writeMode;
     }
@@ -31,15 +38,43 @@ public class ParquetFileWriter : IModule
         if (!sharedState.TryGetValue(_sourceDataFrameName, out var value) || value is not DataFrame df)
             throw new KeyNotFoundException($"DataFrame '{_sourceDataFrameName}' not found in shared state.");
 
-        var resolvedDir = PathHelper.Resolve(_outputDirectory);
+        if (!sharedState.TryGetValue(DataSourcing.EtlEffectiveDateKey, out var dateVal) || dateVal is not DateOnly effectiveDate)
+            throw new InvalidOperationException(
+                $"'{DataSourcing.EtlEffectiveDateKey}' not found or not a DateOnly in shared state.");
 
-        if (_writeMode == WriteMode.Overwrite && Directory.Exists(resolvedDir))
+        var dateStr = effectiveDate.ToString("yyyy-MM-dd");
+        var jobDir = Path.Combine(PathHelper.Resolve(_outputDirectory), _jobDirName);
+
+        // Append mode: union with prior partition's data
+        if (_writeMode == WriteMode.Append)
         {
-            foreach (var file in Directory.GetFiles(resolvedDir, "*.parquet"))
+            var priorDate = DatePartitionHelper.FindLatestPartition(jobDir);
+            if (priorDate != null)
+            {
+                var priorParquetDir = Path.Combine(jobDir, priorDate, _fileName);
+                if (Directory.Exists(priorParquetDir))
+                {
+                    var priorDf = DataFrame.FromParquet(priorParquetDir);
+                    priorDf = priorDf.Drop("etl_effective_date");
+                    df = priorDf.Union(df);
+                }
+            }
+        }
+
+        // Inject etl_effective_date column
+        df = df.WithColumn("etl_effective_date", _ => dateStr);
+
+        // Build date-partitioned output path: {jobDir}/{date}/{fileName}/
+        var parquetDir = Path.Combine(jobDir, dateStr, _fileName);
+
+        // Overwrite: delete existing parquet files in this partition's output dir
+        if (_writeMode == WriteMode.Overwrite && Directory.Exists(parquetDir))
+        {
+            foreach (var file in Directory.GetFiles(parquetDir, "*.parquet"))
                 File.Delete(file);
         }
 
-        Directory.CreateDirectory(resolvedDir);
+        Directory.CreateDirectory(parquetDir);
 
         var rows = df.Rows;
         var totalRows = rows.Count;
@@ -64,7 +99,7 @@ public class ParquetFileWriter : IModule
             offset += count;
 
             var fileName = $"part-{part:D5}.parquet";
-            var filePath = Path.Combine(resolvedDir, fileName);
+            var filePath = Path.Combine(parquetDir, fileName);
 
             WriteParquetFile(filePath, df.Columns, partRows, clrTypes);
         }

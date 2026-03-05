@@ -7,21 +7,33 @@
       "resultName": "credit_scores",
       "schema": "datalake",
       "table": "credit_scores",
-      "columns": ["credit_score_id", "customer_id", "bureau", "score"]
+      "columns": [
+        "credit_score_id",
+        "customer_id",
+        "bureau",
+        "score"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "segments",
       "schema": "datalake",
       "table": "segments",
-      "columns": ["segment_id", "segment_name"]
+      "columns": [
+        "segment_id",
+        "segment_name"
+      ]
     },
     {
       "type": "External",
@@ -31,11 +43,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/credit_score_average.csv",
       "includeHeader": true,
       "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
       "writeMode": "Overwrite",
-      "lineEnding": "CRLF"
+      "lineEnding": "CRLF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "credit_score_average",
+      "fileName": "credit_score_average.csv"
     }
   ]
 }

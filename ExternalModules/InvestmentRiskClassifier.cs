@@ -10,7 +10,7 @@ public class InvestmentRiskClassifier : IExternalStep
         var outputColumns = new List<string>
         {
             "investment_id", "customer_id", "account_type",
-            "current_value", "risk_profile", "risk_tier", "as_of"
+            "current_value", "risk_profile", "risk_tier", "ifw_effective_date"
         };
 
         var investments = sharedState.ContainsKey("investments") ? sharedState["investments"] as DataFrame : null;
@@ -52,7 +52,7 @@ public class InvestmentRiskClassifier : IExternalStep
                 ["current_value"] = currentValue,
                 ["risk_profile"] = riskProfile,
                 ["risk_tier"] = riskTier,
-                ["as_of"] = row["as_of"]
+                ["ifw_effective_date"] = row["ifw_effective_date"]
             }));
         }
 

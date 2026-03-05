@@ -7,7 +7,13 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["transaction_id", "account_id", "txn_timestamp", "txn_type", "amount"],
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_timestamp",
+        "txn_type",
+        "amount"
+      ],
       "minEffectiveDate": "2024-10-01",
       "maxEffectiveDate": "2024-12-31"
     },
@@ -19,11 +25,13 @@
     {
       "type": "CsvFileWriter",
       "source": "output",
-      "outputFile": "Output/curated/weekend_transaction_pattern.csv",
       "includeHeader": true,
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
-      "lineEnding": "LF"
+      "lineEnding": "LF",
+      "outputDirectory": "Output/poc4",
+      "jobDirName": "weekend_transaction_pattern",
+      "fileName": "weekend_transaction_pattern.csv"
     }
   ]
 }

@@ -7,26 +7,39 @@
       "resultName": "addresses",
       "schema": "datalake",
       "table": "addresses",
-      "columns": ["address_id", "customer_id", "address_line1", "city", "state_province", "postal_code", "country"]
+      "columns": [
+        "address_id",
+        "customer_id",
+        "address_line1",
+        "city",
+        "state_province",
+        "postal_code",
+        "country"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "branches",
       "schema": "datalake",
       "table": "branches",
-      "columns": ["branch_id", "branch_name"]
+      "columns": [
+        "branch_id",
+        "branch_name"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "addr_history",
-      "sql": "SELECT sub.customer_id, sub.address_line1, sub.city, sub.state_province, sub.postal_code, sub.country, sub.as_of FROM (SELECT a.customer_id, a.address_line1, a.city, a.state_province, a.postal_code, a.country, a.as_of FROM addresses a WHERE a.customer_id IS NOT NULL) sub ORDER BY sub.customer_id"
+      "sql": "SELECT sub.customer_id, sub.address_line1, sub.city, sub.state_province, sub.postal_code, sub.country, sub.ifw_effective_date FROM (SELECT a.customer_id, a.address_line1, a.city, a.state_province, a.postal_code, a.country, a.ifw_effective_date FROM addresses a WHERE a.customer_id IS NOT NULL) sub ORDER BY sub.customer_id"
     },
     {
       "type": "ParquetFileWriter",
       "source": "addr_history",
-      "outputDirectory": "Output/curated/customer_address_history/",
+      "outputDirectory": "Output/poc4",
       "numParts": 2,
-      "writeMode": "Append"
+      "writeMode": "Append",
+      "jobDirName": "customer_address_history",
+      "fileName": "customer_address_history"
     }
   ]
 }

@@ -11,7 +11,7 @@ public class CustomerCreditSummaryBuilder : IExternalStep
         {
             "customer_id", "first_name", "last_name", "avg_credit_score",
             "total_loan_balance", "total_account_balance", "loan_count",
-            "account_count", "as_of"
+            "account_count", "ifw_effective_date"
         };
 
         var customers = sharedState.ContainsKey("customers") ? sharedState["customers"] as DataFrame : null;
@@ -118,7 +118,7 @@ public class CustomerCreditSummaryBuilder : IExternalStep
                 ["total_account_balance"] = totalAccountBalance,
                 ["loan_count"] = loanCount,
                 ["account_count"] = accountCount,
-                ["as_of"] = custRow["as_of"]
+                ["ifw_effective_date"] = custRow["ifw_effective_date"]
             }));
         }
 

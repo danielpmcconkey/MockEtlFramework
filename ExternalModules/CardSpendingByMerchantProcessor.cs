@@ -9,7 +9,7 @@ public class CardSpendingByMerchantProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "mcc_code", "mcc_description", "txn_count", "total_spending", "as_of"
+            "mcc_code", "mcc_description", "txn_count", "total_spending", "ifw_effective_date"
         };
 
         var cardTransactions = sharedState.ContainsKey("card_transactions")
@@ -37,7 +37,7 @@ public class CardSpendingByMerchantProcessor : IExternalStep
             }
         }
 
-        var asOf = cardTransactions.Rows[0]["as_of"];
+        var asOf = cardTransactions.Rows[0]["ifw_effective_date"];
 
         // AP6: Row-by-row iteration to group by MCC, when SQL GROUP BY would work
         var groups = new Dictionary<string, (int count, decimal total)>();
@@ -63,7 +63,7 @@ public class CardSpendingByMerchantProcessor : IExternalStep
                 ["mcc_description"] = desc,
                 ["txn_count"] = kvp.Value.count,
                 ["total_spending"] = kvp.Value.total,
-                ["as_of"] = asOf
+                ["ifw_effective_date"] = asOf
             }));
         }
 

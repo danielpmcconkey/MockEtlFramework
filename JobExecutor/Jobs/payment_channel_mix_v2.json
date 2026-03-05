@@ -7,33 +7,41 @@
       "resultName": "transactions",
       "schema": "datalake",
       "table": "transactions",
-      "columns": ["amount"]
+      "columns": [
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "card_transactions",
       "schema": "datalake",
       "table": "card_transactions",
-      "columns": ["amount"]
+      "columns": [
+        "amount"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "wire_transfers",
       "schema": "datalake",
       "table": "wire_transfers",
-      "columns": ["amount"]
+      "columns": [
+        "amount"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT 'transaction' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, transactions.as_of FROM transactions GROUP BY transactions.as_of UNION ALL SELECT 'card' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, card_transactions.as_of FROM card_transactions GROUP BY card_transactions.as_of UNION ALL SELECT 'wire' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, wire_transfers.as_of FROM wire_transfers GROUP BY wire_transfers.as_of"
+      "sql": "SELECT 'transaction' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, transactions.ifw_effective_date FROM transactions GROUP BY transactions.ifw_effective_date UNION ALL SELECT 'card' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, card_transactions.ifw_effective_date FROM card_transactions GROUP BY card_transactions.ifw_effective_date UNION ALL SELECT 'wire' AS payment_channel, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount, wire_transfers.ifw_effective_date FROM wire_transfers GROUP BY wire_transfers.ifw_effective_date"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/payment_channel_mix/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "payment_channel_mix",
+      "fileName": "payment_channel_mix"
     }
   ]
 }

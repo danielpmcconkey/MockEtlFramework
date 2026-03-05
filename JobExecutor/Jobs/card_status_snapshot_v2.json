@@ -7,19 +7,23 @@
       "resultName": "cards",
       "schema": "datalake",
       "table": "cards",
-      "columns": ["card_status"]
+      "columns": [
+        "card_status"
+      ]
     },
     {
       "type": "Transformation",
       "resultName": "output",
-      "sql": "SELECT c.card_status, COUNT(*) AS card_count, c.as_of FROM cards c GROUP BY c.card_status, c.as_of"
+      "sql": "SELECT c.card_status, COUNT(*) AS card_count, c.ifw_effective_date FROM cards c GROUP BY c.card_status, c.ifw_effective_date"
     },
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/double_secret_curated/card_status_snapshot/",
+      "outputDirectory": "Output/poc4",
       "numParts": 50,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "card_status_snapshot",
+      "fileName": "card_status_snapshot"
     }
   ]
 }

@@ -9,12 +9,12 @@ public class WeekendTransactionPatternProcessor : IExternalStep
     {
         var outputColumns = new List<string>
         {
-            "day_type", "txn_count", "total_amount", "avg_amount", "as_of"
+            "day_type", "txn_count", "total_amount", "avg_amount", "ifw_effective_date"
         };
 
         var transactions = sharedState.ContainsKey("transactions") ? sharedState["transactions"] as DataFrame : null;
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         if (transactions == null || transactions.Count == 0)
         {
@@ -32,7 +32,7 @@ public class WeekendTransactionPatternProcessor : IExternalStep
 
         foreach (var row in transactions.Rows)
         {
-            var rawAsOf = row["as_of"];
+            var rawAsOf = row["ifw_effective_date"];
             var asOf = rawAsOf is DateOnly d ? d : DateOnly.FromDateTime((DateTime)rawAsOf!);
             if (asOf != maxDate) continue;
 
@@ -58,7 +58,7 @@ public class WeekendTransactionPatternProcessor : IExternalStep
             ["txn_count"] = weekdayCount,
             ["total_amount"] = Math.Round(weekdayTotal, 2),
             ["avg_amount"] = weekdayCount > 0 ? Math.Round(weekdayTotal / weekdayCount, 2) : 0m,
-            ["as_of"] = dateStr
+            ["ifw_effective_date"] = dateStr
         }));
 
         outputRows.Add(new Row(new Dictionary<string, object?>
@@ -67,7 +67,7 @@ public class WeekendTransactionPatternProcessor : IExternalStep
             ["txn_count"] = weekendCount,
             ["total_amount"] = Math.Round(weekendTotal, 2),
             ["avg_amount"] = weekendCount > 0 ? Math.Round(weekendTotal / weekendCount, 2) : 0m,
-            ["as_of"] = dateStr
+            ["ifw_effective_date"] = dateStr
         }));
 
         // W3a: End-of-week boundary — append weekly summary row on Sundays
@@ -82,7 +82,7 @@ public class WeekendTransactionPatternProcessor : IExternalStep
 
             foreach (var row in transactions.Rows)
             {
-                var rawAsOf = row["as_of"];
+                var rawAsOf = row["ifw_effective_date"];
                 var asOf = rawAsOf is DateOnly dd ? dd : DateOnly.FromDateTime((DateTime)rawAsOf!);
                 if (asOf < mondayOfWeek || asOf > maxDate) continue;
 
@@ -106,7 +106,7 @@ public class WeekendTransactionPatternProcessor : IExternalStep
                 ["txn_count"] = wkWeekdayCount,
                 ["total_amount"] = Math.Round(wkWeekdayTotal, 2),
                 ["avg_amount"] = wkWeekdayCount > 0 ? Math.Round(wkWeekdayTotal / wkWeekdayCount, 2) : 0m,
-                ["as_of"] = dateStr
+                ["ifw_effective_date"] = dateStr
             }));
 
             outputRows.Add(new Row(new Dictionary<string, object?>
@@ -115,7 +115,7 @@ public class WeekendTransactionPatternProcessor : IExternalStep
                 ["txn_count"] = wkWeekendCount,
                 ["total_amount"] = Math.Round(wkWeekendTotal, 2),
                 ["avg_amount"] = wkWeekendCount > 0 ? Math.Round(wkWeekendTotal / wkWeekendCount, 2) : 0m,
-                ["as_of"] = dateStr
+                ["ifw_effective_date"] = dateStr
             }));
         }
 

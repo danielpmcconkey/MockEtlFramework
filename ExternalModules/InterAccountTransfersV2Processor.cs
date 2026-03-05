@@ -25,7 +25,7 @@ public class InterAccountTransfersV2Processor : IExternalStep
     private static readonly List<string> OutputColumns = new()
     {
         "debit_txn_id", "credit_txn_id", "from_account_id", "to_account_id",
-        "amount", "txn_timestamp", "as_of"
+        "amount", "txn_timestamp", "ifw_effective_date"
     };
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
@@ -71,7 +71,7 @@ public class InterAccountTransfersV2Processor : IExternalStep
                 ["to_account_id"] = Convert.ToInt32(row["credit_account_id"]),
                 ["amount"] = Convert.ToDecimal(row["amount"]),
                 ["txn_timestamp"] = row["debit_timestamp"]?.ToString() ?? "",  // string, from debit row
-                ["as_of"] = row["debit_as_of"]  // from debit row (BR-5)
+                ["ifw_effective_date"] = row["debit_ifw_effective_date"]  // from debit row (BR-5)
             }));
         }
 

@@ -10,7 +10,7 @@ public class PortfolioConcentrationCalculator : IExternalStep
         var outputColumns = new List<string>
         {
             "customer_id", "investment_id", "sector",
-            "sector_value", "total_value", "sector_pct", "as_of"
+            "sector_value", "total_value", "sector_pct", "ifw_effective_date"
         };
 
         var holdings = sharedState.ContainsKey("holdings") ? sharedState["holdings"] as DataFrame : null;
@@ -23,7 +23,7 @@ public class PortfolioConcentrationCalculator : IExternalStep
             return sharedState;
         }
 
-        var maxDate = (DateOnly)sharedState["__maxEffectiveDate"];
+        var maxDate = (DateOnly)sharedState["__etlEffectiveDate"];
 
         // Build security_id -> sector lookup
         var sectorLookup = new Dictionary<int, string>();
@@ -84,7 +84,7 @@ public class PortfolioConcentrationCalculator : IExternalStep
                 ["sector_value"] = sectorValue,
                 ["total_value"] = totalValue,
                 ["sector_pct"] = sectorPct,
-                ["as_of"] = maxDate
+                ["ifw_effective_date"] = maxDate
             }));
         }
 

@@ -7,21 +7,38 @@
       "resultName": "investments",
       "schema": "datalake",
       "table": "investments",
-      "columns": ["investment_id", "customer_id", "account_type", "current_value", "risk_profile"]
+      "columns": [
+        "investment_id",
+        "customer_id",
+        "account_type",
+        "current_value",
+        "risk_profile"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "holdings",
       "schema": "datalake",
       "table": "holdings",
-      "columns": ["holding_id", "investment_id", "security_id", "customer_id", "quantity", "current_value"]
+      "columns": [
+        "holding_id",
+        "investment_id",
+        "security_id",
+        "customer_id",
+        "quantity",
+        "current_value"
+      ]
     },
     {
       "type": "DataSourcing",
       "resultName": "customers",
       "schema": "datalake",
       "table": "customers",
-      "columns": ["id", "first_name", "last_name"]
+      "columns": [
+        "id",
+        "first_name",
+        "last_name"
+      ]
     },
     {
       "type": "External",
@@ -31,9 +48,11 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/curated/portfolio_value_summary/",
+      "outputDirectory": "Output/poc4",
       "numParts": 1,
-      "writeMode": "Overwrite"
+      "writeMode": "Overwrite",
+      "jobDirName": "portfolio_value_summary",
+      "fileName": "portfolio_value_summary"
     }
   ]
 }
