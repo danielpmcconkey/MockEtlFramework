@@ -232,12 +232,7 @@ In addition to `DataFrameWriter` (which writes to PostgreSQL), the framework sup
 
 ```
 Output/
-├── curated/                                 # V1 job outputs (legacy flat structure)
-│   ├── some_job/
-│   │   ├── part-00000.parquet
-│   │   └── part-00001.parquet
-│   └── ...
-└── double_secret_curated/                   # V2 job outputs (date-partitioned)
+└── poc4/                                    # Date-partitioned job outputs
     └── {jobDirName}/
         └── {outputTableDirName}/
             └── {etl_effective_date}/
@@ -269,7 +264,7 @@ Writes a DataFrame to one or more Parquet part files in a directory. Uses Parque
 {
   "type": "ParquetFileWriter",
   "source": "output",
-  "outputDirectory": "Output/double_secret_curated",
+  "outputDirectory": "Output/poc4",
   "jobDirName": "account_balance_snapshot",
   "outputTableDirName": "account_balance_snapshot",
   "fileName": "account_balance_snapshot",
@@ -304,7 +299,7 @@ Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirector
 {
   "type": "CsvFileWriter",
   "source": "output",
-  "outputDirectory": "Output/double_secret_curated",
+  "outputDirectory": "Output/poc4",
   "jobDirName": "customer_contact_info",
   "outputTableDirName": "customer_contact_info",
   "fileName": "customer_contact_info.csv",
@@ -317,7 +312,7 @@ Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirector
 {
   "type": "CsvFileWriter",
   "source": "output",
-  "outputDirectory": "Output/double_secret_curated",
+  "outputDirectory": "Output/poc4",
   "jobDirName": "daily_txn_summary",
   "outputTableDirName": "daily_txn_summary",
   "fileName": "daily_txn_summary.csv",

@@ -2,7 +2,7 @@
 
 A C# proof-of-concept replicating a production PySpark ETL Framework. Reads job configurations (JSON), executes module chains, and produces file output.
 
-**Your full mission and workflow are in `POC3/BLUEPRINT.md`. Read it first.**
+**For ATC program context, see `AtcStrategy/POC4/ProgramDoctrine/program-doctrine.md`.**
 
 ## Building & Running
 
@@ -41,8 +41,8 @@ Read `Documentation/Architecture.md` for the full overview. Key pointers:
 
 - Files in `Lib/` may be modified for POC4 framework changes (date-partitioned writers, column injection, etc.)
 - **NEVER** modify or delete data in `datalake` schema
-- **NEVER** modify original V1 job configs or V1 External modules — create V2 versions
-- **NEVER** modify anything in `Output/curated/` — this is the V1 baseline for comparison
+- **NEVER** modify original V1 job configs or V1 External modules — create V2 versions in POC4
+- **NEVER** modify anything in `Output/curated/` — V1 baseline directory (reserved, currently empty)
 - **NEVER** modify anything in `Tools/proofmark/` — this is a COTS tool, treat it as read-only
 
 ## Serena (MCP — Semantic Code Navigation)
@@ -64,4 +64,4 @@ that isn't a C# code symbol.
 
 ## Prior Run Artifacts
 
-The `Phase3/` directory and any existing `*_v2.json` files in `JobExecutor/Jobs/` are artifacts from a prior run. **Ignore them entirely.** Do not read, reference, or build upon them. Your work goes in `POC3/`.
+All POC3 artifacts and V2 job configs have been cleaned up. If any `*_v2.json` files or `Phase3/` directories appear, they are stale and should be ignored.
