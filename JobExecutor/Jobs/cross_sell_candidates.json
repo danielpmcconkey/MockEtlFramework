@@ -57,7 +57,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "cross_sell_candidates",
-      "fileName": "cross_sell_candidates.csv"
+      "fileName": "cross_sell_candidates.csv",
+      "outputTableDirName": "cross_sell_candidates"
     }
   ]
 }

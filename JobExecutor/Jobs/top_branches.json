@@ -36,7 +36,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "top_branches",
-      "fileName": "top_branches.csv"
+      "fileName": "top_branches.csv",
+      "outputTableDirName": "top_branches"
     }
   ]
 }

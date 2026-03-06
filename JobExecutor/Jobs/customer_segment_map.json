@@ -48,7 +48,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "customer_segment_map",
-      "fileName": "customer_segment_map.csv"
+      "fileName": "customer_segment_map.csv",
+      "outputTableDirName": "customer_segment_map"
     }
   ]
 }

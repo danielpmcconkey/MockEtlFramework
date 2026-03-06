@@ -63,7 +63,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "customer_360_snapshot",
-      "fileName": "customer_360_snapshot"
+      "fileName": "customer_360_snapshot",
+      "outputTableDirName": "customer_360_snapshot"
     }
   ]
 }

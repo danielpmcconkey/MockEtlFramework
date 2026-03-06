@@ -37,7 +37,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "customer_transaction_activity",
-      "fileName": "customer_transaction_activity.csv"
+      "fileName": "customer_transaction_activity.csv",
+      "outputTableDirName": "customer_transaction_activity"
     }
   ]
 }

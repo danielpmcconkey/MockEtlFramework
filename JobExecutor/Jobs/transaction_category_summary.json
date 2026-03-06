@@ -39,7 +39,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "transaction_category_summary",
-      "fileName": "transaction_category_summary.csv"
+      "fileName": "transaction_category_summary.csv",
+      "outputTableDirName": "transaction_category_summary"
     }
   ]
 }

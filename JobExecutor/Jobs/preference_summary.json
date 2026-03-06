@@ -40,7 +40,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "preference_summary",
-      "fileName": "preference_summary.csv"
+      "fileName": "preference_summary.csv",
+      "outputTableDirName": "preference_summary"
     }
   ]
 }

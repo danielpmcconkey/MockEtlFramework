@@ -71,7 +71,8 @@
       "numParts": 2,
       "writeMode": "Overwrite",
       "jobDirName": "customer_full_profile",
-      "fileName": "customer_full_profile"
+      "fileName": "customer_full_profile",
+      "outputTableDirName": "customer_full_profile"
     }
   ]
 }

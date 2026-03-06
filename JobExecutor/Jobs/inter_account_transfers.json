@@ -37,7 +37,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "inter_account_transfers",
-      "fileName": "inter_account_transfers"
+      "fileName": "inter_account_transfers",
+      "outputTableDirName": "inter_account_transfers"
     }
   ]
 }

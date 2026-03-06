@@ -43,7 +43,8 @@
       "numParts": 50,
       "writeMode": "Overwrite",
       "jobDirName": "account_overdraft_history",
-      "fileName": "account_overdraft_history"
+      "fileName": "account_overdraft_history",
+      "outputTableDirName": "account_overdraft_history"
     }
   ]
 }

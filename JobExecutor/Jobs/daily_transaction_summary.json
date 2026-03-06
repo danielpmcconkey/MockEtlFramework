@@ -40,7 +40,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "daily_transaction_summary",
-      "fileName": "daily_transaction_summary.csv"
+      "fileName": "daily_transaction_summary.csv",
+      "outputTableDirName": "daily_transaction_summary"
     }
   ]
 }

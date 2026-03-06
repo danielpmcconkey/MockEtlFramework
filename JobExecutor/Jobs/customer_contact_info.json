@@ -48,7 +48,8 @@
       "numParts": 2,
       "writeMode": "Append",
       "jobDirName": "customer_contact_info",
-      "fileName": "customer_contact_info"
+      "fileName": "customer_contact_info",
+      "outputTableDirName": "customer_contact_info"
     }
   ]
 }

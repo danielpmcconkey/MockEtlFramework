@@ -81,6 +81,7 @@ public class ModuleFactoryTests
             ""source"": ""output"",
             ""outputDirectory"": ""Output/poc4"",
             ""jobDirName"": ""test_job"",
+            ""outputTableDirName"": ""test_table"",
             ""fileName"": ""test_output"",
             ""numParts"": 2,
             ""writeMode"": ""Overwrite""
@@ -96,6 +97,7 @@ public class ModuleFactoryTests
             ""source"": ""output"",
             ""outputDirectory"": ""Output/poc4"",
             ""jobDirName"": ""test_job"",
+            ""outputTableDirName"": ""test_table"",
             ""fileName"": ""test_output"",
             ""writeMode"": ""Overwrite""
         }");
@@ -110,6 +112,7 @@ public class ModuleFactoryTests
             ""source"": ""output"",
             ""outputDirectory"": ""Output/poc4"",
             ""jobDirName"": ""test_job"",
+            ""outputTableDirName"": ""test_table"",
             ""fileName"": ""test.csv"",
             ""writeMode"": ""Overwrite""
         }");
@@ -124,6 +127,7 @@ public class ModuleFactoryTests
             ""source"": ""output"",
             ""outputDirectory"": ""Output/poc4"",
             ""jobDirName"": ""test_job"",
+            ""outputTableDirName"": ""test_table"",
             ""fileName"": ""test.csv"",
             ""trailerFormat"": ""TRAILER|{row_count}"",
             ""writeMode"": ""Overwrite""
@@ -139,6 +143,7 @@ public class ModuleFactoryTests
             ""source"": ""output"",
             ""outputDirectory"": ""Output/poc4"",
             ""jobDirName"": ""test_job"",
+            ""outputTableDirName"": ""test_table"",
             ""fileName"": ""test.csv"",
             ""writeMode"": ""Overwrite"",
             ""lineEnding"": ""CRLF""
@@ -246,6 +251,34 @@ public class ModuleFactoryTests
             ""lookbackDays"": 3
         }");
         Assert.Throws<ArgumentException>(() => ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_CsvFileWriter_MissingOutputTableDirName_Throws()
+    {
+        var el = Parse(@"{
+            ""type"": ""CsvFileWriter"",
+            ""source"": ""output"",
+            ""outputDirectory"": ""Output/poc4"",
+            ""jobDirName"": ""test_job"",
+            ""fileName"": ""test.csv"",
+            ""writeMode"": ""Overwrite""
+        }");
+        Assert.Throws<KeyNotFoundException>(() => ModuleFactory.Create(el));
+    }
+
+    [Fact]
+    public void Create_ParquetFileWriter_MissingOutputTableDirName_Throws()
+    {
+        var el = Parse(@"{
+            ""type"": ""ParquetFileWriter"",
+            ""source"": ""output"",
+            ""outputDirectory"": ""Output/poc4"",
+            ""jobDirName"": ""test_job"",
+            ""fileName"": ""test_output"",
+            ""writeMode"": ""Overwrite""
+        }");
+        Assert.Throws<KeyNotFoundException>(() => ModuleFactory.Create(el));
     }
 
     [Fact]

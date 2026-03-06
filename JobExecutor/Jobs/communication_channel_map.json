@@ -60,7 +60,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "communication_channel_map",
-      "fileName": "communication_channel_map.csv"
+      "fileName": "communication_channel_map.csv",
+      "outputTableDirName": "communication_channel_map"
     }
   ]
 }

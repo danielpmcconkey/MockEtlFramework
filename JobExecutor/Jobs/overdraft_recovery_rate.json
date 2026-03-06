@@ -31,7 +31,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "overdraft_recovery_rate",
-      "fileName": "overdraft_recovery_rate.csv"
+      "fileName": "overdraft_recovery_rate.csv",
+      "outputTableDirName": "overdraft_recovery_rate"
     }
   ]
 }

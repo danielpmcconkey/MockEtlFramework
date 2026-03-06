@@ -32,7 +32,7 @@ public class CsvFileWriterTests : IDisposable
     private CsvFileWriter MakeWriter(string fileName = "output.csv",
         bool includeHeader = true, string? trailerFormat = null,
         WriteMode writeMode = WriteMode.Overwrite, string lineEnding = "\n") =>
-        new("data", _tempDir, "testjob", fileName, includeHeader, trailerFormat, writeMode, lineEnding);
+        new("data", _tempDir, "testjob", "testtable", fileName, includeHeader, trailerFormat, writeMode, lineEnding);
 
     private Dictionary<string, object> MakeState(DataFrame? df = null) => new()
     {
@@ -41,10 +41,10 @@ public class CsvFileWriterTests : IDisposable
     };
 
     /// <summary>
-    /// Output path for the test partition: {tempDir}/testjob/{date}/{fileName}
+    /// Output path for the test partition: {tempDir}/testjob/testtable/{date}/{fileName}
     /// </summary>
     private string OutputPath(string fileName = "output.csv") =>
-        Path.Combine(_tempDir, "testjob", TestDateStr, fileName);
+        Path.Combine(_tempDir, "testjob", "testtable", TestDateStr, fileName);
 
     private string ReadOutput(string fileName = "output.csv") =>
         File.ReadAllText(OutputPath(fileName));
@@ -150,7 +150,7 @@ public class CsvFileWriterTests : IDisposable
 
         Assert.True(File.Exists(OutputPath()));
         // Verify the partition directory structure
-        Assert.True(Directory.Exists(Path.Combine(_tempDir, "testjob", TestDateStr)));
+        Assert.True(Directory.Exists(Path.Combine(_tempDir, "testjob", "testtable", TestDateStr)));
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public class CsvFileWriterTests : IDisposable
     {
         // Create a prior partition with 2 rows
         var priorDate = new DateOnly(2024, 11, 14);
-        var priorDir = Path.Combine(_tempDir, "testjob", "2024-11-14");
+        var priorDir = Path.Combine(_tempDir, "testjob", "testtable", "2024-11-14");
         Directory.CreateDirectory(priorDir);
         File.WriteAllText(Path.Combine(priorDir, "output.csv"),
             "Id,Name,City,etl_effective_date\n1,Alice,New York,2024-11-14\n2,Bob,London,2024-11-14\n");
@@ -250,7 +250,7 @@ public class CsvFileWriterTests : IDisposable
     [Fact]
     public void Execute_MissingDataFrame_ThrowsKeyNotFoundException()
     {
-        var writer = new CsvFileWriter("nonexistent", _tempDir, "testjob", "output.csv");
+        var writer = new CsvFileWriter("nonexistent", _tempDir, "testjob", "testtable", "output.csv");
         var state = new Dictionary<string, object> { [DataSourcing.EtlEffectiveDateKey] = TestDate };
 
         Assert.Throws<KeyNotFoundException>(() => writer.Execute(state));
@@ -280,7 +280,7 @@ public class CsvFileWriterTests : IDisposable
     public void Execute_AppendMode_WithTrailer_StripsTrailerFromPriorPartition()
     {
         // Create a prior partition with 2 data rows + a trailer
-        var priorDir = Path.Combine(_tempDir, "testjob", "2024-11-14");
+        var priorDir = Path.Combine(_tempDir, "testjob", "testtable", "2024-11-14");
         Directory.CreateDirectory(priorDir);
         File.WriteAllText(Path.Combine(priorDir, "output.csv"),
             "Id,Name,City,etl_effective_date\n1,Alice,New York,2024-11-14\n2,Bob,London,2024-11-14\nTRAILER|2|2024-11-14\n");
@@ -304,7 +304,7 @@ public class CsvFileWriterTests : IDisposable
     public void Execute_AppendMode_WithoutTrailer_DoesNotStripLastRow()
     {
         // Create a prior partition with 2 data rows, no trailer
-        var priorDir = Path.Combine(_tempDir, "testjob", "2024-11-14");
+        var priorDir = Path.Combine(_tempDir, "testjob", "testtable", "2024-11-14");
         Directory.CreateDirectory(priorDir);
         File.WriteAllText(Path.Combine(priorDir, "output.csv"),
             "Id,Name,City,etl_effective_date\n1,Alice,New York,2024-11-14\n2,Bob,London,2024-11-14\n");

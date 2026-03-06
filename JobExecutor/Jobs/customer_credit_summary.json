@@ -73,7 +73,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "customer_credit_summary",
-      "fileName": "customer_credit_summary.csv"
+      "fileName": "customer_credit_summary.csv",
+      "outputTableDirName": "customer_credit_summary"
     }
   ]
 }

@@ -40,7 +40,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "card_authorization_summary",
-      "fileName": "card_authorization_summary.csv"
+      "fileName": "card_authorization_summary.csv",
+      "outputTableDirName": "card_authorization_summary"
     }
   ]
 }

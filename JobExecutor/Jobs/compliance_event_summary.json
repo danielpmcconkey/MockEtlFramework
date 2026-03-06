@@ -40,7 +40,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "compliance_event_summary",
-      "fileName": "compliance_event_summary.csv"
+      "fileName": "compliance_event_summary.csv",
+      "outputTableDirName": "compliance_event_summary"
     }
   ]
 }

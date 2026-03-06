@@ -41,7 +41,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "high_risk_merchant_activity",
-      "fileName": "high_risk_merchant_activity.csv"
+      "fileName": "high_risk_merchant_activity.csv",
+      "outputTableDirName": "high_risk_merchant_activity"
     }
   ]
 }

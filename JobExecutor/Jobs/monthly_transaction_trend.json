@@ -37,7 +37,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "monthly_transaction_trend",
-      "fileName": "monthly_transaction_trend.csv"
+      "fileName": "monthly_transaction_trend.csv",
+      "outputTableDirName": "monthly_transaction_trend"
     }
   ]
 }

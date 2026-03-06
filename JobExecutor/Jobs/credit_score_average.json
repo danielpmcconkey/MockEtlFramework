@@ -49,7 +49,8 @@
       "lineEnding": "CRLF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "credit_score_average",
-      "fileName": "credit_score_average.csv"
+      "fileName": "credit_score_average.csv",
+      "outputTableDirName": "credit_score_average"
     }
   ]
 }

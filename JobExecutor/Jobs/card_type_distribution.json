@@ -39,7 +39,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "card_type_distribution",
-      "fileName": "card_type_distribution.csv"
+      "fileName": "card_type_distribution.csv",
+      "outputTableDirName": "card_type_distribution"
     }
   ]
 }

@@ -53,7 +53,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "portfolio_concentration",
-      "fileName": "portfolio_concentration"
+      "fileName": "portfolio_concentration",
+      "outputTableDirName": "portfolio_concentration"
     }
   ]
 }

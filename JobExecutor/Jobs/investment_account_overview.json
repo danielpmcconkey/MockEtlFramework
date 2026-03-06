@@ -43,7 +43,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "investment_account_overview",
-      "fileName": "investment_account_overview.csv"
+      "fileName": "investment_account_overview.csv",
+      "outputTableDirName": "investment_account_overview"
     }
   ]
 }

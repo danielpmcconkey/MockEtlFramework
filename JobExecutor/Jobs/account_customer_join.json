@@ -51,7 +51,8 @@
       "numParts": 2,
       "writeMode": "Overwrite",
       "jobDirName": "account_customer_join",
-      "fileName": "account_customer_join"
+      "fileName": "account_customer_join",
+      "outputTableDirName": "account_customer_join"
     }
   ]
 }

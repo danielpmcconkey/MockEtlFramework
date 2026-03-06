@@ -50,7 +50,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "payment_channel_mix",
-      "fileName": "payment_channel_mix"
+      "fileName": "payment_channel_mix",
+      "outputTableDirName": "payment_channel_mix"
     }
   ]
 }

@@ -52,7 +52,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "monthly_revenue_breakdown",
-      "fileName": "monthly_revenue_breakdown.csv"
+      "fileName": "monthly_revenue_breakdown.csv",
+      "outputTableDirName": "monthly_revenue_breakdown"
     }
   ]
 }

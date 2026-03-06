@@ -40,7 +40,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "wire_transfer_daily",
-      "fileName": "wire_transfer_daily"
+      "fileName": "wire_transfer_daily",
+      "outputTableDirName": "wire_transfer_daily"
     }
   ]
 }

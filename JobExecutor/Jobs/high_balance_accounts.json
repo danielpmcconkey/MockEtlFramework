@@ -39,7 +39,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "high_balance_accounts",
-      "fileName": "high_balance_accounts.csv"
+      "fileName": "high_balance_accounts.csv",
+      "outputTableDirName": "high_balance_accounts"
     }
   ]
 }

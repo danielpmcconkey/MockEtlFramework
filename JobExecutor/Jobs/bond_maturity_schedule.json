@@ -43,7 +43,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "bond_maturity_schedule",
-      "fileName": "bond_maturity_schedule"
+      "fileName": "bond_maturity_schedule",
+      "outputTableDirName": "bond_maturity_schedule"
     }
   ]
 }

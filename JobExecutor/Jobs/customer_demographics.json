@@ -64,7 +64,8 @@
       "lineEnding": "CRLF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "customer_demographics",
-      "fileName": "customer_demographics.csv"
+      "fileName": "customer_demographics.csv",
+      "outputTableDirName": "customer_demographics"
     }
   ]
 }

@@ -98,7 +98,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "executive_dashboard",
-      "fileName": "executive_dashboard.csv"
+      "fileName": "executive_dashboard.csv",
+      "outputTableDirName": "executive_dashboard"
     }
   ]
 }

@@ -37,7 +37,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "daily_balance_movement",
-      "fileName": "daily_balance_movement.csv"
+      "fileName": "daily_balance_movement.csv",
+      "outputTableDirName": "daily_balance_movement"
     }
   ]
 }

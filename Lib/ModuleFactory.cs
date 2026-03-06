@@ -59,6 +59,7 @@ public static class ModuleFactory
         el.GetProperty("source").GetString()!,
         el.GetProperty("outputDirectory").GetString()!,
         el.GetProperty("jobDirName").GetString()!,
+        el.GetProperty("outputTableDirName").GetString()!,
         el.GetProperty("fileName").GetString()!,
         el.TryGetProperty("numParts", out var np) ? np.GetInt32() : 1,
         Enum.Parse<WriteMode>(el.GetProperty("writeMode").GetString()!)
@@ -68,6 +69,7 @@ public static class ModuleFactory
         el.GetProperty("source").GetString()!,
         el.GetProperty("outputDirectory").GetString()!,
         el.GetProperty("jobDirName").GetString()!,
+        el.GetProperty("outputTableDirName").GetString()!,
         el.GetProperty("fileName").GetString()!,
         !el.TryGetProperty("includeHeader", out var ih) || ih.GetBoolean(),
         el.TryGetProperty("trailerFormat", out var tf) ? tf.GetString() : null,

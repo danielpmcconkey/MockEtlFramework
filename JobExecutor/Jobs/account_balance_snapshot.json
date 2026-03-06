@@ -40,7 +40,8 @@
       "numParts": 2,
       "writeMode": "Append",
       "jobDirName": "account_balance_snapshot",
-      "fileName": "account_balance_snapshot"
+      "fileName": "account_balance_snapshot",
+      "outputTableDirName": "account_balance_snapshot"
     }
   ]
 }

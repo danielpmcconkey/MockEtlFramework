@@ -39,7 +39,8 @@
       "lineEnding": "CRLF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "credit_score_snapshot",
-      "fileName": "credit_score_snapshot.csv"
+      "fileName": "credit_score_snapshot.csv",
+      "outputTableDirName": "credit_score_snapshot"
     }
   ]
 }

@@ -28,7 +28,8 @@
       "numParts": 50,
       "writeMode": "Overwrite",
       "jobDirName": "card_status_snapshot",
-      "fileName": "card_status_snapshot"
+      "fileName": "card_status_snapshot",
+      "outputTableDirName": "card_status_snapshot"
     }
   ]
 }

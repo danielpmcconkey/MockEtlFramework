@@ -62,7 +62,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "branch_transaction_volume",
-      "fileName": "branch_transaction_volume"
+      "fileName": "branch_transaction_volume",
+      "outputTableDirName": "branch_transaction_volume"
     }
   ]
 }

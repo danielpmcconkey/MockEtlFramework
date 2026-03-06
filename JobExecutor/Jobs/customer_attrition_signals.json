@@ -47,7 +47,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "customer_attrition_signals",
-      "fileName": "customer_attrition_signals"
+      "fileName": "customer_attrition_signals",
+      "outputTableDirName": "customer_attrition_signals"
     }
   ]
 }

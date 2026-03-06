@@ -37,7 +37,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "card_expiration_watch",
-      "fileName": "card_expiration_watch"
+      "fileName": "card_expiration_watch",
+      "outputTableDirName": "card_expiration_watch"
     }
   ]
 }

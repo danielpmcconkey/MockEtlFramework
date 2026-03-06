@@ -41,7 +41,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "card_spending_by_merchant",
-      "fileName": "card_spending_by_merchant"
+      "fileName": "card_spending_by_merchant",
+      "outputTableDirName": "card_spending_by_merchant"
     }
   ]
 }

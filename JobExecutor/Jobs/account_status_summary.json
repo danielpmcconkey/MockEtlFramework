@@ -39,7 +39,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "account_status_summary",
-      "fileName": "account_status_summary.csv"
+      "fileName": "account_status_summary.csv",
+      "outputTableDirName": "account_status_summary"
     }
   ]
 }

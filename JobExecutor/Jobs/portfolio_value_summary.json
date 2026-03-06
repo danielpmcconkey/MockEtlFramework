@@ -52,7 +52,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "portfolio_value_summary",
-      "fileName": "portfolio_value_summary"
+      "fileName": "portfolio_value_summary",
+      "outputTableDirName": "portfolio_value_summary"
     }
   ]
 }

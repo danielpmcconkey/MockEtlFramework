@@ -49,7 +49,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "dormant_account_detection",
-      "fileName": "dormant_account_detection"
+      "fileName": "dormant_account_detection",
+      "outputTableDirName": "dormant_account_detection"
     }
   ]
 }

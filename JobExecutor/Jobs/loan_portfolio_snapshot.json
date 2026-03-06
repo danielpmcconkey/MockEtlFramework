@@ -41,7 +41,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "loan_portfolio_snapshot",
-      "fileName": "loan_portfolio_snapshot"
+      "fileName": "loan_portfolio_snapshot",
+      "outputTableDirName": "loan_portfolio_snapshot"
     }
   ]
 }

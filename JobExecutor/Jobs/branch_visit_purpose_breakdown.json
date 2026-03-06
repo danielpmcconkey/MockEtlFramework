@@ -48,7 +48,8 @@
       "lineEnding": "CRLF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "branch_visit_purpose_breakdown",
-      "fileName": "branch_visit_purpose_breakdown.csv"
+      "fileName": "branch_visit_purpose_breakdown.csv",
+      "outputTableDirName": "branch_visit_purpose_breakdown"
     }
   ]
 }

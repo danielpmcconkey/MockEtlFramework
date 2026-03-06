@@ -60,7 +60,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "regulatory_exposure_summary",
-      "fileName": "regulatory_exposure_summary"
+      "fileName": "regulatory_exposure_summary",
+      "outputTableDirName": "regulatory_exposure_summary"
     }
   ]
 }

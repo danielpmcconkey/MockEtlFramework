@@ -38,7 +38,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "transaction_size_buckets",
-      "fileName": "transaction_size_buckets.csv"
+      "fileName": "transaction_size_buckets.csv",
+      "outputTableDirName": "transaction_size_buckets"
     }
   ]
 }

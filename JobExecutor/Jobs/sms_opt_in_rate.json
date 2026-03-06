@@ -46,7 +46,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "sms_opt_in_rate",
-      "fileName": "sms_opt_in_rate"
+      "fileName": "sms_opt_in_rate",
+      "outputTableDirName": "sms_opt_in_rate"
     }
   ]
 }

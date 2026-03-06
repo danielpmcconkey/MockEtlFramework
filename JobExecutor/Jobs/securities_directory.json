@@ -43,7 +43,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "securities_directory",
-      "fileName": "securities_directory.csv"
+      "fileName": "securities_directory.csv",
+      "outputTableDirName": "securities_directory"
     }
   ]
 }

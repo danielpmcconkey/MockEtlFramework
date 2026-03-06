@@ -45,7 +45,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "fee_waiver_analysis",
-      "fileName": "fee_waiver_analysis.csv"
+      "fileName": "fee_waiver_analysis.csv",
+      "outputTableDirName": "fee_waiver_analysis"
     }
   ]
 }

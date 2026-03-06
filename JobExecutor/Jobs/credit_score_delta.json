@@ -51,7 +51,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "credit_score_delta",
-      "fileName": "credit_score_delta.csv"
+      "fileName": "credit_score_delta.csv",
+      "outputTableDirName": "credit_score_delta"
     }
   ]
 }

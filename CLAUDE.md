@@ -9,9 +9,7 @@ A C# proof-of-concept replicating a production PySpark ETL Framework. Reads job 
 ```bash
 dotnet build                                              # Build from repo root
 dotnet test                                               # Run all tests
-dotnet run --project JobExecutor -- {JobName}              # Run single job
-dotnet run --project JobExecutor                           # Run all active jobs (auto-advance)
-dotnet run --project JobExecutor -- 2024-10-15             # Run all for specific date
+dotnet run --project JobExecutor -- 2024-10-15             # Run all active jobs for date (date REQUIRED)
 dotnet run --project JobExecutor -- 2024-10-15 {JobName}   # Run one job for specific date
 ```
 
@@ -35,7 +33,7 @@ Read `Documentation/Architecture.md` for the full overview. Key pointers:
 - `Lib/Modules/CsvFileWriter.cs` — CSV output with optional trailers and configurable line endings
 - `Lib/Modules/ParquetFileWriter.cs` — Parquet output with configurable part count
 - `Lib/Modules/External.cs` — loads user-supplied .NET assemblies via reflection
-- `Lib/Control/JobExecutorService.cs` — orchestrates job execution and auto-advancement
+- `Lib/Control/JobExecutorService.cs` — orchestrates job execution for a single effective date
 - `Lib/ConnectionHelper.cs` — database connection helper
 - `DataSourcing.EtlEffectiveDateKey` = `__etlEffectiveDate`
 

@@ -41,7 +41,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "overdraft_by_account_type",
-      "fileName": "overdraft_by_account_type"
+      "fileName": "overdraft_by_account_type",
+      "outputTableDirName": "overdraft_by_account_type"
     }
   ]
 }

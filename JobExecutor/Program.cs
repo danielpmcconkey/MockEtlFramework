@@ -5,15 +5,12 @@ namespace JobExecutor;
 
 /// <summary>
 /// Usage:
-///   JobExecutor --service                 — long-running queue executor (polls control.task_queue)
-///   JobExecutor                           — auto-advance all active jobs
-///   JobExecutor &lt;job_name&gt;               — auto-advance one specific job
-///   JobExecutor &lt;effective_date&gt;          — run exactly that date, all jobs  (backfill)
-///   JobExecutor &lt;effective_date&gt; &lt;job_name&gt; — run exactly that date, one job (backfill)
+///   JobExecutor --service                         — long-running queue executor (polls control.task_queue)
+///   JobExecutor &lt;effective_date&gt;                  — run all active jobs for that date
+///   JobExecutor &lt;effective_date&gt; &lt;job_name&gt;       — run one job for that date
 ///
 /// effective_date format: yyyy-MM-dd
-/// If the first argument parses as a date it is treated as an effective_date override;
-/// otherwise it is treated as a job name and auto-advance mode is used.
+/// A date argument is REQUIRED for non-service invocations.
 /// </summary>
 class Program
 {
@@ -30,25 +27,24 @@ class Program
             return;
         }
 
-        DateOnly? effectiveDate = null;
-        string?   jobName      = null;
-
-        if (args.Length >= 1)
+        if (args.Length < 1 || !DateOnly.TryParseExact(args[0], "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var effectiveDate))
         {
-            if (DateOnly.TryParseExact(args[0], "yyyy-MM-dd",
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None,
-                    out var parsed))
-            {
-                effectiveDate = parsed;
-                jobName = args.Length >= 2 ? args[1] : null;
-            }
-            else
-            {
-                // First arg is not a date — treat it as a job name.
-                jobName = args[0];
-            }
+            Console.Error.WriteLine("Error: effective date is required.");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("Usage:");
+            Console.Error.WriteLine("  JobExecutor --service                         — queue executor");
+            Console.Error.WriteLine("  JobExecutor <effective_date>                  — all jobs for date");
+            Console.Error.WriteLine("  JobExecutor <effective_date> <job_name>       — one job for date");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("  effective_date format: yyyy-MM-dd");
+            Environment.Exit(1);
+            return; // unreachable, but keeps the compiler happy
         }
+
+        string? jobName = args.Length >= 2 ? args[1] : null;
 
         var service = new JobExecutorService();
         var sw2 = Stopwatch.StartNew();

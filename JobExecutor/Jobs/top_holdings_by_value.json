@@ -41,7 +41,8 @@
       "numParts": 50,
       "writeMode": "Overwrite",
       "jobDirName": "top_holdings_by_value",
-      "fileName": "top_holdings_by_value"
+      "fileName": "top_holdings_by_value",
+      "outputTableDirName": "top_holdings_by_value"
     }
   ]
 }

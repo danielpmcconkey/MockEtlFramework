@@ -30,7 +30,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "overdraft_fee_summary",
-      "fileName": "overdraft_fee_summary.csv"
+      "fileName": "overdraft_fee_summary.csv",
+      "outputTableDirName": "overdraft_fee_summary"
     }
   ]
 }

@@ -14,7 +14,8 @@
       "numParts": 1,
       "writeMode": "Append",
       "jobDirName": "customer_address_deltas",
-      "fileName": "customer_address_deltas"
+      "fileName": "customer_address_deltas",
+      "outputTableDirName": "customer_address_deltas"
     }
   ]
 }

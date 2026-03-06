@@ -31,7 +31,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "weekend_transaction_pattern",
-      "fileName": "weekend_transaction_pattern.csv"
+      "fileName": "weekend_transaction_pattern.csv",
+      "outputTableDirName": "weekend_transaction_pattern"
     }
   ]
 }

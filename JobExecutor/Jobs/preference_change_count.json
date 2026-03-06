@@ -39,7 +39,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "preference_change_count",
-      "fileName": "preference_change_count"
+      "fileName": "preference_change_count",
+      "outputTableDirName": "preference_change_count"
     }
   ]
 }

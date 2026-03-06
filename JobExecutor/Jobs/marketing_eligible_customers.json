@@ -53,7 +53,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "marketing_eligible_customers",
-      "fileName": "marketing_eligible_customers.csv"
+      "fileName": "marketing_eligible_customers.csv",
+      "outputTableDirName": "marketing_eligible_customers"
     }
   ]
 }

@@ -30,7 +30,7 @@ The mock framework mirrors a production PySpark ETL system. Key concepts:
 
 ### Execution Model
 
-- `JobExecutorService` reads job registrations from `control.jobs`, builds a topological execution plan based on dependencies, and auto-advances each job from its last succeeded date forward to today
+- `JobExecutorService` reads job registrations from `control.jobs`, builds a topological execution plan based on dependencies, and runs all jobs for a single caller-supplied effective date
 - Effective dates are injected into shared state automatically -- job configs never hardcode dates
 - Dependency types: `SameDay` (upstream must succeed same run_date) and `Latest` (upstream must have ever succeeded)
 - Data lake uses a full-load snapshot pattern: each day's load is a complete picture with an `ifw_effective_date` column
@@ -46,10 +46,8 @@ The mock framework mirrors a production PySpark ETL system. Key concepts:
 ```bash
 dotnet build                                    # compile
 dotnet test                                     # run xUnit tests
-dotnet run --project JobExecutor                # auto-advance all active jobs
-dotnet run --project JobExecutor -- JobName     # auto-advance one job
-dotnet run --project JobExecutor -- 2024-10-15  # backfill specific date, all jobs
-dotnet run --project JobExecutor -- 2024-10-15 JobName  # backfill specific date, one job
+dotnet run --project JobExecutor -- 2024-10-15           # run all jobs for specific date (date REQUIRED)
+dotnet run --project JobExecutor -- 2024-10-15 JobName   # run one job for specific date
 ```
 
 **Detailed architecture:** `Documentation/Architecture.md`

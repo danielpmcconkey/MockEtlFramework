@@ -68,7 +68,8 @@
       "numParts": 3,
       "writeMode": "Append",
       "jobDirName": "large_transaction_log",
-      "fileName": "large_transaction_log"
+      "fileName": "large_transaction_log",
+      "outputTableDirName": "large_transaction_log"
     }
   ]
 }

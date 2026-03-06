@@ -61,7 +61,8 @@
       "numParts": 2,
       "writeMode": "Overwrite",
       "jobDirName": "loan_risk_assessment",
-      "fileName": "loan_risk_assessment"
+      "fileName": "loan_risk_assessment",
+      "outputTableDirName": "loan_risk_assessment"
     }
   ]
 }

@@ -41,8 +41,8 @@ Since the owner of this project is more comfortable in C# than Python, the ETL F
 - **JSON-driven configuration:** Job behavior is defined externally in JSON, not in code. This keeps the framework generic and reusable across many different jobs.
 - **DataFrame as a first-class citizen:** The custom `DataFrame` class provides PySpark-like operations (Select, Filter, WithColumn, GroupBy, Join, Union, Distinct, OrderBy, Limit, etc.) so that transformation logic feels familiar to users of the production system.
 - **Full-load temporal data:** The data lake follows a snapshot (full-load) pattern. Each day's load is a complete picture of a table's state at that point in time, identified by an `ifw_effective_date` date column. `DataSourcing` returns a flat DataFrame that includes the `ifw_effective_date` column, allowing consumers to work across date ranges in a single DataFrame without requiring special date-loop logic in the framework itself.
-- **Automatic effective date management:** Effective dates are never hard-wired in job configuration files. Instead, `JobExecutorService` reads each job's last successful `max_effective_date` from `control.job_runs` and gap-fills forward one day at a time until today. The dates are injected into shared state before each pipeline run and picked up automatically by `DataSourcing`. On a job's very first run, the start date is read from a `firstEffectiveDate` field in the job conf. This keeps job confs generic and lets the executor handle all scheduling math.
-- **run_date vs. effective date:** `run_date` in `control.job_runs` is the calendar date the executor actually ran (always today). `min_effective_date` / `max_effective_date` record which data dates that run processed. These are separate concerns: a single executor invocation on one `run_date` may produce many rows in `control.job_runs`, each covering a different effective date.
+- **Explicit effective date management:** The caller MUST supply an effective date for every invocation. There is no auto-advance or gap-fill logic — the executor runs exactly one effective date per invocation. Effective dates are injected into shared state before the pipeline runs and picked up automatically by `DataSourcing`. For batch processing across date ranges, use the task queue (`control.task_queue`) with one row per (job, date) pair.
+- **run_date vs. effective date:** `run_date` in `control.job_runs` is the calendar date the executor actually ran (always today). `min_effective_date` / `max_effective_date` record which data date that run processed. These are separate concerns.
 
 ---
 
@@ -69,8 +69,8 @@ The core framework library. Referenced by both the job executor and the test pro
 | `Transformation` | Opens an in-memory SQLite connection, registers every `DataFrame` in the current shared state as a SQLite table, executes user-supplied free-form SQL, and stores the result `DataFrame` back into shared state under a caller-specified result name. Empty DataFrames (those with columns but zero rows) are registered as schema-only SQLite tables — the `CREATE TABLE` runs but no inserts are performed, so downstream SQL can still reference them in joins/subqueries without error. |
 | `DataFrameWriter` | Writes a named `DataFrame` from shared state to a PostgreSQL curation schema. Auto-creates the target table if it does not exist (type inference from sample values). Supports `Overwrite` mode (truncate then insert) and `Append` mode (insert only). All writes are transaction-wrapped. |
 | `External` | Loads a user-supplied .NET assembly from disk via reflection, locates a named type that implements `IExternalStep`, instantiates it, and delegates `Execute`. Allows teams to inject arbitrary C# logic into any job pipeline without modifying the framework. |
-| `ParquetFileWriter` | Writes a named `DataFrame` from shared state to a directory of Parquet files (`part-00000.parquet`, `part-00001.parquet`, etc.). Supports configurable part count and `Overwrite`/`Append` write modes. Uses Parquet.Net (pure managed C#). Output paths are relative to the solution root. |
-| `CsvFileWriter` | Writes a named `DataFrame` from shared state to a date-partitioned CSV file. Output path: `{outputDirectory}/{jobDirName}/{etl_effective_date}/{fileName}`. Injects an `etl_effective_date` column (the current effective date string) into every row before writing. UTF-8 (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting. Supports optional trailer lines with token substitution (`{row_count}`, `{date}`, `{timestamp}`). In **Append** mode, the writer reads the prior partition's CSV (located via `DatePartitionHelper`), strips the trailing record when `trailerFormat` is set (using `File.ReadAllLines` + `lines[..^1]` + `DataFrame.FromCsvLines` instead of `DataFrame.FromCsv` to prevent the prior trailer from being parsed as a data row), drops the prior `etl_effective_date` column, and unions the prior data with the current DataFrame before writing. Output paths are relative to the solution root. |
+| `ParquetFileWriter` | Writes a named `DataFrame` from shared state to a directory of Parquet files (`part-00000.parquet`, `part-00001.parquet`, etc.). Output path: `{outputDirectory}/{jobDirName}/{outputTableDirName}/{etl_effective_date}/{fileName}/part-N.parquet`. Supports configurable part count and `Overwrite`/`Append` write modes. Uses Parquet.Net (pure managed C#). Output paths are relative to the solution root. |
+| `CsvFileWriter` | Writes a named `DataFrame` from shared state to a date-partitioned CSV file. Output path: `{outputDirectory}/{jobDirName}/{outputTableDirName}/{etl_effective_date}/{fileName}`. Injects an `etl_effective_date` column (the current effective date string) into every row before writing. UTF-8 (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting. Supports optional trailer lines with token substitution (`{row_count}`, `{date}`, `{timestamp}`). In **Append** mode, the writer reads the prior partition's CSV (located via `DatePartitionHelper`), strips the trailing record when `trailerFormat` is set (using `File.ReadAllLines` + `lines[..^1]` + `DataFrame.FromCsvLines` instead of `DataFrame.FromCsv` to prevent the prior trailer from being parsed as a data row), drops the prior `etl_effective_date` column, and unions the prior data with the current DataFrame before writing. Output paths are relative to the solution root. |
 | `IExternalStep` | Interface that external assemblies must implement to be callable via the `External` module. |
 | `ModuleFactory` | Static factory. Reads the `type` discriminator field from a `JsonElement` and instantiates the appropriate `IModule` implementation. Throws `InvalidOperationException` on unknown types and propagates `KeyNotFoundException` if the `type` field is absent. |
 
@@ -79,9 +79,9 @@ The core framework library. Referenced by both the job executor and the test pro
 | Class | Purpose |
 |---|---|
 | `ConnectionHelper` | Internal static helper that builds a Npgsql connection string. Decodes the Postgres password from a hex-encoded UTF-16 LE environment variable (`PGPASS`). |
-| `DatePartitionHelper` | Shared utility for scanning date-partitioned output directories. `FindLatestPartition(jobDir)` returns the latest `yyyy-MM-dd`-named subdirectory. Used by both `CsvFileWriter` and `ParquetFileWriter` for append-mode prior-partition lookups. |
+| `DatePartitionHelper` | Shared utility for scanning date-partitioned output directories. `FindLatestPartition(dir)` returns the latest `yyyy-MM-dd`-named subdirectory. Used by both `CsvFileWriter` and `ParquetFileWriter` for append-mode prior-partition lookups (called on the table-level directory that contains date partitions). |
 | `PathHelper` | Internal static helper that resolves relative output paths against the solution root directory. Walks up from `AppContext.BaseDirectory` to find the `.sln` file. Used by file writer modules. |
-| `JobConf` | JSON deserialization model. Contains the job name, an optional `firstEffectiveDate` (the bootstrap date used when the job has no prior successful runs), and an ordered `List<JsonElement>` of module configurations. |
+| `JobConf` | JSON deserialization model. Contains the job name, an optional `firstEffectiveDate` (metadata — not used by the executor), and an ordered `List<JsonElement>` of module configurations. |
 | `JobRunner` | Deserializes a job conf from a JSON file path, iterates the module list, creates each module via `ModuleFactory`, and threads shared state through the pipeline. Accepts an optional `initialState` dictionary pre-populated by the executor (used to inject effective dates). Logs progress to the console. |
 
 #### `Lib.Control`
@@ -94,7 +94,7 @@ Orchestration layer that sits above `JobRunner`. Reads job registrations and dep
 | `JobDependency` | Model for a `control.job_dependencies` row — downstream job ID, upstream job ID, and dependency type (`SameDay` or `Latest`). |
 | `ControlDb` | Internal static data-access layer for the control schema. Reads: `GetActiveJobs`, `GetAllDependencies`, `GetSucceededJobIds`, `GetEverSucceededJobIds`, `GetLastSucceededMaxEffectiveDate`, `GetNextAttemptNumber` (keyed by effective date range). Writes: `InsertRun` (records `run_date`, `min_effective_date`, `max_effective_date`), `MarkRunning`, `MarkSucceeded`, `MarkFailed`, `MarkSkipped`. |
 | `ExecutionPlan` | Internal static class that applies Kahn's topological sort to produce an ordered run list. Only unsatisfied dependency edges are counted: `SameDay` edges are always treated as unsatisfied (checked at execution time); a `Latest` edge is satisfied if the upstream job has ever succeeded. Throws `InvalidOperationException` on cycle detection. |
-| `JobExecutorService` | Public orchestrator. Loads jobs and dependencies, builds the execution plan, then for each job computes the pending effective date sequence (gap-fill from last succeeded `max_effective_date` + 1 day to today, using `firstEffectiveDate` from the job conf on first run). Injects dates into shared state and runs each pipeline through `JobRunner`. Records `Pending → Running → Succeeded / Failed` in `control.job_runs` per effective date. Failed jobs stop their own gap-fill sequence; their `SameDay` dependents are recorded as `Skipped`. Accepts an optional `effectiveDateOverride` (single-date backfill/rerun) and `specificJobName`. |
+| `JobExecutorService` | Public orchestrator. Requires an explicit effective date — no auto-advance or gap-fill. Loads jobs and dependencies, builds the execution plan, injects the effective date into shared state, and runs each pipeline through `JobRunner`. Records `Pending -> Running -> Succeeded / Failed` in `control.job_runs`. Failed jobs' `SameDay` dependents are recorded as `Skipped`. Accepts a required `effectiveDate` and optional `specificJobName`. |
 | `TaskQueueService` | Long-running queue-based executor. Polls `control.task_queue` for pending tasks and executes them across 5 threads (4 parallel + 1 serial). Each thread has its own DB connection. Task claim uses `FOR UPDATE SKIP LOCKED` to prevent races. Exits when all threads find an empty queue. No SIGINT handler — on kill, `try/finally` marks in-flight tasks as Failed. |
 | `TaskQueueItem` | Internal model for a claimed task from the queue — task ID, job name, effective date, execution mode. |
 
@@ -112,14 +112,12 @@ Orchestration layer that sits above `JobRunner`. Reads job registrations and dep
 Entry point for running jobs from the command line.
 
 ```
-JobExecutor --service                    # long-running queue executor (polls control.task_queue)
-JobExecutor                              # auto-advance all active jobs
-JobExecutor <job_name>                   # auto-advance one specific job
-JobExecutor <effective_date>             # backfill a specific date, all jobs
-JobExecutor <effective_date> <job_name>  # backfill a specific date, one job
+JobExecutor --service                         # long-running queue executor (polls control.task_queue)
+JobExecutor <effective_date>                  # run all active jobs for that date
+JobExecutor <effective_date> <job_name>       # run one job for that date
 ```
 
-**`--service` mode** delegates to `TaskQueueService`. All other modes delegate to `JobExecutorService`. If the first argument parses as `yyyy-MM-dd` it is treated as an effective date override; otherwise it is treated as a job name and auto-advance mode is used. `run_date` is always set to today internally and is never a CLI argument.
+An effective date argument (format: `yyyy-MM-dd`) is **required** for non-service invocations. **`--service` mode** delegates to `TaskQueueService`. All other modes delegate to `JobExecutorService`. `run_date` is always set to today internally and is never a CLI argument.
 
 #### Queue Executor (`--service`)
 
@@ -234,14 +232,19 @@ In addition to `DataFrameWriter` (which writes to PostgreSQL), the framework sup
 
 ```
 Output/
-├── curated/                         # V1 job outputs
-│   ├── some_job/                    # parquet: directory of part files
+├── curated/                                 # V1 job outputs (legacy flat structure)
+│   ├── some_job/
 │   │   ├── part-00000.parquet
 │   │   └── part-00001.parquet
-│   ├── another_job.csv              # vanilla CSV
-│   └── third_job.csv                # CSV with trailer
-└── double_secret_curated/           # V2 job outputs
-    └── (same structure)
+│   └── ...
+└── double_secret_curated/                   # V2 job outputs (date-partitioned)
+    └── {jobDirName}/
+        └── {outputTableDirName}/
+            └── {etl_effective_date}/
+                ├── output.csv               # CSV output
+                └── output/                  # Parquet output dir
+                    ├── part-00000.parquet
+                    └── part-00001.parquet
 ```
 
 The `Output/` directory is gitignored. All output paths in job configs are relative to the solution root.
@@ -254,7 +257,10 @@ Writes a DataFrame to one or more Parquet part files in a directory. Uses Parque
 |---|---|---|---|
 | `type` | Yes | — | `"ParquetFileWriter"` |
 | `source` | Yes | — | Name of the DataFrame in shared state |
-| `outputDirectory` | Yes | — | Directory path (relative to solution root) |
+| `outputDirectory` | Yes | — | Base directory path (relative to solution root) |
+| `jobDirName` | Yes | — | Subdirectory name for the job |
+| `outputTableDirName` | Yes | — | Subdirectory name for the output table (within the job directory) |
+| `fileName` | Yes | — | Name of the parquet output directory within the date partition |
 | `numParts` | No | `1` | Number of part files to split output across |
 | `writeMode` | Yes | — | `"Overwrite"` or `"Append"` |
 
@@ -263,7 +269,10 @@ Writes a DataFrame to one or more Parquet part files in a directory. Uses Parque
 {
   "type": "ParquetFileWriter",
   "source": "output",
-  "outputDirectory": "Output/curated/account_balance_snapshot",
+  "outputDirectory": "Output/double_secret_curated",
+  "jobDirName": "account_balance_snapshot",
+  "outputTableDirName": "account_balance_snapshot",
+  "fileName": "account_balance_snapshot",
   "numParts": 3,
   "writeMode": "Overwrite"
 }
@@ -271,7 +280,7 @@ Writes a DataFrame to one or more Parquet part files in a directory. Uses Parque
 
 ### CsvFileWriter
 
-Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirectory}/{jobDirName}/{etl_effective_date}/{fileName}`. Injects an `etl_effective_date` column into every row. UTF-8 encoding (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting rules.
+Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirectory}/{jobDirName}/{outputTableDirName}/{etl_effective_date}/{fileName}`. Injects an `etl_effective_date` column into every row. UTF-8 encoding (no BOM), configurable line endings (LF or CRLF), RFC 4180 quoting rules.
 
 | JSON Property | Required | Default | Description |
 |---|---|---|---|
@@ -279,6 +288,7 @@ Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirector
 | `source` | Yes | — | Name of the DataFrame in shared state |
 | `outputDirectory` | Yes | — | Base directory (relative to solution root) |
 | `jobDirName` | Yes | — | Subdirectory name under the base directory |
+| `outputTableDirName` | Yes | — | Subdirectory name for the output table (within the job directory) |
 | `fileName` | Yes | — | Name of the CSV file within the date partition |
 | `includeHeader` | No | `true` | Whether to write a header row |
 | `trailerFormat` | No | `null` | Trailer line format string (see below) |
@@ -294,8 +304,9 @@ Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirector
 {
   "type": "CsvFileWriter",
   "source": "output",
-  "outputDirectory": "Output/curated",
+  "outputDirectory": "Output/double_secret_curated",
   "jobDirName": "customer_contact_info",
+  "outputTableDirName": "customer_contact_info",
   "fileName": "customer_contact_info.csv",
   "writeMode": "Overwrite"
 }
@@ -306,8 +317,9 @@ Writes a DataFrame to a date-partitioned CSV file. Output path: `{outputDirector
 {
   "type": "CsvFileWriter",
   "source": "output",
-  "outputDirectory": "Output/curated",
+  "outputDirectory": "Output/double_secret_curated",
   "jobDirName": "daily_txn_summary",
+  "outputTableDirName": "daily_txn_summary",
   "fileName": "daily_txn_summary.csv",
   "trailerFormat": "TRAILER|{row_count}|{date}",
   "writeMode": "Overwrite"

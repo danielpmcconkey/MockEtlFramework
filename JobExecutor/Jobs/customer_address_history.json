@@ -39,7 +39,8 @@
       "numParts": 2,
       "writeMode": "Append",
       "jobDirName": "customer_address_history",
-      "fileName": "customer_address_history"
+      "fileName": "customer_address_history",
+      "outputTableDirName": "customer_address_history"
     }
   ]
 }

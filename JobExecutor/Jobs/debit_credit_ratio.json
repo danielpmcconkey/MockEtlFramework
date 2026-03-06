@@ -39,7 +39,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "debit_credit_ratio",
-      "fileName": "debit_credit_ratio"
+      "fileName": "debit_credit_ratio",
+      "outputTableDirName": "debit_credit_ratio"
     }
   ]
 }

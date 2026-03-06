@@ -29,7 +29,7 @@ public class ParquetFileWriterTests : IDisposable
     });
 
     private ParquetFileWriter MakeWriter(int numParts = 1, WriteMode writeMode = WriteMode.Overwrite) =>
-        new("data", _tempDir, "testjob", "output", numParts, writeMode);
+        new("data", _tempDir, "testjob", "testtable", "output", numParts, writeMode);
 
     private Dictionary<string, object> MakeState(DataFrame? df = null) => new()
     {
@@ -38,9 +38,9 @@ public class ParquetFileWriterTests : IDisposable
     };
 
     /// <summary>
-    /// Parquet output dir: {tempDir}/testjob/{date}/output/
+    /// Parquet output dir: {tempDir}/testjob/testtable/{date}/output/
     /// </summary>
-    private string ParquetDir => Path.Combine(_tempDir, "testjob", TestDateStr, "output");
+    private string ParquetDir => Path.Combine(_tempDir, "testjob", "testtable", TestDateStr, "output");
 
     [Fact]
     public void Execute_SinglePart_WritesSingleFile()
@@ -108,7 +108,7 @@ public class ParquetFileWriterTests : IDisposable
     [Fact]
     public void Execute_MissingDataFrame_ThrowsKeyNotFoundException()
     {
-        var writer = new ParquetFileWriter("nonexistent", _tempDir, "testjob", "output");
+        var writer = new ParquetFileWriter("nonexistent", _tempDir, "testjob", "testtable", "output");
         var state = new Dictionary<string, object> { [DataSourcing.EtlEffectiveDateKey] = TestDate };
 
         Assert.Throws<KeyNotFoundException>(() => writer.Execute(state));
@@ -249,11 +249,11 @@ public class ParquetFileWriterTests : IDisposable
         // Inject etl_effective_date so the prior parquet has it
         priorDf = priorDf.WithColumn("etl_effective_date", _ => "2024-11-14");
 
-        var priorParquetDir = Path.Combine(_tempDir, "testjob", "2024-11-14", "output");
+        var priorParquetDir = Path.Combine(_tempDir, "testjob", "testtable", "2024-11-14", "output");
         Directory.CreateDirectory(priorParquetDir);
 
         // Write prior parquet manually using the writer (slightly roundabout but ensures correct format)
-        var priorWriter = new ParquetFileWriter("data", _tempDir, "testjob", "output",
+        var priorWriter = new ParquetFileWriter("data", _tempDir, "testjob", "testtable", "output",
             numParts: 1, writeMode: WriteMode.Overwrite);
         var priorState = new Dictionary<string, object>
         {

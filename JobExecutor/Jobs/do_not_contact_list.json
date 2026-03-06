@@ -39,7 +39,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "do_not_contact_list",
-      "fileName": "do_not_contact_list.csv"
+      "fileName": "do_not_contact_list.csv",
+      "outputTableDirName": "do_not_contact_list"
     }
   ]
 }

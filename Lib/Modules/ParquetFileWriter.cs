@@ -7,7 +7,7 @@ namespace Lib.Modules;
 
 /// <summary>
 /// Writes a named DataFrame from shared state to date-partitioned Parquet files.
-/// Output path: {outputDirectory}/{jobDirName}/{etl_effective_date}/{fileName}/part-N.parquet
+/// Output path: {outputDirectory}/{jobDirName}/{outputTableDirName}/{etl_effective_date}/{fileName}/part-N.parquet
 /// Injects an etl_effective_date column into every row before writing.
 /// Files are named part-00000.parquet, part-00001.parquet, etc.
 /// Overwrite mode writes to today's partition; prior partitions are untouched.
@@ -17,17 +17,19 @@ public class ParquetFileWriter : IModule
     private readonly string _sourceDataFrameName;
     private readonly string _outputDirectory;
     private readonly string _jobDirName;
+    private readonly string _outputTableDirName;
     private readonly string _fileName;
     private readonly int _numParts;
     private readonly WriteMode _writeMode;
 
     public ParquetFileWriter(string sourceDataFrameName, string outputDirectory,
-        string jobDirName, string fileName,
+        string jobDirName, string outputTableDirName, string fileName,
         int numParts = 1, WriteMode writeMode = WriteMode.Overwrite)
     {
         _sourceDataFrameName = sourceDataFrameName ?? throw new ArgumentNullException(nameof(sourceDataFrameName));
         _outputDirectory = outputDirectory ?? throw new ArgumentNullException(nameof(outputDirectory));
         _jobDirName = jobDirName ?? throw new ArgumentNullException(nameof(jobDirName));
+        _outputTableDirName = outputTableDirName ?? throw new ArgumentNullException(nameof(outputTableDirName));
         _fileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
         _numParts = numParts < 1 ? 1 : numParts;
         _writeMode = writeMode;
@@ -43,15 +45,15 @@ public class ParquetFileWriter : IModule
                 $"'{DataSourcing.EtlEffectiveDateKey}' not found or not a DateOnly in shared state.");
 
         var dateStr = effectiveDate.ToString("yyyy-MM-dd");
-        var jobDir = Path.Combine(PathHelper.Resolve(_outputDirectory), _jobDirName);
+        var tableDir = Path.Combine(PathHelper.Resolve(_outputDirectory), _jobDirName, _outputTableDirName);
 
         // Append mode: union with prior partition's data
         if (_writeMode == WriteMode.Append)
         {
-            var priorDate = DatePartitionHelper.FindLatestPartition(jobDir);
+            var priorDate = DatePartitionHelper.FindLatestPartition(tableDir);
             if (priorDate != null)
             {
-                var priorParquetDir = Path.Combine(jobDir, priorDate, _fileName);
+                var priorParquetDir = Path.Combine(tableDir, priorDate, _fileName);
                 if (Directory.Exists(priorParquetDir))
                 {
                     var priorDf = DataFrame.FromParquet(priorParquetDir);
@@ -64,8 +66,8 @@ public class ParquetFileWriter : IModule
         // Inject etl_effective_date column
         df = df.WithColumn("etl_effective_date", _ => dateStr);
 
-        // Build date-partitioned output path: {jobDir}/{date}/{fileName}/
-        var parquetDir = Path.Combine(jobDir, dateStr, _fileName);
+        // Build date-partitioned output path: {tableDir}/{date}/{fileName}/
+        var parquetDir = Path.Combine(tableDir, dateStr, _fileName);
 
         // Overwrite: delete existing parquet files in this partition's output dir
         if (_writeMode == WriteMode.Overwrite && Directory.Exists(parquetDir))

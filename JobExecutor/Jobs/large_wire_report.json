@@ -40,7 +40,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "large_wire_report",
-      "fileName": "large_wire_report.csv"
+      "fileName": "large_wire_report.csv",
+      "outputTableDirName": "large_wire_report"
     }
   ]
 }

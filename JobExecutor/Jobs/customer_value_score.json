@@ -60,7 +60,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "customer_value_score",
-      "fileName": "customer_value_score.csv"
+      "fileName": "customer_value_score.csv",
+      "outputTableDirName": "customer_value_score"
     }
   ]
 }

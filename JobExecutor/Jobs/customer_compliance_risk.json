@@ -62,7 +62,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "customer_compliance_risk",
-      "fileName": "customer_compliance_risk.csv"
+      "fileName": "customer_compliance_risk.csv",
+      "outputTableDirName": "customer_compliance_risk"
     }
   ]
 }

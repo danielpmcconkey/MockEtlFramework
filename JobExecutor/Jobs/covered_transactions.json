@@ -14,7 +14,8 @@
       "numParts": 4,
       "writeMode": "Append",
       "jobDirName": "covered_transactions",
-      "fileName": "covered_transactions"
+      "fileName": "covered_transactions",
+      "outputTableDirName": "covered_transactions"
     }
   ]
 }

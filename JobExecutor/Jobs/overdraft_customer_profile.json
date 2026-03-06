@@ -55,7 +55,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "overdraft_customer_profile",
-      "fileName": "overdraft_customer_profile"
+      "fileName": "overdraft_customer_profile",
+      "outputTableDirName": "overdraft_customer_profile"
     }
   ]
 }

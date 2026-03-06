@@ -39,7 +39,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "investment_risk_profile",
-      "fileName": "investment_risk_profile.csv"
+      "fileName": "investment_risk_profile.csv",
+      "outputTableDirName": "investment_risk_profile"
     }
   ]
 }

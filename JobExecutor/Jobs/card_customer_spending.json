@@ -51,7 +51,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "card_customer_spending",
-      "fileName": "card_customer_spending"
+      "fileName": "card_customer_spending",
+      "outputTableDirName": "card_customer_spending"
     }
   ]
 }

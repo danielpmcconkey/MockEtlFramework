@@ -59,7 +59,8 @@
       "numParts": 50,
       "writeMode": "Overwrite",
       "jobDirName": "branch_card_activity",
-      "fileName": "branch_card_activity"
+      "fileName": "branch_card_activity",
+      "outputTableDirName": "branch_card_activity"
     }
   ]
 }

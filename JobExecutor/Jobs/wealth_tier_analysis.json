@@ -49,7 +49,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "wealth_tier_analysis",
-      "fileName": "wealth_tier_analysis.csv"
+      "fileName": "wealth_tier_analysis.csv",
+      "outputTableDirName": "wealth_tier_analysis"
     }
   ]
 }

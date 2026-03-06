@@ -70,7 +70,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "quarterly_executive_kpis",
-      "fileName": "quarterly_executive_kpis"
+      "fileName": "quarterly_executive_kpis",
+      "outputTableDirName": "quarterly_executive_kpis"
     }
   ]
 }

@@ -37,7 +37,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "merchant_category_directory",
-      "fileName": "merchant_category_directory.csv"
+      "fileName": "merchant_category_directory.csv",
+      "outputTableDirName": "merchant_category_directory"
     }
   ]
 }

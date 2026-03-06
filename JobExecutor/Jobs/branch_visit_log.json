@@ -65,7 +65,8 @@
       "numParts": 3,
       "writeMode": "Append",
       "jobDirName": "branch_visit_log",
-      "fileName": "branch_visit_log"
+      "fileName": "branch_visit_log",
+      "outputTableDirName": "branch_visit_log"
     }
   ]
 }

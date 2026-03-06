@@ -41,7 +41,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "compliance_open_items",
-      "fileName": "compliance_open_items"
+      "fileName": "compliance_open_items",
+      "outputTableDirName": "compliance_open_items"
     }
   ]
 }

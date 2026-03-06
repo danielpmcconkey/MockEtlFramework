@@ -45,7 +45,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "overdraft_daily_summary",
-      "fileName": "overdraft_daily_summary.csv"
+      "fileName": "overdraft_daily_summary.csv",
+      "outputTableDirName": "overdraft_daily_summary"
     }
   ]
 }

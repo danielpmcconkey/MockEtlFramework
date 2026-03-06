@@ -40,7 +40,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "repeat_overdraft_customers",
-      "fileName": "repeat_overdraft_customers"
+      "fileName": "repeat_overdraft_customers",
+      "outputTableDirName": "repeat_overdraft_customers"
     }
   ]
 }

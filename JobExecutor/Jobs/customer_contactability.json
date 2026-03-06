@@ -71,7 +71,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "customer_contactability",
-      "fileName": "customer_contactability"
+      "fileName": "customer_contactability",
+      "outputTableDirName": "customer_contactability"
     }
   ]
 }

@@ -58,7 +58,8 @@
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "email_opt_in_rate",
-      "fileName": "email_opt_in_rate"
+      "fileName": "email_opt_in_rate",
+      "outputTableDirName": "email_opt_in_rate"
     }
   ]
 }

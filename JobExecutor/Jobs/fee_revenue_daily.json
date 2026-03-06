@@ -32,7 +32,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "fee_revenue_daily",
-      "fileName": "fee_revenue_daily.csv"
+      "fileName": "fee_revenue_daily.csv",
+      "outputTableDirName": "fee_revenue_daily"
     }
   ]
 }

@@ -57,7 +57,8 @@
       "lineEnding": "LF",
       "outputDirectory": "Output/poc4",
       "jobDirName": "product_penetration",
-      "fileName": "product_penetration.csv"
+      "fileName": "product_penetration.csv",
+      "outputTableDirName": "product_penetration"
     }
   ]
 }
