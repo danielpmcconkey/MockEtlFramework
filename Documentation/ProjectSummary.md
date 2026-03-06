@@ -37,9 +37,9 @@ The mock framework mirrors a production PySpark ETL system. Key concepts:
 
 ### Database Layout
 
-- **PostgreSQL** at localhost, user `dansdev`, database `atc`
-- Password: hex-encoded UTF-16 LE in env var `PGPASS`; decode with `echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8`
-- **Schemas:** `datalake` (source, NEVER modify), `curated` (job output), `double_secret_curated` (agent rebuild output), `control` (job metadata and run history)
+- **PostgreSQL** at `172.18.0.1`, user `claude`, database `atc`
+- Password: `claude` (sandbox environment)
+- **Schemas:** `datalake` (source, NEVER modify), `control` (job metadata and run history)
 
 ### Build & Run
 
@@ -77,14 +77,13 @@ MockEtlFramework/
 ├── SQL/                        # SQL scripts (DDL, job registration)
 ├── Documentation/              # Codebase docs (THIS directory)
 └── Output/                     # File writer output (CSV, Parquet)
-    └── curated/                # Job output files
+    └── poc4/                   # Job output files (date-partitioned)
 ```
 
 ### PostgreSQL Connection Pattern
 
 ```bash
-export PGPASSWORD=$(echo "$PGPASS" | xxd -r -p | iconv -f UTF-16LE -t UTF-8) && \
-  psql -h localhost -U dansdev -d atc -c "SELECT ..."
+PGPASSWORD=claude psql -h 172.18.0.1 -U claude -d atc -c "SELECT ..."
 ```
 
 ### Job Registration
