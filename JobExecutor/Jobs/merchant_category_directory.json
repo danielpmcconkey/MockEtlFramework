@@ -35,7 +35,7 @@
       "includeHeader": true,
       "writeMode": "Append",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "merchant_category_directory",
       "fileName": "merchant_category_directory.csv",
       "outputTableDirName": "merchant_category_directory"

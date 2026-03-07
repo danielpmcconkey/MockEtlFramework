@@ -29,7 +29,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "weekend_transaction_pattern",
       "fileName": "weekend_transaction_pattern.csv",
       "outputTableDirName": "weekend_transaction_pattern"

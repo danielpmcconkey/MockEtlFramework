@@ -45,7 +45,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "dormant_account_detection",

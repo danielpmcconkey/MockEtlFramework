@@ -46,7 +46,7 @@
       "includeHeader": true,
       "writeMode": "Append",
       "lineEnding": "CRLF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "customer_branch_activity",
       "fileName": "customer_branch_activity.csv",
       "outputTableDirName": "customer_branch_activity"

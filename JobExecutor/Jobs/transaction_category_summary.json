@@ -37,7 +37,7 @@
       "trailerFormat": "END|{row_count}",
       "writeMode": "Append",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "transaction_category_summary",
       "fileName": "transaction_category_summary.csv",
       "outputTableDirName": "transaction_category_summary"

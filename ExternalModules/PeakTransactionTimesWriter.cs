@@ -67,11 +67,10 @@ public class PeakTransactionTimesWriter : IExternalStep
     private static void WriteDirectCsv(List<Row> rows, List<string> columns, int inputCount, Dictionary<string, object> sharedState)
     {
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "peak_transaction_times.csv");
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-
         var maxDate = sharedState.ContainsKey("__etlEffectiveDate") ? (DateOnly)sharedState["__etlEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
         var dateStr = maxDate.ToString("yyyy-MM-dd");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "peak_transaction_times", "peak_transaction_times", dateStr, "peak_transaction_times.csv");
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         using var writer = new StreamWriter(outputPath, append: false);
         writer.NewLine = "\n";

@@ -38,7 +38,7 @@
       "trailerFormat": "END|{row_count}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "account_type_distribution",
       "fileName": "account_type_distribution.csv",
       "outputTableDirName": "account_type_distribution"

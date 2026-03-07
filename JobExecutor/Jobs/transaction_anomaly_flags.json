@@ -46,7 +46,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "transaction_anomaly_flags",
       "fileName": "transaction_anomaly_flags.csv",
       "outputTableDirName": "transaction_anomaly_flags"

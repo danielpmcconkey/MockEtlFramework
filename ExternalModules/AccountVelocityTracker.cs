@@ -77,7 +77,9 @@ public class AccountVelocityTracker : IExternalStep
     private static void WriteDirectCsv(List<Row> rows, List<string> columns, Dictionary<string, object> sharedState)
     {
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "account_velocity_tracking.csv");
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate") ? (DateOnly)sharedState["__etlEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
+        var dateStr = maxDate.ToString("yyyy-MM-dd");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "account_velocity_tracking", "account_velocity_tracking", dateStr, "account_velocity_tracking.csv");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         // W12: Append mode with header re-emitted on every run

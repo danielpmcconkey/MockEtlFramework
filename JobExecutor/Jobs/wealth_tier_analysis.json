@@ -47,7 +47,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "wealth_tier_analysis",
       "fileName": "wealth_tier_analysis.csv",
       "outputTableDirName": "wealth_tier_analysis"

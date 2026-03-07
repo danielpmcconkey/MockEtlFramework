@@ -41,7 +41,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "securities_directory",
       "fileName": "securities_directory.csv",
       "outputTableDirName": "securities_directory"

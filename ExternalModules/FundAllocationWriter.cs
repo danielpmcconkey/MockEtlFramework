@@ -49,7 +49,7 @@ public class FundAllocationWriter : IExternalStep
 
         // Write CSV directly (bypassing CsvFileWriter)
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "fund_allocation_breakdown.csv");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "fund_allocation_breakdown", "fund_allocation_breakdown", dateStr, "fund_allocation_breakdown.csv");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         int rowCount = 0;

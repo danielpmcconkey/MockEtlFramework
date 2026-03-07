@@ -37,7 +37,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "CRLF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "credit_score_snapshot",
       "fileName": "credit_score_snapshot.csv",
       "outputTableDirName": "credit_score_snapshot"

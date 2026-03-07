@@ -49,7 +49,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "credit_score_delta",
       "fileName": "credit_score_delta.csv",
       "outputTableDirName": "credit_score_delta"

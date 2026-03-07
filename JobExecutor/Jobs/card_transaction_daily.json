@@ -64,7 +64,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "card_transaction_daily",
       "fileName": "card_transaction_daily.csv",
       "outputTableDirName": "card_transaction_daily"

@@ -50,7 +50,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "monthly_revenue_breakdown",
       "fileName": "monthly_revenue_breakdown.csv",
       "outputTableDirName": "monthly_revenue_breakdown"

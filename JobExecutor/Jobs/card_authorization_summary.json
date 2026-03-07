@@ -38,7 +38,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "card_authorization_summary",
       "fileName": "card_authorization_summary.csv",
       "outputTableDirName": "card_authorization_summary"

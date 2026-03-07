@@ -39,7 +39,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "high_risk_merchant_activity",
       "fileName": "high_risk_merchant_activity.csv",
       "outputTableDirName": "high_risk_merchant_activity"

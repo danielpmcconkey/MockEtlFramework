@@ -55,7 +55,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "cross_sell_candidates",
       "fileName": "cross_sell_candidates.csv",
       "outputTableDirName": "cross_sell_candidates"

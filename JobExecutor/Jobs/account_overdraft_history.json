@@ -39,7 +39,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "overdraft_history",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 50,
       "writeMode": "Overwrite",
       "jobDirName": "account_overdraft_history",

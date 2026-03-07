@@ -69,7 +69,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "dans_transaction_special",
       "fileName": "dans_transaction_details.csv",
       "outputTableDirName": "dans_transaction_details"
@@ -85,7 +85,7 @@
       "includeHeader": true,
       "writeMode": "Append",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "dans_transaction_special",
       "fileName": "dans_transactions_by_state_province.csv",
       "outputTableDirName": "dans_transactions_by_state_province"

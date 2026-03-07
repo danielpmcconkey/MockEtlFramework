@@ -69,7 +69,8 @@ public class OverdraftAmountDistributionProcessor : IExternalStep
 
         // W7: External writes CSV directly (bypassing CsvFileWriter)
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "overdraft_amount_distribution.csv");
+        var dateStr = maxDate.ToString("yyyy-MM-dd");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "overdraft_amount_distribution", "overdraft_amount_distribution", dateStr, "overdraft_amount_distribution.csv");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         using (var writer = new StreamWriter(outputPath, false))

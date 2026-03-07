@@ -55,7 +55,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "product_penetration",
       "fileName": "product_penetration.csv",
       "outputTableDirName": "product_penetration"

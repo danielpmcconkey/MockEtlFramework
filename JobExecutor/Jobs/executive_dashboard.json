@@ -96,7 +96,7 @@
       "trailerFormat": "SUMMARY|{row_count}|{date}|{timestamp}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "executive_dashboard",
       "fileName": "executive_dashboard.csv",
       "outputTableDirName": "executive_dashboard"

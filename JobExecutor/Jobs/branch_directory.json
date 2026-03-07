@@ -28,7 +28,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "CRLF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "branch_directory",
       "fileName": "branch_directory.csv",
       "outputTableDirName": "branch_directory"

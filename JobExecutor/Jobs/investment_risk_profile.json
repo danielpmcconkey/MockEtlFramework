@@ -37,7 +37,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "investment_risk_profile",
       "fileName": "investment_risk_profile.csv",
       "outputTableDirName": "investment_risk_profile"

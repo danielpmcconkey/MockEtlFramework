@@ -25,7 +25,7 @@
       "includeHeader": true,
       "writeMode": "Append",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "preference_trend",
       "fileName": "preference_trend.csv",
       "outputTableDirName": "preference_trend"

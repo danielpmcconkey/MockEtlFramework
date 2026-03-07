@@ -71,7 +71,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "customer_credit_summary",
       "fileName": "customer_credit_summary.csv",
       "outputTableDirName": "customer_credit_summary"

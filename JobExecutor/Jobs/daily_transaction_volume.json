@@ -26,7 +26,7 @@
       "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
       "writeMode": "Append",
       "lineEnding": "CRLF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "daily_transaction_volume",
       "fileName": "daily_transaction_volume.csv",
       "outputTableDirName": "daily_transaction_volume"

@@ -10,7 +10,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 4,
       "writeMode": "Append",
       "jobDirName": "covered_transactions",

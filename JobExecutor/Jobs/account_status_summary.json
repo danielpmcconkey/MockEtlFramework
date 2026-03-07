@@ -37,7 +37,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "account_status_summary",
       "fileName": "account_status_summary.csv",
       "outputTableDirName": "account_status_summary"

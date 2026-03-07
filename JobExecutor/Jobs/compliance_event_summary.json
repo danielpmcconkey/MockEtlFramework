@@ -38,7 +38,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "compliance_event_summary",
       "fileName": "compliance_event_summary.csv",
       "outputTableDirName": "compliance_event_summary"

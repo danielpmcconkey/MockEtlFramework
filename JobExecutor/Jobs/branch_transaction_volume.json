@@ -58,7 +58,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "branch_txn_vol",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "branch_transaction_volume",

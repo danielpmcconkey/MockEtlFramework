@@ -24,7 +24,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 50,
       "writeMode": "Overwrite",
       "jobDirName": "card_status_snapshot",

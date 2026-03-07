@@ -60,7 +60,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "customer_compliance_risk",
       "fileName": "customer_compliance_risk.csv",
       "outputTableDirName": "customer_compliance_risk"

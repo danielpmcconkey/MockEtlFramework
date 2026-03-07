@@ -46,7 +46,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "payment_channel_mix",

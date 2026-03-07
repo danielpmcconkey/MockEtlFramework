@@ -70,7 +70,7 @@ public class PreferenceBySegmentWriter : IExternalStep
 
         // Write CSV directly (bypassing CsvFileWriter)
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "preference_by_segment.csv");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "preference_by_segment", "preference_by_segment", dateStr, "preference_by_segment.csv");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         using (var writer = new StreamWriter(outputPath, append: false))

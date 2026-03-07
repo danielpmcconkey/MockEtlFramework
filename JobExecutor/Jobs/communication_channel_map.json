@@ -58,7 +58,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "communication_channel_map",
       "fileName": "communication_channel_map.csv",
       "outputTableDirName": "communication_channel_map"

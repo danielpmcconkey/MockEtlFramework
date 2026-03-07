@@ -28,7 +28,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "compliance_resolution_time",
       "fileName": "compliance_resolution_time.csv",
       "outputTableDirName": "compliance_resolution_time"

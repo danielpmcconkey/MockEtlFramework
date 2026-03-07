@@ -37,7 +37,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "card_type_distribution",
       "fileName": "card_type_distribution.csv",
       "outputTableDirName": "card_type_distribution"

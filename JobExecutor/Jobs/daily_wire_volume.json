@@ -29,7 +29,7 @@
       "includeHeader": true,
       "writeMode": "Append",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "daily_wire_volume",
       "fileName": "daily_wire_volume.csv",
       "outputTableDirName": "daily_wire_volume"

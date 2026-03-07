@@ -46,7 +46,7 @@
       "trailerFormat": "END|{row_count}",
       "writeMode": "Append",
       "lineEnding": "CRLF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "branch_visit_purpose_breakdown",
       "fileName": "branch_visit_purpose_breakdown.csv",
       "outputTableDirName": "branch_visit_purpose_breakdown"

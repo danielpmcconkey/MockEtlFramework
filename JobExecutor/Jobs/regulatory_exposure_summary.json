@@ -56,7 +56,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "regulatory_exposure_summary",

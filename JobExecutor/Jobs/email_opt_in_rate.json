@@ -54,7 +54,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "email_opt_in",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "email_opt_in_rate",

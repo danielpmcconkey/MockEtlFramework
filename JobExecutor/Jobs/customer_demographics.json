@@ -62,7 +62,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "CRLF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "customer_demographics",
       "fileName": "customer_demographics.csv",
       "outputTableDirName": "customer_demographics"

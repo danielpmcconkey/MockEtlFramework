@@ -34,7 +34,7 @@
       "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "top_branches",
       "fileName": "top_branches.csv",
       "outputTableDirName": "top_branches"

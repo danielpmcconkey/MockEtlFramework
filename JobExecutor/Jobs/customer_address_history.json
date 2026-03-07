@@ -35,7 +35,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "addr_history",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 2,
       "writeMode": "Append",
       "jobDirName": "customer_address_history",

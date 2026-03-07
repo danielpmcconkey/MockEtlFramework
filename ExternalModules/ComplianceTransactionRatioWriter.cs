@@ -39,7 +39,7 @@ public class ComplianceTransactionRatioWriter : IExternalStep
 
         // Write CSV directly (bypassing CsvFileWriter)
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "compliance_transaction_ratio.csv");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "compliance_transaction_ratio", "compliance_transaction_ratio", dateStr, "compliance_transaction_ratio.csv");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         using (var writer = new StreamWriter(outputPath, append: false))

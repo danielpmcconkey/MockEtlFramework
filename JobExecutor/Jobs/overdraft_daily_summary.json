@@ -43,7 +43,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "overdraft_daily_summary",
       "fileName": "overdraft_daily_summary.csv",
       "outputTableDirName": "overdraft_daily_summary"

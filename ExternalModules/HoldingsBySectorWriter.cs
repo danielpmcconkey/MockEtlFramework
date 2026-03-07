@@ -49,7 +49,7 @@ public class HoldingsBySectorWriter : IExternalStep
 
         // Write CSV directly (bypassing CsvFileWriter)
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "holdings_by_sector.csv");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "holdings_by_sector", "holdings_by_sector", dateStr, "holdings_by_sector.csv");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         using (var writer = new StreamWriter(outputPath, append: false))

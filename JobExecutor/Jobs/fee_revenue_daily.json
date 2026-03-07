@@ -30,7 +30,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "fee_revenue_daily",
       "fileName": "fee_revenue_daily.csv",
       "outputTableDirName": "fee_revenue_daily"

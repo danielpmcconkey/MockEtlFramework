@@ -38,7 +38,7 @@
       "includeHeader": true,
       "writeMode": "Append",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "branch_visits_by_customer",
       "fileName": "branch_visits_by_customer.csv",
       "outputTableDirName": "branch_visits_by_customer",

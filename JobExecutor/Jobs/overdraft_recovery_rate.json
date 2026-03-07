@@ -29,7 +29,7 @@
       "trailerFormat": "TRAILER|{row_count}|{date}",
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "overdraft_recovery_rate",
       "fileName": "overdraft_recovery_rate.csv",
       "outputTableDirName": "overdraft_recovery_rate"

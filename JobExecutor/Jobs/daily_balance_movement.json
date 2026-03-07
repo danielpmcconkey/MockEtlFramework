@@ -35,7 +35,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "daily_balance_movement",
       "fileName": "daily_balance_movement.csv",
       "outputTableDirName": "daily_balance_movement"

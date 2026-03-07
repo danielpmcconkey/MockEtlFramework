@@ -35,7 +35,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "pref_counts",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 1,
       "writeMode": "Overwrite",
       "jobDirName": "preference_change_count",

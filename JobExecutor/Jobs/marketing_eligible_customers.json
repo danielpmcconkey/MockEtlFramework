@@ -51,7 +51,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "marketing_eligible_customers",
       "fileName": "marketing_eligible_customers.csv",
       "outputTableDirName": "marketing_eligible_customers"

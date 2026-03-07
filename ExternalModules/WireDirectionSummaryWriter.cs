@@ -79,14 +79,13 @@ public class WireDirectionSummaryWriter : IExternalStep
     private void WriteDirectCsv(List<Row> rows, List<string> columns, int inputCount, Dictionary<string, object> sharedState)
     {
         var solutionRoot = GetSolutionRoot();
-        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "wire_direction_summary.csv");
+        var maxDate = sharedState.ContainsKey("__etlEffectiveDate") ? (DateOnly)sharedState["__etlEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
+        var dateStr = maxDate.ToString("yyyy-MM-dd");
+        var outputPath = Path.Combine(solutionRoot, "Output", "curated", "wire_direction_summary", "wire_direction_summary", dateStr, "wire_direction_summary.csv");
 
         var outputDir = Path.GetDirectoryName(outputPath)!;
         if (!Directory.Exists(outputDir))
             Directory.CreateDirectory(outputDir);
-
-        var maxDate = sharedState.ContainsKey("__etlEffectiveDate") ? (DateOnly)sharedState["__etlEffectiveDate"] : DateOnly.FromDateTime(DateTime.Today);
-        var dateStr = maxDate.ToString("yyyy-MM-dd");
 
         using var writer = new StreamWriter(outputPath, append: false);
         writer.NewLine = "\n";

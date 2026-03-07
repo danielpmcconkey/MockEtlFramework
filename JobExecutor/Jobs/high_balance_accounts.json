@@ -37,7 +37,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "high_balance_accounts",
       "fileName": "high_balance_accounts.csv",
       "outputTableDirName": "high_balance_accounts"

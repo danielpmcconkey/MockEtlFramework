@@ -55,7 +55,7 @@
     {
       "type": "ParquetFileWriter",
       "source": "output",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "numParts": 50,
       "writeMode": "Overwrite",
       "jobDirName": "branch_card_activity",

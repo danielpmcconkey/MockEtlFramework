@@ -36,7 +36,7 @@
       "includeHeader": true,
       "writeMode": "Overwrite",
       "lineEnding": "LF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "transaction_size_buckets",
       "fileName": "transaction_size_buckets.csv",
       "outputTableDirName": "transaction_size_buckets"

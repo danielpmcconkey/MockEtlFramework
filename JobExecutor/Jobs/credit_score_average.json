@@ -47,7 +47,7 @@
       "trailerFormat": "CONTROL|{date}|{row_count}|{timestamp}",
       "writeMode": "Overwrite",
       "lineEnding": "CRLF",
-      "outputDirectory": "Output/poc4",
+      "outputDirectory": "Output/curated",
       "jobDirName": "credit_score_average",
       "fileName": "credit_score_average.csv",
       "outputTableDirName": "credit_score_average"
