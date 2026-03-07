@@ -94,6 +94,8 @@ public class Transformation : IModule
             rows.Add(rowData);
         }
 
+        if (rows.Count == 0)
+            return new DataFrame(columns);
         return new DataFrame(rows);
     }
 

@@ -214,6 +214,14 @@ public class DataSourcing : IModule
             rows.Add(rowData);
         }
 
+        // Preserve column schema even when query returns no rows
+        if (rows.Count == 0)
+        {
+            var columns = includesAsOf
+                ? _columnNames
+                : _columnNames.Append("ifw_effective_date").ToArray();
+            return new DataFrame(columns);
+        }
         return new DataFrame(rows);
     }
 
