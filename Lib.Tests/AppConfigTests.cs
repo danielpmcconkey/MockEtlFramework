@@ -90,10 +90,10 @@ public class AppConfigTests
     // --- TaskQueueSettings defaults ---
 
     [Fact]
-    public void TaskQueueSettings_Default_ParallelThreadCount()
+    public void TaskQueueSettings_Default_ThreadCount()
     {
         var tq = new TaskQueueSettings();
-        Assert.Equal(4, tq.ParallelThreadCount);
+        Assert.Equal(5, tq.ThreadCount);
     }
 
     [Fact]

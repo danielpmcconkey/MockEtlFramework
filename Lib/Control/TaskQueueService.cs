@@ -4,16 +4,18 @@ namespace Lib.Control;
 
 /// <summary>
 /// Long-running queue-based executor. Polls control.task_queue for pending tasks
-/// and executes them across multiple threads.
+/// and executes them across multiple threads using a claim-by-job model.
 ///
 /// Threading model:
-///   - N threads poll for execution_mode = 'parallel' (configurable via AppConfig.TaskQueue)
-///   - 1 thread polls for execution_mode = 'serial'
+///   - N threads (configurable via AppConfig.TaskQueue.ThreadCount)
+///   - Each thread claims ALL pending tasks for a single job using advisory locks
+///   - Tasks within a job are processed sequentially in effective_date order
+///   - Different jobs run in parallel across threads
 ///   - Each thread has its own DB connection (Npgsql not thread-safe)
-///   - Task claim uses FOR UPDATE SKIP LOCKED to prevent races
+///   - If a task fails, remaining tasks in the batch are marked Failed
 ///
 /// Exit behavior:
-///   - When ALL threads find empty queue and idle cycles are exhausted, service exits
+///   - When ALL threads are idle and idle cycles are exhausted, service exits
 ///   - No SIGINT handler — die immediately on kill, try/finally marks Failed on way out
 /// </summary>
 public class TaskQueueService
@@ -28,12 +30,12 @@ public class TaskQueueService
     public TaskQueueService(AppConfig appConfig)
     {
         _config = appConfig.TaskQueue;
-        _totalThreadCount = _config.ParallelThreadCount + 1; // +1 for serial
+        _totalThreadCount = _config.ThreadCount;
         _threadIdle = new bool[_totalThreadCount];
     }
 
     /// <summary>
-    /// Pre-loads the job name → conf path mapping from control.jobs.
+    /// Pre-loads the job name -> conf path mapping from control.jobs.
     /// Each thread can read this safely since it's populated once before threads start.
     /// </summary>
     private Dictionary<string, JobRegistration> _jobsByName = new(StringComparer.OrdinalIgnoreCase);
@@ -41,7 +43,7 @@ public class TaskQueueService
     public void Run()
     {
         Console.WriteLine("[TaskQueueService] Starting queue executor...");
-        Console.WriteLine($"[TaskQueueService] {_config.ParallelThreadCount} parallel thread(s) + 1 serial thread");
+        Console.WriteLine($"[TaskQueueService] {_totalThreadCount} thread(s)");
 
         // Load job registry once
         _jobsByName = ControlDb.GetActiveJobs()
@@ -53,25 +55,16 @@ public class TaskQueueService
 
         try
         {
-            // Start parallel threads
-            for (int i = 0; i < _config.ParallelThreadCount; i++)
+            for (int i = 0; i < _totalThreadCount; i++)
             {
                 int threadIndex = i;
-                threads[i] = new Thread(() => WorkerLoop("parallel", $"P{threadIndex}", threadIndex))
+                threads[i] = new Thread(() => WorkerLoop($"W{threadIndex}", threadIndex))
                 {
-                    Name = $"QueueWorker-P{threadIndex}",
+                    Name = $"QueueWorker-W{threadIndex}",
                     IsBackground = true
                 };
                 threads[i].Start();
             }
-
-            // Start serial thread
-            threads[_config.ParallelThreadCount] = new Thread(() => WorkerLoop("serial", "S0", _config.ParallelThreadCount))
-            {
-                Name = "QueueWorker-S0",
-                IsBackground = true
-            };
-            threads[_config.ParallelThreadCount].Start();
 
             // Wait for all threads to finish
             foreach (var t in threads)
@@ -92,18 +85,18 @@ public class TaskQueueService
         }
     }
 
-    private void WorkerLoop(string executionMode, string threadLabel, int threadIndex)
+    private void WorkerLoop(string threadLabel, int threadIndex)
     {
-        Console.WriteLine($"[{threadLabel}] Worker started (mode={executionMode})");
+        Console.WriteLine($"[{threadLabel}] Worker started");
 
         while (!_shutdownRequested)
         {
-            TaskQueueItem? task = null;
+            List<TaskQueueItem>? batch = null;
             try
             {
-                task = ClaimNextTask(executionMode);
+                batch = ClaimNextJobBatch();
 
-                if (task == null)
+                if (batch == null || batch.Count == 0)
                 {
                     // Mark this thread as idle
                     _threadIdle[threadIndex] = true;
@@ -125,26 +118,18 @@ public class TaskQueueService
                         continue;
                     }
 
-                    Console.WriteLine($"[{threadLabel}] Queue empty. Sleeping {_config.PollIntervalMs}ms...");
+                    Console.WriteLine($"[{threadLabel}] No work available. Sleeping {_config.PollIntervalMs}ms...");
                     Thread.Sleep(_config.PollIntervalMs);
                     continue;
                 }
 
                 // Got work — mark this thread as active and reset idle counter
                 _threadIdle[threadIndex] = false;
-                _allIdleCycleCount = 0; // Reset counter when work is found
+                _allIdleCycleCount = 0;
 
-                Console.WriteLine($"[{threadLabel}] Claimed task {task.TaskId}: {task.JobName} @ {task.EffectiveDate:yyyy-MM-dd}");
+                Console.WriteLine($"[{threadLabel}] Claimed {batch.Count} task(s) for job '{batch[0].JobName}'");
 
-                ExecuteTask(task, threadLabel);
-
-                MarkTaskSucceeded(task.TaskId);
-                Console.WriteLine($"[{threadLabel}] Task {task.TaskId} SUCCEEDED: {task.JobName} @ {task.EffectiveDate:yyyy-MM-dd}");
-            }
-            catch (Exception ex) when (task != null)
-            {
-                MarkTaskFailed(task.TaskId, ex.ToString());
-                Console.WriteLine($"[{threadLabel}] Task {task.TaskId} FAILED: {task.JobName} @ {task.EffectiveDate:yyyy-MM-dd} — {ex.Message}");
+                ProcessBatch(batch, threadLabel);
             }
             catch (Exception ex)
             {
@@ -153,6 +138,40 @@ public class TaskQueueService
         }
 
         Console.WriteLine($"[{threadLabel}] Worker exiting.");
+    }
+
+    private void ProcessBatch(List<TaskQueueItem> batch, string threadLabel)
+    {
+        for (int i = 0; i < batch.Count; i++)
+        {
+            if (_shutdownRequested) return;
+
+            var task = batch[i];
+            try
+            {
+                Console.WriteLine($"[{threadLabel}] Running task {task.TaskId}: {task.JobName} @ {task.EffectiveDate:yyyy-MM-dd} ({i + 1}/{batch.Count})");
+
+                ExecuteTask(task, threadLabel);
+
+                MarkTaskSucceeded(task.TaskId);
+                Console.WriteLine($"[{threadLabel}] Task {task.TaskId} SUCCEEDED: {task.JobName} @ {task.EffectiveDate:yyyy-MM-dd}");
+            }
+            catch (Exception ex)
+            {
+                MarkTaskFailed(task.TaskId, ex.ToString());
+                Console.WriteLine($"[{threadLabel}] Task {task.TaskId} FAILED: {task.JobName} @ {task.EffectiveDate:yyyy-MM-dd} — {ex.Message}");
+
+                // Fail remaining tasks in the batch — ordering matters for append-mode jobs
+                for (int j = i + 1; j < batch.Count; j++)
+                {
+                    MarkTaskFailed(batch[j].TaskId,
+                        $"Skipped: prior task {task.TaskId} ({task.JobName} @ {task.EffectiveDate:yyyy-MM-dd}) failed");
+                    Console.WriteLine($"[{threadLabel}] Task {batch[j].TaskId} SKIPPED: {batch[j].JobName} @ {batch[j].EffectiveDate:yyyy-MM-dd} (prior failure)");
+                }
+
+                return;
+            }
+        }
     }
 
     private void ExecuteTask(TaskQueueItem task, string threadLabel)
@@ -185,7 +204,7 @@ public class TaskQueueService
         catch (Exception)
         {
             ControlDb.MarkFailed(runId, $"See task_queue task_id={task.TaskId} for details");
-            throw; // Re-throw so the worker loop catches it and marks the queue task failed
+            throw; // Re-throw so ProcessBatch catches it and fails remaining tasks
         }
     }
 
@@ -193,34 +212,94 @@ public class TaskQueueService
     // Queue operations — each uses its own connection
     // -------------------------------------------------------------------------
 
-    private static TaskQueueItem? ClaimNextTask(string executionMode)
+    /// <summary>
+    /// Claims all pending tasks for a single job using advisory locks for
+    /// job-level exclusivity. Returns null if no work is available.
+    ///
+    /// Flow:
+    ///   1. Find distinct job names with pending tasks
+    ///   2. Try pg_try_advisory_xact_lock(hashtext(job_name)) on each until one succeeds
+    ///   3. Claim all pending rows for that job (FOR UPDATE SKIP LOCKED)
+    ///   4. Commit (releases advisory lock — rows are now 'Running')
+    ///   5. Return tasks sorted by effective_date
+    /// </summary>
+    private static List<TaskQueueItem>? ClaimNextJobBatch()
     {
         using var conn = new NpgsqlConnection(ConnectionHelper.GetConnectionString());
         conn.Open();
-        using var cmd = new NpgsqlCommand(@"
+        using var txn = conn.BeginTransaction();
+
+        // Find distinct job names with pending work
+        var jobNames = new List<string>();
+        using (var cmd = new NpgsqlCommand(@"
+            SELECT DISTINCT job_name FROM control.task_queue
+            WHERE status = 'Pending'
+            ORDER BY job_name", conn, txn))
+        using (var reader = cmd.ExecuteReader())
+        {
+            while (reader.Read())
+                jobNames.Add(reader.GetString(0));
+        }
+
+        if (jobNames.Count == 0)
+        {
+            txn.Commit();
+            return null;
+        }
+
+        // Try advisory lock on each job until one succeeds.
+        // Advisory locks prevent two threads from claiming the same job simultaneously.
+        // The lock is transaction-scoped — released on commit.
+        string? claimedJob = null;
+        foreach (var jobName in jobNames)
+        {
+            using var lockCmd = new NpgsqlCommand(
+                "SELECT pg_try_advisory_xact_lock(hashtext(@job))", conn, txn);
+            lockCmd.Parameters.AddWithValue("job", jobName);
+            bool gotLock = (bool)lockCmd.ExecuteScalar()!;
+            if (gotLock)
+            {
+                claimedJob = jobName;
+                break;
+            }
+        }
+
+        if (claimedJob == null)
+        {
+            txn.Commit();
+            return null; // All jobs are locked by other threads
+        }
+
+        // Claim all pending tasks for this job
+        var tasks = new List<TaskQueueItem>();
+        using (var claimCmd = new NpgsqlCommand(@"
             UPDATE control.task_queue
             SET status = 'Running', started_at = NOW()
-            WHERE task_id = (
+            WHERE task_id IN (
                 SELECT task_id FROM control.task_queue
-                WHERE status = 'Pending' AND execution_mode = @mode
-                ORDER BY task_id
+                WHERE status = 'Pending' AND job_name = @job
                 FOR UPDATE SKIP LOCKED
-                LIMIT 1
             )
-            RETURNING task_id, job_name, effective_date, execution_mode;", conn);
-        cmd.Parameters.AddWithValue("mode", executionMode);
-
-        using var reader = cmd.ExecuteReader();
-        if (!reader.Read())
-            return null;
-
-        return new TaskQueueItem
+            RETURNING task_id, job_name, effective_date;", conn, txn))
         {
-            TaskId = reader.GetInt32(0),
-            JobName = reader.GetString(1),
-            EffectiveDate = DateOnly.FromDateTime(reader.GetDateTime(2)),
-            ExecutionMode = reader.GetString(3)
-        };
+            claimCmd.Parameters.AddWithValue("job", claimedJob);
+            using var reader = claimCmd.ExecuteReader();
+            while (reader.Read())
+            {
+                tasks.Add(new TaskQueueItem
+                {
+                    TaskId = reader.GetInt32(0),
+                    JobName = reader.GetString(1),
+                    EffectiveDate = DateOnly.FromDateTime(reader.GetDateTime(2))
+                });
+            }
+        }
+
+        txn.Commit();
+
+        // Sort by effective date for sequential processing
+        tasks.Sort((a, b) => a.EffectiveDate.CompareTo(b.EffectiveDate));
+        return tasks;
     }
 
     private static void MarkTaskSucceeded(int taskId)
@@ -255,5 +334,4 @@ internal class TaskQueueItem
     public int TaskId { get; init; }
     public string JobName { get; init; } = "";
     public DateOnly EffectiveDate { get; init; }
-    public string ExecutionMode { get; init; } = "";
 }
