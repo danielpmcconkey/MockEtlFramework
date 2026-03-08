@@ -22,14 +22,16 @@ public class External : IModule
 
     public Dictionary<string, object> Execute(Dictionary<string, object> sharedState)
     {
-        if (!File.Exists(_assemblyPath))
-            throw new FileNotFoundException($"External assembly not found: '{_assemblyPath}'.");
+        var resolvedPath = PathHelper.Resolve(_assemblyPath);
 
-        var assembly = Assembly.LoadFrom(_assemblyPath);
+        if (!File.Exists(resolvedPath))
+            throw new FileNotFoundException($"External assembly not found: '{resolvedPath}'.");
+
+        var assembly = Assembly.LoadFrom(resolvedPath);
 
         var type = assembly.GetType(_typeName)
             ?? throw new TypeLoadException(
-                $"Type '{_typeName}' was not found in assembly '{_assemblyPath}'.");
+                $"Type '{_typeName}' was not found in assembly '{resolvedPath}'.");
 
         if (!typeof(IExternalStep).IsAssignableFrom(type))
             throw new InvalidOperationException(

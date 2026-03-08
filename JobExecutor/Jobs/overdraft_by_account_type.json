@@ -31,7 +31,7 @@
     },
     {
       "type": "External",
-      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "assemblyPath": "{ETL_ROOT}/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
       "typeName": "ExternalModules.OverdraftByAccountTypeProcessor"
     },
     {

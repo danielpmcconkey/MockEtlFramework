@@ -11,7 +11,7 @@ public class JobRunner
     public Dictionary<string, object> Run(string jobConfPath,
         Dictionary<string, object>? initialState = null)
     {
-        var json = File.ReadAllText(jobConfPath);
+        var json = File.ReadAllText(PathHelper.Resolve(jobConfPath));
 
         var jobConf = JsonSerializer.Deserialize<JobConf>(json, new JsonSerializerOptions
         {
