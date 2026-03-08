@@ -104,17 +104,10 @@ public class AppConfigTests
     }
 
     [Fact]
-    public void TaskQueueSettings_Default_IdleCheckIntervalMs()
+    public void TaskQueueSettings_Default_IdleShutdownSeconds()
     {
         var tq = new TaskQueueSettings();
-        Assert.Equal(30_000, tq.IdleCheckIntervalMs);
-    }
-
-    [Fact]
-    public void TaskQueueSettings_Default_MaxIdleCycles()
-    {
-        var tq = new TaskQueueSettings();
-        Assert.Equal(960, tq.MaxIdleCycles);
+        Assert.Equal(28_800, tq.IdleShutdownSeconds);
     }
 
     [Fact]

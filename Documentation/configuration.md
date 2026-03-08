@@ -32,8 +32,7 @@ Cannot be set via `appsettings.json`.
 |---|---|---|
 | `ThreadCount` | `appsettings.json` | `5` |
 | `PollIntervalMs` | `appsettings.json` | `5000` |
-| `IdleCheckIntervalMs` | `appsettings.json` | `30000` |
-| `MaxIdleCycles` | `appsettings.json` | `960` (960 x 30s = 8 hours) |
+| `IdleShutdownSeconds` | `appsettings.json` | `28800` (8 hours) |
 
 ## Environment Variables
 
@@ -57,8 +56,7 @@ Located at `JobExecutor/appsettings.json`. Only overridden values need to appear
   "TaskQueue": {
     "ThreadCount": 5,
     "PollIntervalMs": 5000,
-    "IdleCheckIntervalMs": 30000,
-    "MaxIdleCycles": 960
+    "IdleShutdownSeconds": 28800
   }
 }
 ```

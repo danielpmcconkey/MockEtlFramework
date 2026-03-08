@@ -34,11 +34,10 @@ If a task fails, all remaining tasks in the batch are marked `Failed`. This pres
 
 ## Idle & Shutdown
 
-- Each thread tracks its own idle state
-- When ALL threads are idle simultaneously, a global idle counter increments
-- When any thread finds work, the counter resets to 0
-- After `MaxIdleCycles` consecutive all-idle checks, shutdown is signaled
-- Default: 960 cycles x 30s = 8 hours
+- Workers record the current time (thread-safe) each time they claim a batch
+- A dedicated watchdog thread checks once per minute whether the time since last activity exceeds `IdleShutdownSeconds`
+- Default: 28,800 seconds (8 hours)
+- When the threshold is reached, the watchdog signals shutdown and all workers exit
 
 No SIGINT handler. On kill, `try/finally` marks in-flight tasks as `Failed`.
 

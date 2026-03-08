@@ -47,6 +47,5 @@ public class TaskQueueSettings
 {
     public int ThreadCount { get; init; } = 5;
     public int PollIntervalMs { get; init; } = 5000;
-    public int IdleCheckIntervalMs { get; init; } = 30_000;
-    public int MaxIdleCycles { get; init; } = 960; // 960 × 30s = 8 hours
+    public int IdleShutdownSeconds { get; init; } = 28_800; // 8 hours
 }

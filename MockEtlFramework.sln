@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lib.Tests", "Lib.Tests\Lib.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExternalModules", "ExternalModules\ExternalModules.csproj", "{98138F08-121E-4019-8BAD-D6A16E75FB2B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{4D9C0001-5EFE-4072-A103-A3AC80559F2E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueueLoader", "Tools\QueueLoader\QueueLoader.csproj", "{B40CCAAC-0656-46D5-AC8A-E72CC0BDF2F1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,5 +35,12 @@ Global
 		{98138F08-121E-4019-8BAD-D6A16E75FB2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98138F08-121E-4019-8BAD-D6A16E75FB2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98138F08-121E-4019-8BAD-D6A16E75FB2B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B40CCAAC-0656-46D5-AC8A-E72CC0BDF2F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B40CCAAC-0656-46D5-AC8A-E72CC0BDF2F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B40CCAAC-0656-46D5-AC8A-E72CC0BDF2F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B40CCAAC-0656-46D5-AC8A-E72CC0BDF2F1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B40CCAAC-0656-46D5-AC8A-E72CC0BDF2F1} = {4D9C0001-5EFE-4072-A103-A3AC80559F2E}
 	EndGlobalSection
 EndGlobal

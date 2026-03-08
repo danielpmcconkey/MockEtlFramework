@@ -15,7 +15,9 @@ namespace Lib.Control;
 ///   - If a task fails, remaining tasks in the batch are marked Failed
 ///
 /// Exit behavior:
-///   - When ALL threads are idle and idle cycles are exhausted, service exits
+///   - A watchdog thread checks once per minute whether the time since any
+///     worker last found work exceeds IdleShutdownSeconds (default 8 hours).
+///     If so, it signals shutdown.
 ///   - No SIGINT handler — die immediately on kill, try/finally marks Failed on way out
 /// </summary>
 public class TaskQueueService
@@ -24,14 +26,13 @@ public class TaskQueueService
 
     private volatile bool _shutdownRequested;
     private readonly int _totalThreadCount;
-    private readonly bool[] _threadIdle;
-    private volatile int _allIdleCycleCount = 0;
+    private readonly object _activityLock = new();
+    private DateTime _lastActivityUtc = DateTime.UtcNow;
 
     public TaskQueueService(AppConfig appConfig)
     {
         _config = appConfig.TaskQueue;
         _totalThreadCount = _config.ThreadCount;
-        _threadIdle = new bool[_totalThreadCount];
     }
 
     /// <summary>
@@ -58,7 +59,7 @@ public class TaskQueueService
             for (int i = 0; i < _totalThreadCount; i++)
             {
                 int threadIndex = i;
-                threads[i] = new Thread(() => WorkerLoop($"W{threadIndex}", threadIndex))
+                threads[i] = new Thread(() => WorkerLoop($"W{threadIndex}"))
                 {
                     Name = $"QueueWorker-W{threadIndex}",
                     IsBackground = true
@@ -66,7 +67,15 @@ public class TaskQueueService
                 threads[i].Start();
             }
 
-            // Wait for all threads to finish
+            // Watchdog thread — checks idle timeout once per minute
+            var watchdog = new Thread(() => WatchdogLoop())
+            {
+                Name = "IdleWatchdog",
+                IsBackground = true
+            };
+            watchdog.Start();
+
+            // Wait for all worker threads to finish
             foreach (var t in threads)
                 t.Join();
 
@@ -85,47 +94,54 @@ public class TaskQueueService
         }
     }
 
-    private void WorkerLoop(string threadLabel, int threadIndex)
+    private void RecordActivity()
+    {
+        lock (_activityLock)
+        {
+            _lastActivityUtc = DateTime.UtcNow;
+        }
+    }
+
+    private void WatchdogLoop()
+    {
+        Console.WriteLine($"[Watchdog] Idle shutdown threshold: {_config.IdleShutdownSeconds}s");
+
+        while (!_shutdownRequested)
+        {
+            Thread.Sleep(60_000);
+
+            TimeSpan idle;
+            lock (_activityLock)
+            {
+                idle = DateTime.UtcNow - _lastActivityUtc;
+            }
+
+            if (idle.TotalSeconds >= _config.IdleShutdownSeconds)
+            {
+                Console.WriteLine($"[Watchdog] No work found for {idle:h\\:mm\\:ss}. Signaling shutdown.");
+                _shutdownRequested = true;
+                return;
+            }
+        }
+    }
+
+    private void WorkerLoop(string threadLabel)
     {
         Console.WriteLine($"[{threadLabel}] Worker started");
 
         while (!_shutdownRequested)
         {
-            List<TaskQueueItem>? batch = null;
             try
             {
-                batch = ClaimNextJobBatch();
+                var batch = ClaimNextJobBatch();
 
                 if (batch == null || batch.Count == 0)
                 {
-                    // Mark this thread as idle
-                    _threadIdle[threadIndex] = true;
-
-                    // Check if ALL threads are idle
-                    if (_threadIdle.All(idle => idle))
-                    {
-                        _allIdleCycleCount++;
-                        Console.WriteLine($"[{threadLabel}] All threads idle (cycle {_allIdleCycleCount}/{_config.MaxIdleCycles}). Sleeping {_config.IdleCheckIntervalMs}ms...");
-
-                        if (_allIdleCycleCount >= _config.MaxIdleCycles)
-                        {
-                            Console.WriteLine($"[{threadLabel}] Reached maximum idle cycles ({_config.MaxIdleCycles}). Signaling shutdown.");
-                            _shutdownRequested = true;
-                            return;
-                        }
-
-                        Thread.Sleep(_config.IdleCheckIntervalMs);
-                        continue;
-                    }
-
-                    Console.WriteLine($"[{threadLabel}] No work available. Sleeping {_config.PollIntervalMs}ms...");
                     Thread.Sleep(_config.PollIntervalMs);
                     continue;
                 }
 
-                // Got work — mark this thread as active and reset idle counter
-                _threadIdle[threadIndex] = false;
-                _allIdleCycleCount = 0;
+                RecordActivity();
 
                 Console.WriteLine($"[{threadLabel}] Claimed {batch.Count} task(s) for job '{batch[0].JobName}'");
 

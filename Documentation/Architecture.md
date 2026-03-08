@@ -81,7 +81,7 @@ The core framework library. Referenced by both the job executor and the test pro
 
 | Class | Purpose |
 |---|---|
-| `AppConfig` | Top-level configuration model populated from `appsettings.json` + environment variables at startup. Encapsulates all config sourcing — compiled defaults, `appsettings.json` overrides, and environment variable reads — so consumers never know or care where a value comes from. Contains `PathSettings` (EtlRoot, EtlReOutput), `DatabaseSettings` (Host, Username, DatabaseName, Timeout, CommandTimeout, Password), and `TaskQueueSettings` (ThreadCount, PollIntervalMs, IdleCheckIntervalMs, MaxIdleCycles). All environment variable values (`ETL_ROOT`, `ETL_RE_OUTPUT`, `ETL_DB_PASSWORD`) are read once at construction and cached — no repeated `Environment.GetEnvironmentVariable()` calls. All values are immutable after startup. `PathSettings.EtlRoot` and `PathSettings.EtlReOutput` read from `ETL_ROOT` and `ETL_RE_OUTPUT` env vars respectively. `DatabaseSettings.Password` reads from `ETL_DB_PASSWORD`; none of these can be set via `appsettings.json`. Defined in `Lib/AppConfig.cs`. |
+| `AppConfig` | Top-level configuration model populated from `appsettings.json` + environment variables at startup. Encapsulates all config sourcing — compiled defaults, `appsettings.json` overrides, and environment variable reads — so consumers never know or care where a value comes from. Contains `PathSettings` (EtlRoot, EtlReOutput), `DatabaseSettings` (Host, Username, DatabaseName, Timeout, CommandTimeout, Password), and `TaskQueueSettings` (ThreadCount, PollIntervalMs, IdleShutdownSeconds). All environment variable values (`ETL_ROOT`, `ETL_RE_OUTPUT`, `ETL_DB_PASSWORD`) are read once at construction and cached — no repeated `Environment.GetEnvironmentVariable()` calls. All values are immutable after startup. `PathSettings.EtlRoot` and `PathSettings.EtlReOutput` read from `ETL_ROOT` and `ETL_RE_OUTPUT` env vars respectively. `DatabaseSettings.Password` reads from `ETL_DB_PASSWORD`; none of these can be set via `appsettings.json`. Defined in `Lib/AppConfig.cs`. |
 | `ConnectionHelper` | Internal static helper that builds a Npgsql connection string from `AppConfig.Database` settings. Initialized at startup via `ConnectionHelper.Initialize(AppConfig)`. |
 | `DatePartitionHelper` | Shared utility for scanning date-partitioned output directories. `FindLatestPartition(dir)` returns the latest `yyyy-MM-dd`-named subdirectory. Used by both `CsvFileWriter` and `ParquetFileWriter` for append-mode prior-partition lookups (called on the table-level directory that contains date partitions). |
 | `PathHelper` | Public static helper that resolves output paths against the solution root directory. Initialized at startup via `PathHelper.Initialize(AppConfig)` — must be called before any path resolution. Supports `{TOKEN}` expansion in paths (e.g., `{ETL_ROOT}`, `{ETL_RE_OUTPUT}`); known tokens are populated from `AppConfig.Paths` at initialization, not from direct env var lookups. Solution root resolution: first checks `AppConfig.Paths.EtlRoot`, then walks up from `AppContext.BaseDirectory` to find the `.sln` file. Used by file writer modules. |
@@ -100,7 +100,7 @@ Orchestration layer that sits above `JobRunner`. Reads job registrations and dep
 | `ControlDb` | Internal static data-access layer for the control schema. Reads: `GetActiveJobs`, `GetAllDependencies`, `GetSucceededJobIds`, `GetEverSucceededJobIds`, `GetLastSucceededMaxEffectiveDate`, `GetNextAttemptNumber` (keyed by effective date range). Writes: `InsertRun` (records `run_date`, `min_effective_date`, `max_effective_date`), `MarkRunning`, `MarkSucceeded`, `MarkFailed`, `MarkSkipped`. |
 | `ExecutionPlan` | Internal static class that applies Kahn's topological sort to produce an ordered run list. Only unsatisfied dependency edges are counted: `SameDay` edges are always treated as unsatisfied (checked at execution time); a `Latest` edge is satisfied if the upstream job has ever succeeded. Throws `InvalidOperationException` on cycle detection. |
 | `JobExecutorService` | Public orchestrator. Requires an explicit effective date — no auto-advance or gap-fill. Loads jobs and dependencies, builds the execution plan, injects the effective date into shared state, and runs each pipeline through `JobRunner`. Records `Pending -> Running -> Succeeded / Failed` in `control.job_runs`. Failed jobs' `SameDay` dependents are recorded as `Skipped`. Accepts a required `effectiveDate` and optional `specificJobName`. |
-| `TaskQueueService` | Long-running queue-based executor. Polls `control.task_queue` for pending tasks and executes them across N threads (configurable via `TaskQueueSettings.ThreadCount`). Uses a claim-by-job model: each thread acquires a PostgreSQL advisory lock on a job name, claims all pending tasks for that job, and runs them sequentially in effective-date order. Different jobs run in parallel across threads. If a task fails, remaining tasks in the batch are marked Failed. Each thread has its own DB connection. Exits after `MaxIdleCycles` consecutive idle polls. No SIGINT handler — on kill, `try/finally` marks in-flight tasks as Failed. |
+| `TaskQueueService` | Long-running queue-based executor. Polls `control.task_queue` for pending tasks and executes them across N threads (configurable via `TaskQueueSettings.ThreadCount`). Uses a claim-by-job model: each thread acquires a PostgreSQL advisory lock on a job name, claims all pending tasks for that job, and runs them sequentially in effective-date order. Different jobs run in parallel across threads. If a task fails, remaining tasks in the batch are marked Failed. Each thread has its own DB connection. A watchdog thread exits the service after `IdleShutdownSeconds` (default 8 hours) of inactivity. No SIGINT handler — on kill, `try/finally` marks in-flight tasks as Failed. |
 | `TaskQueueItem` | Internal model for a claimed task from the queue — task ID, job name, effective date, execution mode. |
 
 **Dependency types:**
@@ -137,8 +137,7 @@ At startup, the executor loads `appsettings.json` from the output directory (cop
   "TaskQueue": {
     "ThreadCount": 5,
     "PollIntervalMs": 5000,
-    "IdleCheckIntervalMs": 30000,
-    "MaxIdleCycles": 960
+    "IdleShutdownSeconds": 28800
   }
 }
 ```
@@ -165,9 +164,9 @@ The queue executor is a long-running process that polls `control.task_queue` for
 - If a task fails, all remaining tasks in the batch are marked Failed (preserves append-mode / CDC ordering safety)
 - Each thread has its own DB connection (Npgsql is not thread-safe)
 - Task claim uses `FOR UPDATE SKIP LOCKED` (Postgres row-level locking) within the advisory-locked transaction
-- Poll interval, idle check interval, and max idle cycles are all configurable via `appsettings.json`
+- Poll interval and idle shutdown threshold are configurable via `appsettings.json`
 
-**Lifecycle:** Start the executor, populate the queue via SQL, executor picks up work automatically. Exits after `MaxIdleCycles` consecutive idle checks (default: 960 cycles x 30s = 8 hours).
+**Lifecycle:** Start the executor, populate the queue via SQL, executor picks up work automatically. A watchdog thread exits the service after `IdleShutdownSeconds` of inactivity (default 8 hours).
 
 **Queue population example:**
 ```sql
