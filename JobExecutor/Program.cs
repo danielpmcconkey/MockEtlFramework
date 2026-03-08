@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.Json;
+using Lib;
 using Lib.Control;
 
 namespace JobExecutor;
@@ -14,12 +16,26 @@ namespace JobExecutor;
 /// </summary>
 class Program
 {
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
     static void Main(string[] args)
     {
+        var appConfig = LoadConfig();
+
+        if (string.IsNullOrEmpty(appConfig.Database.Password))
+        {
+            Console.Error.WriteLine("Error: No database password configured.");
+            Console.Error.WriteLine("Set the ETL_DB_PASSWORD environment variable.");
+            Environment.Exit(1);
+        }
+
+        ConnectionHelper.Initialize(appConfig);
+        PathHelper.Initialize(appConfig);
+
         // --service mode: long-running queue executor
         if (args.Length >= 1 && args[0] == "--service")
         {
-            var queueService = new TaskQueueService();
+            var queueService = new TaskQueueService(appConfig);
             var sw = Stopwatch.StartNew();
             queueService.Run();
             sw.Stop();
@@ -51,5 +67,24 @@ class Program
         service.Run(effectiveDate, jobName);
         sw2.Stop();
         Console.WriteLine($"Job execution completed in {sw2.ElapsedMilliseconds}ms.");
+    }
+
+    private static AppConfig LoadConfig()
+    {
+        var exeDir = AppContext.BaseDirectory;
+        var path = Path.Combine(exeDir, "appsettings.json");
+
+        if (!File.Exists(path))
+        {
+            Console.WriteLine("[Config] No appsettings.json found — using defaults.");
+            return new AppConfig();
+        }
+
+        var json = File.ReadAllText(path);
+        var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOpts)
+                     ?? new AppConfig();
+
+        Console.WriteLine($"[Config] Loaded from {path}");
+        return config;
     }
 }

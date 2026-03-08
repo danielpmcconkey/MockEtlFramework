@@ -7,30 +7,28 @@ namespace Lib.Control;
 /// and executes them across multiple threads.
 ///
 /// Threading model:
-///   - 4 threads poll for execution_mode = 'parallel'
+///   - N threads poll for execution_mode = 'parallel' (configurable via AppConfig.TaskQueue)
 ///   - 1 thread polls for execution_mode = 'serial'
-///   - Each thread has its own DB connection (EF Core / Npgsql not thread-safe)
+///   - Each thread has its own DB connection (Npgsql not thread-safe)
 ///   - Task claim uses FOR UPDATE SKIP LOCKED to prevent races
 ///
 /// Exit behavior:
-///   - When ALL threads find empty queue, service exits
+///   - When ALL threads find empty queue and idle cycles are exhausted, service exits
 ///   - No SIGINT handler — die immediately on kill, try/finally marks Failed on way out
 /// </summary>
 public class TaskQueueService
 {
-    private const int ParallelThreadCount = 4;
-    private const int PollIntervalMs = 5000;
-    private const int IdleCheckIntervalMs = 30000; // 30 seconds when all threads idle
-    private const int MaxIdleCycles = 30; // 30 cycles = 15 minutes
+    private readonly TaskQueueSettings _config;
 
     private volatile bool _shutdownRequested;
-    private readonly int _totalThreadCount = ParallelThreadCount + 1; // +1 for serial
-    private readonly bool[] _threadIdle; // per-thread idle flag
-    private volatile int _allIdleCycleCount = 0; // Counter for consecutive idle cycles
+    private readonly int _totalThreadCount;
+    private readonly bool[] _threadIdle;
+    private volatile int _allIdleCycleCount = 0;
 
-
-    public TaskQueueService()
+    public TaskQueueService(AppConfig appConfig)
     {
+        _config = appConfig.TaskQueue;
+        _totalThreadCount = _config.ParallelThreadCount + 1; // +1 for serial
         _threadIdle = new bool[_totalThreadCount];
     }
 
@@ -43,7 +41,7 @@ public class TaskQueueService
     public void Run()
     {
         Console.WriteLine("[TaskQueueService] Starting queue executor...");
-        Console.WriteLine($"[TaskQueueService] {ParallelThreadCount} parallel thread(s) + 1 serial thread");
+        Console.WriteLine($"[TaskQueueService] {_config.ParallelThreadCount} parallel thread(s) + 1 serial thread");
 
         // Load job registry once
         _jobsByName = ControlDb.GetActiveJobs()
@@ -56,7 +54,7 @@ public class TaskQueueService
         try
         {
             // Start parallel threads
-            for (int i = 0; i < ParallelThreadCount; i++)
+            for (int i = 0; i < _config.ParallelThreadCount; i++)
             {
                 int threadIndex = i;
                 threads[i] = new Thread(() => WorkerLoop("parallel", $"P{threadIndex}", threadIndex))
@@ -68,12 +66,12 @@ public class TaskQueueService
             }
 
             // Start serial thread
-            threads[ParallelThreadCount] = new Thread(() => WorkerLoop("serial", "S0", ParallelThreadCount))
+            threads[_config.ParallelThreadCount] = new Thread(() => WorkerLoop("serial", "S0", _config.ParallelThreadCount))
             {
                 Name = "QueueWorker-S0",
                 IsBackground = true
             };
-            threads[ParallelThreadCount].Start();
+            threads[_config.ParallelThreadCount].Start();
 
             // Wait for all threads to finish
             foreach (var t in threads)
@@ -114,21 +112,21 @@ public class TaskQueueService
                     if (_threadIdle.All(idle => idle))
                     {
                         _allIdleCycleCount++;
-                        Console.WriteLine($"[{threadLabel}] All threads idle (cycle {_allIdleCycleCount}/{MaxIdleCycles}). Sleeping {IdleCheckIntervalMs}ms...");
-                        
-                        if (_allIdleCycleCount >= MaxIdleCycles)
+                        Console.WriteLine($"[{threadLabel}] All threads idle (cycle {_allIdleCycleCount}/{_config.MaxIdleCycles}). Sleeping {_config.IdleCheckIntervalMs}ms...");
+
+                        if (_allIdleCycleCount >= _config.MaxIdleCycles)
                         {
-                            Console.WriteLine($"[{threadLabel}] Reached maximum idle cycles ({MaxIdleCycles}). Signaling shutdown after 5 minutes of no work.");
+                            Console.WriteLine($"[{threadLabel}] Reached maximum idle cycles ({_config.MaxIdleCycles}). Signaling shutdown.");
                             _shutdownRequested = true;
                             return;
                         }
-                        
-                        Thread.Sleep(IdleCheckIntervalMs); // Sleep for 30 seconds
+
+                        Thread.Sleep(_config.IdleCheckIntervalMs);
                         continue;
                     }
 
-                    Console.WriteLine($"[{threadLabel}] Queue empty. Sleeping {PollIntervalMs}ms...");
-                    Thread.Sleep(PollIntervalMs);
+                    Console.WriteLine($"[{threadLabel}] Queue empty. Sleeping {_config.PollIntervalMs}ms...");
+                    Thread.Sleep(_config.PollIntervalMs);
                     continue;
                 }
 

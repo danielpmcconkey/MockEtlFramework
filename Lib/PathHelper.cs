@@ -4,24 +4,37 @@ namespace Lib;
 
 /// <summary>
 /// Resolves paths against the solution root directory, with support for
-/// environment variable tokens like {ETL_ROOT}.
+/// {TOKEN} expansion. All known tokens are sourced from AppConfig; no
+/// direct Environment reads.
 ///
 /// Resolution order for the solution root:
-///   1. ETL_ROOT environment variable (if set)
+///   1. AppConfig.Paths.EtlRoot (if set)
 ///   2. Walk up from AppContext.BaseDirectory until a .sln file is found
 /// </summary>
-internal static class PathHelper
+public static class PathHelper
 {
     private static string? _solutionRoot;
+    private static Dictionary<string, string> _tokenMap = new();
+
+    public static void Initialize(AppConfig config)
+    {
+        _solutionRoot = null; // reset on re-init
+        _tokenMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrEmpty(config.Paths.EtlRoot))
+            _tokenMap["ETL_ROOT"] = config.Paths.EtlRoot;
+
+        if (!string.IsNullOrEmpty(config.Paths.EtlReOutput))
+            _tokenMap["ETL_RE_OUTPUT"] = config.Paths.EtlReOutput;
+    }
 
     internal static string GetSolutionRoot()
     {
         if (_solutionRoot != null) return _solutionRoot;
 
-        var envRoot = Environment.GetEnvironmentVariable("ETL_ROOT");
-        if (!string.IsNullOrEmpty(envRoot))
+        if (_tokenMap.TryGetValue("ETL_ROOT", out var etlRoot) && !string.IsNullOrEmpty(etlRoot))
         {
-            _solutionRoot = envRoot;
+            _solutionRoot = etlRoot;
             return _solutionRoot;
         }
 
@@ -42,22 +55,24 @@ internal static class PathHelper
     }
 
     /// <summary>
-    /// Resolves a path that may contain {ENV_VAR} tokens and/or be relative
+    /// Resolves a path that may contain {TOKEN} patterns and/or be relative
     /// to the solution root. Tokens are expanded first, then relative paths
     /// are resolved against GetSolutionRoot().
     /// </summary>
     internal static string Resolve(string path)
     {
-        path = ExpandEnvironmentTokens(path);
+        path = ExpandTokens(path);
         return Path.IsPathRooted(path) ? path : Path.Combine(GetSolutionRoot(), path);
     }
 
-    private static string ExpandEnvironmentTokens(string path) =>
+    private static string ExpandTokens(string path) =>
         Regex.Replace(path, @"\{(\w+)\}", match =>
         {
-            var varName = match.Groups[1].Value;
-            return Environment.GetEnvironmentVariable(varName)
-                ?? throw new InvalidOperationException(
-                    $"Environment variable '{varName}' is not set (referenced in path '{path}').");
+            var tokenName = match.Groups[1].Value;
+            return _tokenMap.TryGetValue(tokenName, out var value)
+                ? value
+                : throw new InvalidOperationException(
+                    $"Unknown path token '{{{tokenName}}}' (referenced in path '{path}'). " +
+                    $"Known tokens: {string.Join(", ", _tokenMap.Keys)}");
         });
 }
