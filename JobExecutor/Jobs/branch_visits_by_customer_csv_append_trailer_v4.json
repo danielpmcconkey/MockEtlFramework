@@ -1,0 +1,49 @@
+{
+  "jobName": "BranchVisitsByCustomerCsvAppendTrailerV4",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "visits",
+      "schema": "datalake",
+      "table": "branch_visits",
+      "columns": [
+        "visit_id",
+        "customer_id",
+        "branch_id",
+        "visit_timestamp",
+        "visit_purpose"
+      ],
+      "additionalFilter": "customer_id < 1500"
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": [
+        "id",
+        "sort_name"
+      ],
+      "mostRecent": true,
+      "additionalFilter": "id < 1500"
+    },
+    {
+      "type": "Transformation",
+      "resultName": "branch_visits_by_customer",
+      "sql": "SELECT v.visit_id, v.customer_id, c.sort_name, v.branch_id, v.visit_timestamp, v.visit_purpose FROM visits v LEFT JOIN customers c ON v.customer_id = c.id ORDER BY v.customer_id, v.visit_timestamp"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "branch_visits_by_customer",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF",
+      "outputDirectory": "Output/double_secret_curated",
+      "jobDirName": "branch_visits_by_customer",
+      "fileName": "branch_visits_by_customer.csv",
+      "outputTableDirName": "branch_visits_by_customer",
+      "trailerFormat": "TRAILER|{row_count}|{date}"
+    }
+  ]
+}

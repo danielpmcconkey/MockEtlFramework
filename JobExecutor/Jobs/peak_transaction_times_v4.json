@@ -1,0 +1,26 @@
+{
+  "jobName": "PeakTransactionTimesV4",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": [
+        "txn_timestamp",
+        "amount"
+      ]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "hourly_aggregation",
+      "sql": "SELECT CAST(strftime('%H', txn_timestamp) AS INTEGER) AS hour_of_day, COUNT(*) AS txn_count, ROUND(SUM(amount), 2) AS total_amount FROM transactions GROUP BY strftime('%H', txn_timestamp) ORDER BY hour_of_day"
+    },
+    {
+      "type": "External",
+      "assemblyPath": "/workspace/MockEtlFramework/ExternalModules/bin/Debug/net8.0/ExternalModules.dll",
+      "typeName": "ExternalModules.PeakTransactionTimesWriterV4"
+    }
+  ]
+}

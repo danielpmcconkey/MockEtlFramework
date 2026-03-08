@@ -1,0 +1,92 @@
+{
+  "jobName": "DansTransactionSpecialV4",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": [
+        "transaction_id",
+        "account_id",
+        "txn_timestamp",
+        "txn_type",
+        "amount",
+        "description",
+        "ifw_effective_date"
+      ]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "account_status",
+        "current_balance"
+      ],
+      "mostRecent": true
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "customers",
+      "schema": "datalake",
+      "table": "customers",
+      "columns": [
+        "id",
+        "sort_name"
+      ],
+      "mostRecent": true
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "addresses",
+      "schema": "datalake",
+      "table": "addresses",
+      "columns": [
+        "customer_id",
+        "city",
+        "state_province",
+        "postal_code",
+        "start_date"
+      ],
+      "mostRecent": true
+    },
+    {
+      "type": "Transformation",
+      "resultName": "transaction_details",
+      "sql": "WITH deduped_addresses AS (SELECT customer_id, city, state_province, postal_code, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date DESC) AS rn FROM addresses) SELECT t.transaction_id, t.account_id, a.customer_id, c.sort_name, t.txn_timestamp, t.txn_type, t.amount, t.description, a.account_type, a.account_status, a.current_balance, da.city, da.state_province, da.postal_code, t.ifw_effective_date FROM transactions t LEFT JOIN accounts a ON t.account_id = a.account_id LEFT JOIN customers c ON a.customer_id = c.id LEFT JOIN deduped_addresses da ON a.customer_id = da.customer_id AND da.rn = 1 ORDER BY t.transaction_id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "transaction_details",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF",
+      "outputDirectory": "Output/double_secret_curated",
+      "jobDirName": "dans_transaction_special",
+      "fileName": "dans_transaction_details.csv",
+      "outputTableDirName": "dans_transaction_details"
+    },
+    {
+      "type": "Transformation",
+      "resultName": "transactions_by_state_province",
+      "sql": "SELECT ifw_effective_date, state_province, COUNT(*) AS transaction_count, SUM(amount) AS total_amount FROM transaction_details GROUP BY ifw_effective_date, state_province ORDER BY ifw_effective_date, state_province"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "transactions_by_state_province",
+      "includeHeader": true,
+      "writeMode": "Append",
+      "lineEnding": "LF",
+      "outputDirectory": "Output/double_secret_curated",
+      "jobDirName": "dans_transaction_special",
+      "fileName": "dans_transactions_by_state_province.csv",
+      "outputTableDirName": "dans_transactions_by_state_province"
+    }
+  ]
+}

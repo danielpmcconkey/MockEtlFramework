@@ -1,0 +1,43 @@
+{
+  "jobName": "DailyBalanceMovementV4",
+  "firstEffectiveDate": "2024-10-01",
+  "modules": [
+    {
+      "type": "DataSourcing",
+      "resultName": "transactions",
+      "schema": "datalake",
+      "table": "transactions",
+      "columns": [
+        "account_id",
+        "txn_type",
+        "amount"
+      ]
+    },
+    {
+      "type": "DataSourcing",
+      "resultName": "accounts",
+      "schema": "datalake",
+      "table": "accounts",
+      "columns": [
+        "account_id",
+        "customer_id"
+      ]
+    },
+    {
+      "type": "Transformation",
+      "resultName": "daily_balance_movement",
+      "sql": "SELECT t.account_id, COALESCE(a.customer_id, 0) AS customer_id, SUM(CASE WHEN t.txn_type = 'Debit' THEN CAST(t.amount AS REAL) ELSE 0 END) AS debit_total, SUM(CASE WHEN t.txn_type = 'Credit' THEN CAST(t.amount AS REAL) ELSE 0 END) AS credit_total, SUM(CASE WHEN t.txn_type = 'Credit' THEN CAST(t.amount AS REAL) ELSE 0 END) - SUM(CASE WHEN t.txn_type = 'Debit' THEN CAST(t.amount AS REAL) ELSE 0 END) AS net_movement, strftime('%m/%d/%Y', MIN(t.ifw_effective_date)) AS ifw_effective_date FROM transactions t INNER JOIN accounts a ON t.account_id = a.account_id GROUP BY t.account_id, a.customer_id"
+    },
+    {
+      "type": "CsvFileWriter",
+      "source": "daily_balance_movement",
+      "includeHeader": true,
+      "writeMode": "Overwrite",
+      "lineEnding": "LF",
+      "outputDirectory": "Output/double_secret_curated",
+      "jobDirName": "daily_balance_movement",
+      "fileName": "daily_balance_movement.csv",
+      "outputTableDirName": "daily_balance_movement"
+    }
+  ]
+}
