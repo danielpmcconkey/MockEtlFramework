@@ -193,7 +193,16 @@ public class TaskQueueService
     private void ExecuteTask(TaskQueueItem task, string threadLabel)
     {
         if (!_jobsByName.TryGetValue(task.JobName, out var job))
-            throw new InvalidOperationException($"No active job found with name '{task.JobName}'");
+        {
+            // Job registered after startup — reload registry and retry once
+            Console.WriteLine($"[{threadLabel}] Job '{task.JobName}' not in cache. Reloading job registry...");
+            _jobsByName = ControlDb.GetActiveJobs()
+                .ToDictionary(j => j.JobName, j => j, StringComparer.OrdinalIgnoreCase);
+            Console.WriteLine($"[{threadLabel}] Reloaded {_jobsByName.Count} active job(s).");
+
+            if (!_jobsByName.TryGetValue(task.JobName, out job))
+                throw new InvalidOperationException($"No active job found with name '{task.JobName}'");
+        }
 
         var initialState = new Dictionary<string, object>
         {

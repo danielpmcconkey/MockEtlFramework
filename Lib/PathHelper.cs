@@ -26,6 +26,9 @@ public static class PathHelper
 
         if (!string.IsNullOrEmpty(config.Paths.EtlReOutput))
             _tokenMap["ETL_RE_OUTPUT"] = config.Paths.EtlReOutput;
+
+        if (!string.IsNullOrEmpty(config.Paths.EtlReRoot))
+            _tokenMap["ETL_RE_ROOT"] = config.Paths.EtlReRoot;
     }
 
     internal static string GetSolutionRoot()

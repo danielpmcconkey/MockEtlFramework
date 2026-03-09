@@ -26,9 +26,11 @@ public class PathSettings
 {
     private readonly string _etlRoot = Environment.GetEnvironmentVariable("ETL_ROOT") ?? "";
     private readonly string _etlReOutput = Environment.GetEnvironmentVariable("ETL_RE_OUTPUT") ?? "";
+    private readonly string _etlReRoot = Environment.GetEnvironmentVariable("ETL_RE_ROOT") ?? "";
 
     public string EtlRoot => _etlRoot;
     public string EtlReOutput => _etlReOutput;
+    public string EtlReRoot => _etlReRoot;
 }
 
 public class DatabaseSettings
