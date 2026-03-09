@@ -32,6 +32,25 @@ class Program
         ConnectionHelper.Initialize(appConfig);
         PathHelper.Initialize(appConfig);
 
+        // --show-config: dump resolved config and exit
+        if (args.Length >= 1 && args[0] == "--show-config")
+        {
+            Console.WriteLine("[Config] Resolved values:");
+            Console.WriteLine($"  Paths.EtlRoot       = \"{appConfig.Paths.EtlRoot}\"");
+            Console.WriteLine($"  Paths.EtlReOutput   = \"{appConfig.Paths.EtlReOutput}\"");
+            Console.WriteLine($"  Paths.EtlReRoot     = \"{appConfig.Paths.EtlReRoot}\"");
+            Console.WriteLine($"  Database.Host       = \"{appConfig.Database.Host}\"");
+            Console.WriteLine($"  Database.Username   = \"{appConfig.Database.Username}\"");
+            Console.WriteLine($"  Database.DatabaseName = \"{appConfig.Database.DatabaseName}\"");
+            Console.WriteLine($"  Database.Password   = {(string.IsNullOrEmpty(appConfig.Database.Password) ? "(empty)" : "(set)")}");
+            Console.WriteLine($"  Database.Timeout    = {appConfig.Database.Timeout}");
+            Console.WriteLine($"  Database.CmdTimeout = {appConfig.Database.CommandTimeout}");
+            Console.WriteLine($"  TaskQueue.Threads   = {appConfig.TaskQueue.ThreadCount}");
+            Console.WriteLine($"  TaskQueue.PollMs    = {appConfig.TaskQueue.PollIntervalMs}");
+            Console.WriteLine($"  TaskQueue.IdleShut  = {appConfig.TaskQueue.IdleShutdownSeconds}s");
+            return;
+        }
+
         // --service mode: long-running queue executor
         if (args.Length >= 1 && args[0] == "--service")
         {
